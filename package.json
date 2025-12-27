@@ -1,0 +1,19 @@
+{
+  "name": "playwright-test-manager",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter dashboard dev",
+    "build": "pnpm --filter dashboard build",
+    "start": "pnpm --filter dashboard start",
+    "lint": "pnpm --filter dashboard lint",
+    "db:generate": "pnpm --filter dashboard db:generate",
+    "db:migrate": "pnpm --filter dashboard db:migrate",
+    "db:push": "pnpm --filter dashboard db:push",
+    "db:seed": "pnpm --filter dashboard db:seed",
+    "db:studio": "pnpm --filter dashboard db:studio"
+  },
+  "packageManager": "pnpm@10.26.1",
+  "engines": {
+    "node": ">=20"
+  }
+}
