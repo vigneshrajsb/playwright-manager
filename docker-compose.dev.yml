@@ -21,13 +21,11 @@ services:
 
   # Dashboard App (Development with hot reload)
   dashboard:
-    build:
-      context: ./apps/dashboard
-      dockerfile: Dockerfile.dev
+    image: pw-apps-dashboard
     container_name: ptm-dashboard-dev
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3031:3031"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/playwright_test_manager
       NEXT_PUBLIC_APP_URL: http://localhost:3000

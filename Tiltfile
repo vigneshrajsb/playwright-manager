@@ -7,9 +7,28 @@
 # Load docker-compose for development
 docker_compose('./docker-compose.dev.yml')
 
+# Build dashboard image with live update
+docker_build(
+    'pw-apps-dashboard',
+    './apps/dashboard',
+    dockerfile='./apps/dashboard/Dockerfile.dev',
+    live_update=[
+        # Sync source files (Next.js hot reload handles the rest)
+        sync('./apps/dashboard/app', '/app/app'),
+        sync('./apps/dashboard/lib', '/app/lib'),
+        sync('./apps/dashboard/components', '/app/components'),
+        # Reinstall deps if package.json changes
+        run('pnpm install', trigger=['./apps/dashboard/package.json']),
+    ],
+)
+
 # Configure resources
 dc_resource('db', labels=['database'])
-dc_resource('dashboard', labels=['app'], resource_deps=['db'])
+dc_resource(
+    'dashboard',
+    labels=['app'],
+    resource_deps=['db'],
+)
 
 # Database migrations
 local_resource(
@@ -58,5 +77,5 @@ local_resource(
 #   cd apps/dashboard && pnpm db:studio
 #
 # Access dashboard:
-#   http://localhost:3000
+#   http://localhost:3031
 #

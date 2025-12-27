@@ -1,0 +1,29 @@
+{
+  "name": "@playwright-manager/fixture",
+  "version": "0.1.0",
+  "description": "Playwright fixture for Test Manager Dashboard integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@playwright/test": ">=1.40.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "playwright",
+    "fixture",
+    "test-manager"
+  ],
+  "license": "MIT"
+}

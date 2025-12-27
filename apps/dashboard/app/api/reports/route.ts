@@ -3,6 +3,96 @@ import { db } from "@/lib/db";
 import { tests, testRuns, testResults, testHealth } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
+/**
+ * @swagger
+ * /api/reports:
+ *   post:
+ *     tags:
+ *       - Reports
+ *     summary: Ingest test report
+ *     description: Receives test results from the Playwright reporter and stores them in the database. Updates test health metrics automatically.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - runId
+ *               - startTime
+ *               - results
+ *             properties:
+ *               runId:
+ *                 type: string
+ *                 description: Unique identifier for the test run
+ *               metadata:
+ *                 type: object
+ *                 properties:
+ *                   branch:
+ *                     type: string
+ *                   commitSha:
+ *                     type: string
+ *                   commitMessage:
+ *                     type: string
+ *                   ciJobUrl:
+ *                     type: string
+ *                   playwrightVersion:
+ *                     type: string
+ *                   workers:
+ *                     type: integer
+ *                   shard:
+ *                     type: object
+ *                     properties:
+ *                       current:
+ *                         type: integer
+ *                       total:
+ *                         type: integer
+ *               startTime:
+ *                 type: string
+ *                 format: date-time
+ *               endTime:
+ *                 type: string
+ *                 format: date-time
+ *               status:
+ *                 type: string
+ *                 enum: [running, passed, failed, interrupted]
+ *               results:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     testId:
+ *                       type: string
+ *                     filePath:
+ *                       type: string
+ *                     title:
+ *                       type: string
+ *                     projectName:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                       enum: [passed, failed, timedOut, skipped, interrupted]
+ *                     outcome:
+ *                       type: string
+ *                       enum: [expected, unexpected, skipped, flaky]
+ *                     duration:
+ *                       type: integer
+ *     responses:
+ *       200:
+ *         description: Report processed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 runId:
+ *                   type: string
+ *       500:
+ *         description: Server error
+ */
+
 // Schema for incoming test result
 interface TestResultPayload {
   testId: string;

@@ -3,6 +3,96 @@ import { db } from "@/lib/db";
 import { tests, testHealth } from "@/lib/db/schema";
 import { eq, ilike, and, or, desc, asc, sql } from "drizzle-orm";
 
+/**
+ * @swagger
+ * /api/tests:
+ *   get:
+ *     tags:
+ *       - Tests
+ *     summary: List all tests
+ *     description: Returns a paginated list of tests with their health metrics
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Number of tests per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by test title or file path
+ *       - in: query
+ *         name: project
+ *         schema:
+ *           type: string
+ *         description: Filter by project name
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [enabled, disabled]
+ *         description: Filter by enabled/disabled status
+ *       - in: query
+ *         name: health
+ *         schema:
+ *           type: string
+ *           enum: [healthy, flaky, failing]
+ *         description: Filter by health status
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [lastSeenAt, healthScore, passRate, lastRunAt]
+ *           default: lastSeenAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: List of tests retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 tests:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 filters:
+ *                   type: object
+ *                   properties:
+ *                     projects:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *       500:
+ *         description: Server error
+ */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 

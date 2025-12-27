@@ -3,6 +3,55 @@ import { db } from "@/lib/db";
 import { tests, testHealth, testResults, testRuns } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 
+/**
+ * @swagger
+ * /api/tests/{id}:
+ *   get:
+ *     tags:
+ *       - Tests
+ *     summary: Get test details
+ *     description: Returns detailed information about a specific test including health metrics and recent results
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Test ID (UUID)
+ *     responses:
+ *       200:
+ *         description: Test details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 test:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     playwrightTestId:
+ *                       type: string
+ *                     filePath:
+ *                       type: string
+ *                     testTitle:
+ *                       type: string
+ *                     projectName:
+ *                       type: string
+ *                     isEnabled:
+ *                       type: boolean
+ *                     health:
+ *                       type: object
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       404:
+ *         description: Test not found
+ *       500:
+ *         description: Server error
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

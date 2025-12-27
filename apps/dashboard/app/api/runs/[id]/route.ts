@@ -3,6 +3,70 @@ import { db } from "@/lib/db";
 import { testRuns, testResults, tests } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 
+/**
+ * @swagger
+ * /api/runs/{id}:
+ *   get:
+ *     tags:
+ *       - Runs
+ *     summary: Get run details
+ *     description: Returns detailed information about a specific test run including all results
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Run ID (UUID)
+ *     responses:
+ *       200:
+ *         description: Run details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 run:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     runId:
+ *                       type: string
+ *                     branch:
+ *                       type: string
+ *                     commitSha:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                     totalTests:
+ *                       type: integer
+ *                     passedCount:
+ *                       type: integer
+ *                     failedCount:
+ *                       type: integer
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     passed:
+ *                       type: integer
+ *                     failed:
+ *                       type: integer
+ *                     skipped:
+ *                       type: integer
+ *                     flaky:
+ *                       type: integer
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       404:
+ *         description: Run not found
+ *       500:
+ *         description: Server error
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -3,6 +3,54 @@ import { db } from "@/lib/db";
 import { tests } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+/**
+ * @swagger
+ * /api/tests/{id}/toggle:
+ *   patch:
+ *     tags:
+ *       - Tests
+ *     summary: Toggle test enabled status
+ *     description: Enables or disables a test. Disabled tests will be auto-skipped by the fixture during test runs.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Test ID (UUID)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - enabled
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *                 description: Whether the test should be enabled
+ *               reason:
+ *                 type: string
+ *                 description: Reason for disabling the test (optional)
+ *     responses:
+ *       200:
+ *         description: Test toggled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 test:
+ *                   type: object
+ *       404:
+ *         description: Test not found
+ *       500:
+ *         description: Server error
+ */
+
 interface ToggleBody {
   enabled: boolean;
   reason?: string;
