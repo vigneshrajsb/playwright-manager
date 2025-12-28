@@ -12,11 +12,19 @@ docker_build(
     'pw-apps-dashboard',
     './apps/dashboard',
     dockerfile='./apps/dashboard/Dockerfile.dev',
+    ignore=[
+        '.next',
+        'node_modules',
+        '.git',
+        '*.log',
+        '.turbo',
+    ],
     live_update=[
         # Sync source files (Next.js hot reload handles the rest)
         sync('./apps/dashboard/app', '/app/app'),
         sync('./apps/dashboard/lib', '/app/lib'),
         sync('./apps/dashboard/components', '/app/components'),
+        sync('./apps/dashboard/hooks', '/app/hooks'),
         # Reinstall deps if package.json changes
         run('pnpm install', trigger=['./apps/dashboard/package.json']),
     ],
