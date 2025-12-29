@@ -45,7 +45,7 @@ export function useDataTableUrlState({
       if (!("page" in updates)) {
         params.delete("page");
       }
-      router.push(`${basePath}?${params.toString()}`);
+      router.push(`${basePath}?${params.toString()}`, { scroll: false });
     },
     [router, searchParams, basePath]
   );
