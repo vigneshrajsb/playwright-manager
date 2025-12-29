@@ -18,9 +18,10 @@ import {
   Spotlight,
   LayoutDashboard,
   FlaskConical,
-  Play,
   PanelLeft,
   PanelLeftClose,
+  Workflow,
+  ListChecks,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -37,9 +38,14 @@ const navItems = [
     icon: FlaskConical,
   },
   {
-    title: "Runs",
-    path: "/dashboard/runs",
-    icon: Play,
+    title: "Pipelines",
+    path: "/dashboard/pipelines",
+    icon: Workflow,
+  },
+  {
+    title: "Results",
+    path: "/dashboard/results",
+    icon: ListChecks,
   },
 ];
 

@@ -21,6 +21,7 @@ export const tests = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     playwrightTestId: varchar("playwright_test_id", { length: 255 }).notNull(),
+    repository: varchar("repository", { length: 255 }).notNull(), // e.g., "org/repo"
     filePath: varchar("file_path", { length: 1024 }).notNull(),
     testTitle: varchar("test_title", { length: 1024 }).notNull(),
     projectName: varchar("project_name", { length: 255 }).notNull(),
@@ -45,6 +46,7 @@ export const tests = pgTable(
   },
   (table) => [
     uniqueIndex("unique_test").on(
+      table.repository,
       table.filePath,
       table.testTitle,
       table.projectName
@@ -52,6 +54,7 @@ export const tests = pgTable(
     index("idx_tests_playwright_id").on(table.playwrightTestId),
     index("idx_tests_enabled").on(table.isEnabled),
     index("idx_tests_project").on(table.projectName),
+    index("idx_tests_repository").on(table.repository),
   ]
 );
 

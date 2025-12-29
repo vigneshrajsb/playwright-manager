@@ -50,6 +50,7 @@ import { inArray, and, eq } from "drizzle-orm";
  */
 
 interface CheckBody {
+  repository: string;
   testIds?: string[];
   projectName?: string;
 }
@@ -57,10 +58,21 @@ interface CheckBody {
 export async function POST(request: NextRequest) {
   try {
     const body: CheckBody = await request.json();
-    const { testIds, projectName } = body;
+    const { repository, testIds, projectName } = body;
 
-    // Build query conditions - always filter by disabled only
-    const conditions = [eq(tests.isEnabled, false)];
+    // Repository is required
+    if (!repository) {
+      return NextResponse.json(
+        { error: "repository is required" },
+        { status: 400 }
+      );
+    }
+
+    // Build query conditions - filter by repository and disabled only
+    const conditions = [
+      eq(tests.repository, repository),
+      eq(tests.isEnabled, false),
+    ];
 
     // Optionally filter by specific testIds (if provided)
     if (testIds && testIds.length > 0) {

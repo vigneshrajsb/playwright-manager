@@ -7,7 +7,8 @@
 # Load docker-compose for development
 docker_compose('./docker-compose.dev.yml')
 
-# Build dashboard image with live update
+# Build dashboard image
+# Note: Hot reload is provided by docker-compose volume mount, not Tilt live_update
 docker_build(
     'pw-apps-dashboard',
     './apps/dashboard',
@@ -18,15 +19,6 @@ docker_build(
         '.git',
         '*.log',
         '.turbo',
-    ],
-    live_update=[
-        # Sync source files (Next.js hot reload handles the rest)
-        sync('./apps/dashboard/app', '/app/app'),
-        sync('./apps/dashboard/lib', '/app/lib'),
-        sync('./apps/dashboard/components', '/app/components'),
-        sync('./apps/dashboard/hooks', '/app/hooks'),
-        # Reinstall deps if package.json changes
-        run('pnpm install', trigger=['./apps/dashboard/package.json']),
     ],
 )
 

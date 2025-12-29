@@ -14,18 +14,44 @@ import type {
   CIEnvironment,
 } from "./types";
 
+// Options type with most fields required but branch/commitSha/ciJobUrl optional
+type ResolvedOptions = Required<Omit<TestManagerReporterOptions, 'branch' | 'commitSha' | 'ciJobUrl'>> & {
+  branch?: string;
+  commitSha?: string;
+  ciJobUrl?: string;
+};
+
 export class TestManagerReporter implements Reporter {
-  private options: Required<TestManagerReporterOptions>;
+  private options: ResolvedOptions;
   private results: TestResultData[] = [];
-  private runId: string;
+  private runId: string = "";
   private startTime: string = "";
   private flushTimer: NodeJS.Timeout | null = null;
   private config: FullConfig | null = null;
-  private ciEnv: CIEnvironment;
+  private ciEnv: CIEnvironment = { isCI: false };
+  private isDisabled: boolean = false;
 
   constructor(options: TestManagerReporterOptions) {
+    // Check if disabled first
+    if (options.disabled) {
+      this.isDisabled = true;
+      this.options = options as ResolvedOptions;
+      return;
+    }
+
+    if (!options.repository) {
+      throw new Error(
+        "[TestManagerReporter] repository option is required. Example: { repository: 'org/repo' }"
+      );
+    }
+
     this.options = {
       apiUrl: options.apiUrl,
+      repository: options.repository,
+      disabled: false,
+      branch: options.branch,
+      commitSha: options.commitSha,
+      ciJobUrl: options.ciJobUrl,
       batchSize: options.batchSize ?? 50,
       flushInterval: options.flushInterval ?? 5000,
       failSilently: options.failSilently ?? true,
@@ -146,6 +172,12 @@ export class TestManagerReporter implements Reporter {
   private extractTags(test: TestCase): string[] {
     const tags: string[] = [];
 
+    // Get tags from test.tags property (Playwright 1.42+)
+    // The property exists but isn't in older type definitions
+    if ("tags" in test && Array.isArray((test as any).tags)) {
+      tags.push(...(test as any).tags);
+    }
+
     // Extract tags from annotations
     for (const annotation of test.annotations) {
       if (annotation.type === "tag" && annotation.description) {
@@ -153,10 +185,10 @@ export class TestManagerReporter implements Reporter {
       }
     }
 
-    // Extract @tag from title
+    // Extract @tag from title - keep the @ prefix as-is
     const tagMatches = test.title.match(/@[\w-]+/g);
     if (tagMatches) {
-      tags.push(...tagMatches.map((t) => t.slice(1)));
+      tags.push(...tagMatches);
     }
 
     return [...new Set(tags)];
@@ -185,6 +217,8 @@ export class TestManagerReporter implements Reporter {
   }
 
   onBegin(config: FullConfig, suite: Suite): void {
+    if (this.isDisabled) return;
+
     this.config = config;
     this.startTime = new Date().toISOString();
     this.log("Test run started:", this.runId);
@@ -200,6 +234,8 @@ export class TestManagerReporter implements Reporter {
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {
+    if (this.isDisabled) return;
+
     const project = test.parent.project();
     const maxRetries = project?.retries ?? 0;
 
@@ -293,10 +329,11 @@ export class TestManagerReporter implements Reporter {
     status: ReportPayload["status"]
   ): Promise<void> {
     const metadata: RunMetadata = {
-      branch: this.ciEnv.branch,
-      commitSha: this.ciEnv.commitSha,
+      repository: this.options.repository,
+      branch: this.options.branch || this.ciEnv.branch,
+      commitSha: this.options.commitSha || this.ciEnv.commitSha,
       commitMessage: this.ciEnv.commitMessage,
-      ciJobUrl: this.ciEnv.jobUrl,
+      ciJobUrl: this.options.ciJobUrl || this.ciEnv.jobUrl,
       playwrightVersion: this.config?.version ?? "unknown",
       workers: this.config?.workers ?? 1,
     };
@@ -336,6 +373,8 @@ export class TestManagerReporter implements Reporter {
   }
 
   async onEnd(result: FullResult): Promise<void> {
+    if (this.isDisabled) return;
+
     // Clear flush interval
     if (this.flushTimer) {
       clearInterval(this.flushTimer);

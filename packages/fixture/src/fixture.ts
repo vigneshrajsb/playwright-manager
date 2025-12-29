@@ -3,11 +3,12 @@ import type { TestManagerFixtureOptions, DisabledTestsResponse } from "./types";
 import { disabledTestsCache } from "./cache";
 
 /**
- * Fetch ALL disabled tests for a project from the API
+ * Fetch ALL disabled tests for a repository/project from the API
  * This fetches all disabled tests at once so we can cache them properly
  */
 async function fetchDisabledTestsForProject(
   apiUrl: string,
+  repository: string,
   projectName: string,
   timeout: number
 ): Promise<DisabledTestsResponse> {
@@ -21,7 +22,8 @@ async function fetchDisabledTestsForProject(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // Don't send testIds - fetch ALL disabled tests for this project
+        // Don't send testIds - fetch ALL disabled tests for this repo/project
+        repository,
         projectName,
       }),
       signal: controller.signal,
@@ -39,36 +41,40 @@ async function fetchDisabledTestsForProject(
 
 /**
  * Get disabled tests with caching and request deduplication
- * Fetches ALL disabled tests for the project and caches them
+ * Fetches ALL disabled tests for the repository/project and caches them
  */
 async function getDisabledTests(
   apiUrl: string,
+  repository: string,
   projectName: string,
   cacheTtl: number,
   timeout: number
 ): Promise<DisabledTestsResponse> {
+  // Use repository:project as cache key to separate different repos
+  const cacheKey = `${repository}:${projectName}`;
+
   // Check cache first
-  const cached = disabledTestsCache.get(projectName, cacheTtl);
+  const cached = disabledTestsCache.get(cacheKey, cacheTtl);
   if (cached) {
     return cached;
   }
 
   // Check for pending request (deduplication)
-  const pending = disabledTestsCache.getPendingRequest(projectName);
+  const pending = disabledTestsCache.getPendingRequest(cacheKey);
   if (pending) {
     return pending;
   }
 
-  // Create new request - fetch ALL disabled tests for this project
-  const request = fetchDisabledTestsForProject(apiUrl, projectName, timeout);
-  disabledTestsCache.setPendingRequest(projectName, request);
+  // Create new request - fetch ALL disabled tests for this repo/project
+  const request = fetchDisabledTestsForProject(apiUrl, repository, projectName, timeout);
+  disabledTestsCache.setPendingRequest(cacheKey, request);
 
   try {
     const result = await request;
-    disabledTestsCache.set(projectName, result);
+    disabledTestsCache.set(cacheKey, result);
     return result;
   } finally {
-    disabledTestsCache.clearPendingRequest(projectName);
+    disabledTestsCache.clearPendingRequest(cacheKey);
   }
 }
 
@@ -88,19 +94,27 @@ type TestManagerFixtures = {
  */
 export const test = base.extend<TestManagerFixtures>({
   // User-configurable testManager options
-  testManager: [{ apiUrl: "" }, { option: true }],
+  testManager: [{ apiUrl: "", repository: "" }, { option: true }],
 
   // Auto fixture - runs before every test automatically
   _testManagerAutoSkip: [
     async ({ testManager: options }, use, testInfo) => {
-      // Skip if not configured
-      if (!options?.apiUrl) {
+      // Skip if disabled or not configured
+      if (options?.disabled || !options?.apiUrl) {
         await use();
         return;
       }
 
+      // Repository is required
+      if (!options?.repository) {
+        throw new Error(
+          "[TestManagerFixture] repository option is required. Example: { repository: 'org/repo' }"
+        );
+      }
+
       const {
         apiUrl,
+        repository,
         cacheTtl = 60000,
         failOpen = true,
         debug = false,
@@ -121,6 +135,7 @@ export const test = base.extend<TestManagerFixtures>({
 
         const disabledTests = await getDisabledTests(
           apiUrl,
+          repository,
           testInfo.project.name,
           cacheTtl,
           timeout

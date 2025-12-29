@@ -9,6 +9,19 @@ export interface TestManagerFixtureOptions {
   apiUrl: string;
 
   /**
+   * GitHub repository in org/repo format
+   * @example "vigneshrajsb/devtools"
+   */
+  repository: string;
+
+  /**
+   * Disable the fixture without removing config
+   * When true, skips the disabled tests check entirely
+   * @default false
+   */
+  disabled?: boolean;
+
+  /**
    * Cache TTL in milliseconds
    * Disabled tests are cached per worker to reduce API calls
    * @default 60000 (1 minute)

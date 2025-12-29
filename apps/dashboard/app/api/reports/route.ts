@@ -127,16 +127,15 @@ interface TestResultPayload {
 interface ReportPayload {
   runId: string;
   metadata?: {
+    repository: string; // Required - e.g., "org/repo"
     branch?: string;
     commitSha?: string;
     commitMessage?: string;
     ciJobUrl?: string;
     playwrightVersion?: string;
     workers?: number;
-    shard?: {
-      current: number;
-      total: number;
-    };
+    shardCurrent?: number;
+    shardTotal?: number;
   };
   startTime: string;
   endTime?: string;
@@ -148,6 +147,16 @@ export async function POST(request: NextRequest) {
   try {
     const body: ReportPayload = await request.json();
 
+    // Validate repository is provided
+    if (!body.metadata?.repository) {
+      return NextResponse.json(
+        { error: "metadata.repository is required" },
+        { status: 400 }
+      );
+    }
+
+    const repository = body.metadata.repository;
+
     const result = await db.transaction(async (tx) => {
       // 1. Upsert the test run
       const existingRun = await tx.query.testRuns.findFirst({
@@ -156,13 +165,13 @@ export async function POST(request: NextRequest) {
 
       let testRun;
       if (existingRun) {
-        // Update existing run
+        // Update existing run - accumulate totalTests
         const [updated] = await tx
           .update(testRuns)
           .set({
             finishedAt: body.endTime ? new Date(body.endTime) : null,
             status: body.status || existingRun.status,
-            totalTests: body.results.length,
+            totalTests: existingRun.totalTests + body.results.length,
             durationMs: body.endTime
               ? new Date(body.endTime).getTime() -
                 new Date(body.startTime).getTime()
@@ -172,7 +181,7 @@ export async function POST(request: NextRequest) {
           .returning();
         testRun = updated;
       } else {
-        // Create new run
+        // Create new run (repository is derived from tests, not stored in testRuns)
         const [created] = await tx
           .insert(testRuns)
           .values({
@@ -183,10 +192,14 @@ export async function POST(request: NextRequest) {
             ciJobUrl: body.metadata?.ciJobUrl,
             playwrightVersion: body.metadata?.playwrightVersion,
             totalWorkers: body.metadata?.workers,
-            shardCurrent: body.metadata?.shard?.current,
-            shardTotal: body.metadata?.shard?.total,
+            shardCurrent: body.metadata?.shardCurrent,
+            shardTotal: body.metadata?.shardTotal,
             startedAt: new Date(body.startTime),
             finishedAt: body.endTime ? new Date(body.endTime) : null,
+            durationMs: body.endTime
+              ? new Date(body.endTime).getTime() -
+                new Date(body.startTime).getTime()
+              : null,
             status: body.status || "running",
             totalTests: body.results.length,
           })
@@ -201,9 +214,10 @@ export async function POST(request: NextRequest) {
         flakyCount = 0;
 
       for (const testResult of body.results) {
-        // Upsert test
+        // Upsert test - now includes repository in unique key
         const existingTest = await tx.query.tests.findFirst({
           where: and(
+            eq(tests.repository, repository),
             eq(tests.filePath, testResult.filePath),
             eq(tests.testTitle, testResult.title),
             eq(tests.projectName, testResult.projectName)
@@ -230,6 +244,7 @@ export async function POST(request: NextRequest) {
             .insert(tests)
             .values({
               playwrightTestId: testResult.testId,
+              repository,
               filePath: testResult.filePath,
               testTitle: testResult.title,
               projectName: testResult.projectName,
@@ -281,14 +296,14 @@ export async function POST(request: NextRequest) {
         await updateTestHealth(tx, test.id);
       }
 
-      // Update run stats
+      // Update run stats - accumulate with existing counts
       await tx
         .update(testRuns)
         .set({
-          passedCount,
-          failedCount,
-          skippedCount,
-          flakyCount,
+          passedCount: testRun.passedCount + passedCount,
+          failedCount: testRun.failedCount + failedCount,
+          skippedCount: testRun.skippedCount + skippedCount,
+          flakyCount: testRun.flakyCount + flakyCount,
         })
         .where(eq(testRuns.id, testRun.id));
 
@@ -328,8 +343,10 @@ async function updateTestHealth(tx: any, testId: string) {
     { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, totalDuration: 0 }
   );
 
-  const passRate = stats.total > 0 ? (stats.passed / stats.total) * 100 : 0;
-  const flakinessRate = stats.total > 0 ? (stats.flaky / stats.total) * 100 : 0;
+  // Only consider actual executions (exclude skipped from health calculation)
+  const executedTotal = stats.passed + stats.failed + stats.flaky;
+  const passRate = executedTotal > 0 ? (stats.passed / executedTotal) * 100 : 0;
+  const flakinessRate = executedTotal > 0 ? (stats.flaky / executedTotal) * 100 : 0;
   const healthScore = Math.max(0, Math.round(passRate - flakinessRate * 2));
 
   // Calculate consecutive passes/failures

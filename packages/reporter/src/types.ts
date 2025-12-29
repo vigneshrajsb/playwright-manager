@@ -9,6 +9,37 @@ export interface TestManagerReporterOptions {
   apiUrl: string;
 
   /**
+   * GitHub repository in org/repo format
+   * @example "vigneshrajsb/devtools"
+   */
+  repository: string;
+
+  /**
+   * Disable the reporter without removing config
+   * @default false
+   */
+  disabled?: boolean;
+
+  /**
+   * Override the detected git branch
+   * If not provided, auto-detects from CI environment
+   */
+  branch?: string;
+
+  /**
+   * Override the detected commit SHA
+   * If not provided, auto-detects from CI environment
+   */
+  commitSha?: string;
+
+  /**
+   * Override the CI job URL
+   * If not provided, auto-detects from CI environment
+   * Use this for unrecognized CI systems
+   */
+  ciJobUrl?: string;
+
+  /**
    * Number of test results to batch before sending to API
    * @default 50
    */
@@ -81,6 +112,7 @@ export interface TestResultData {
  * Run metadata sent to the API
  */
 export interface RunMetadata {
+  repository: string;
   branch?: string;
   commitSha?: string;
   commitMessage?: string;
