@@ -4,6 +4,111 @@ import { testResults, tests, testRuns, testHealth } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
+/**
+ * @swagger
+ * /api/results/{id}:
+ *   get:
+ *     tags:
+ *       - Results
+ *     summary: Get result details
+ *     description: Returns detailed information about a specific test result including test info, health stats, and recent history
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Result ID (UUID)
+ *     responses:
+ *       200:
+ *         description: Result details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 result:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *                     outcome:
+ *                       type: string
+ *                     durationMs:
+ *                       type: integer
+ *                     errorMessage:
+ *                       type: string
+ *                       nullable: true
+ *                     errorStack:
+ *                       type: string
+ *                       nullable: true
+ *                     baseUrl:
+ *                       type: string
+ *                       nullable: true
+ *                     annotations:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                 test:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     testTitle:
+ *                       type: string
+ *                     filePath:
+ *                       type: string
+ *                     projectName:
+ *                       type: string
+ *                     repository:
+ *                       type: string
+ *                     tags:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                 health:
+ *                   type: object
+ *                   nullable: true
+ *                   properties:
+ *                     healthScore:
+ *                       type: integer
+ *                     passRate:
+ *                       type: number
+ *                     flakinessRate:
+ *                       type: number
+ *                 recentHistory:
+ *                   type: array
+ *                   description: Last 5 runs of this test
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       outcome:
+ *                         type: string
+ *                       branch:
+ *                         type: string
+ *                 run:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     branch:
+ *                       type: string
+ *                     commitSha:
+ *                       type: string
+ *                     ciJobUrl:
+ *                       type: string
+ *                       nullable: true
+ *       404:
+ *         description: Result not found
+ *       500:
+ *         description: Server error
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

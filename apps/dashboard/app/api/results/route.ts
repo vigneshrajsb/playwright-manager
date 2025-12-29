@@ -8,6 +8,178 @@ import {
 } from "@/lib/filters/build-conditions";
 import { logger } from "@/lib/logger";
 
+/**
+ * @swagger
+ * /api/results:
+ *   get:
+ *     tags:
+ *       - Results
+ *     summary: List test results
+ *     description: Returns a paginated list of individual test execution results with filtering and sorting options
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of results per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by test title, file path, or base URL
+ *       - in: query
+ *         name: repository
+ *         schema:
+ *           type: string
+ *         description: Filter by repository (e.g., "org/repo")
+ *       - in: query
+ *         name: project
+ *         schema:
+ *           type: string
+ *         description: Filter by Playwright project name
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Filter by tags (comma-separated, e.g., "@smoke,@regression")
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [passed, failed, timedOut, skipped, interrupted]
+ *         description: Filter by test status
+ *       - in: query
+ *         name: outcome
+ *         schema:
+ *           type: string
+ *           enum: [expected, unexpected, flaky, skipped]
+ *         description: Filter by test outcome
+ *       - in: query
+ *         name: testRunId
+ *         schema:
+ *           type: string
+ *         description: Filter by specific test run ID (UUID)
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [startedAt, duration]
+ *           default: startedAt
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: List of results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       outcome:
+ *                         type: string
+ *                       durationMs:
+ *                         type: integer
+ *                       errorMessage:
+ *                         type: string
+ *                         nullable: true
+ *                       test:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           testTitle:
+ *                             type: string
+ *                           filePath:
+ *                             type: string
+ *                           projectName:
+ *                             type: string
+ *                           repository:
+ *                             type: string
+ *                           tags:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                       run:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           branch:
+ *                             type: string
+ *                           commitSha:
+ *                             type: string
+ *                           status:
+ *                             type: string
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 filters:
+ *                   type: object
+ *                   properties:
+ *                     repositories:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     projects:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     tags:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     statuses:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     outcomes:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                 runInfo:
+ *                   type: object
+ *                   nullable: true
+ *                   description: Run details when filtering by testRunId
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     branch:
+ *                       type: string
+ *                     status:
+ *                       type: string
+ *       500:
+ *         description: Server error
+ */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
 

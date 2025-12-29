@@ -35,6 +35,14 @@ export const getApiDocs = async () => {
           description: "Test run management endpoints",
         },
         {
+          name: "Pipelines",
+          description: "Pipeline/test run listing endpoints",
+        },
+        {
+          name: "Results",
+          description: "Test result endpoints",
+        },
+        {
           name: "Reports",
           description: "Report ingestion endpoints",
         },

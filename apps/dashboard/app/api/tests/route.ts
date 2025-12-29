@@ -37,10 +37,20 @@ import { logger } from "@/lib/logger";
  *           type: string
  *         description: Search by test title or file path
  *       - in: query
+ *         name: repository
+ *         schema:
+ *           type: string
+ *         description: Filter by repository (e.g., "org/repo")
+ *       - in: query
  *         name: project
  *         schema:
  *           type: string
  *         description: Filter by project name
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Filter by tags (comma-separated, e.g., "@smoke,@regression")
  *       - in: query
  *         name: status
  *         schema:
@@ -93,7 +103,15 @@ import { logger } from "@/lib/logger";
  *                 filters:
  *                   type: object
  *                   properties:
+ *                     repositories:
+ *                       type: array
+ *                       items:
+ *                         type: string
  *                     projects:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     tags:
  *                       type: array
  *                       items:
  *                         type: string

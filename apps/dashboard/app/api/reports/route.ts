@@ -30,7 +30,12 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
  *                 description: Unique identifier for the test run
  *               metadata:
  *                 type: object
+ *                 required:
+ *                   - repository
  *                 properties:
+ *                   repository:
+ *                     type: string
+ *                     description: Repository in "org/repo" format (required)
  *                   branch:
  *                     type: string
  *                   commitSha:

@@ -18,7 +18,12 @@ import { logger } from "@/lib/logger";
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - repository
  *             properties:
+ *               repository:
+ *                 type: string
+ *                 description: Repository in "org/repo" format (required)
  *               testIds:
  *                 type: array
  *                 items:

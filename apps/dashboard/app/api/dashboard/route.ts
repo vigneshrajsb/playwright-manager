@@ -4,6 +4,136 @@ import { tests, testRuns, testHealth, testResults } from "@/lib/db/schema";
 import { eq, and, desc, sql, gte, SQL } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
+/**
+ * @swagger
+ * /api/dashboard:
+ *   get:
+ *     tags:
+ *       - Dashboard
+ *     summary: Get dashboard overview data
+ *     description: Returns comprehensive dashboard analytics including test stats, health distribution, pass rate trends, and top flaky/failing tests
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *         description: Number of days to include in timeline data
+ *       - in: query
+ *         name: repository
+ *         schema:
+ *           type: string
+ *         description: Filter by repository (e.g., "org/repo")
+ *       - in: query
+ *         name: project
+ *         schema:
+ *           type: string
+ *         description: Filter by Playwright project name
+ *       - in: query
+ *         name: tags
+ *         schema:
+ *           type: string
+ *         description: Filter by tags (comma-separated, e.g., "@smoke,@regression")
+ *     responses:
+ *       200:
+ *         description: Dashboard data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 overview:
+ *                   type: object
+ *                   properties:
+ *                     totalTests:
+ *                       type: integer
+ *                     enabledTests:
+ *                       type: integer
+ *                     disabledTests:
+ *                       type: integer
+ *                     avgHealthScore:
+ *                       type: integer
+ *                     overallPassRate:
+ *                       type: integer
+ *                     flakyCount:
+ *                       type: integer
+ *                     healthDistribution:
+ *                       type: object
+ *                       properties:
+ *                         healthy:
+ *                           type: integer
+ *                         warning:
+ *                           type: integer
+ *                         critical:
+ *                           type: integer
+ *                 recentRuns:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       branch:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       passRate:
+ *                         type: integer
+ *                 passRateTimeline:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       date:
+ *                         type: string
+ *                       passRate:
+ *                         type: number
+ *                       totalTests:
+ *                         type: integer
+ *                       totalRuns:
+ *                         type: integer
+ *                 flakyTests:
+ *                   type: array
+ *                   description: Top 5 most flaky tests
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       testTitle:
+ *                         type: string
+ *                       health:
+ *                         type: object
+ *                 failingTests:
+ *                   type: array
+ *                   description: Top 5 most failing tests
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       testTitle:
+ *                         type: string
+ *                       health:
+ *                         type: object
+ *                 filters:
+ *                   type: object
+ *                   properties:
+ *                     repositories:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     projects:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     tags:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *       500:
+ *         description: Server error
+ */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const days = parseInt(searchParams.get("days") || "7");
