@@ -106,6 +106,7 @@ export interface TestResultData {
     description?: string;
   }>;
   startTime: string;
+  baseUrl?: string;
 }
 
 /**
@@ -117,6 +118,7 @@ export interface RunMetadata {
   commitSha?: string;
   commitMessage?: string;
   ciJobUrl?: string;
+  baseUrl?: string;
   playwrightVersion: string;
   workers: number;
   shardCurrent?: number;

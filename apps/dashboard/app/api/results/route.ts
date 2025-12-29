@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
       conditions.push(
         or(
           ilike(tests.testTitle, `%${search}%`),
-          ilike(tests.filePath, `%${search}%`)
+          ilike(tests.filePath, `%${search}%`),
+          ilike(testResults.baseUrl, `%${search}%`)
         )
       );
     }

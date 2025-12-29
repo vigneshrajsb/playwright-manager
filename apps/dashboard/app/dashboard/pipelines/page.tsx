@@ -55,6 +55,7 @@ interface Pipeline {
   commitSha: string | null;
   commitMessage: string | null;
   ciJobUrl: string | null;
+  baseUrl: string | null;
   status: string;
   startedAt: string;
   finishedAt: string | null;
@@ -203,7 +204,7 @@ export default function PipelinesPage() {
           <div className="relative flex-1 min-w-[200px] max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by branch or commit..."
+              placeholder="Search by branch, commit, URL..."
               value={search}
               onChange={(e) => updateUrl({ search: e.target.value })}
               className="pl-9"
@@ -278,25 +279,26 @@ export default function PipelinesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[50px]">Status</TableHead>
-                <TableHead>Branch / Commit</TableHead>
-                <TableHead className="w-[120px]">Repository</TableHead>
-                <TableHead className="w-[140px]">Started</TableHead>
-                <TableHead className="w-[100px]">Duration</TableHead>
-                <TableHead className="w-[180px]">Results</TableHead>
-                <TableHead className="w-[80px]">Actions</TableHead>
+                <TableHead className="min-w-[140px]">Branch / Commit</TableHead>
+                <TableHead className="w-[100px]">Repository</TableHead>
+                <TableHead className="w-[130px]">Base URL</TableHead>
+                <TableHead className="w-[120px]">Started</TableHead>
+                <TableHead className="w-[80px]">Duration</TableHead>
+                <TableHead className="w-[160px]">Results</TableHead>
+                <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                   </TableCell>
                 </TableRow>
               ) : pipelines.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center py-8 text-muted-foreground"
                   >
                     No pipelines found
@@ -342,6 +344,22 @@ export default function PipelinesPage() {
                         <Badge variant="outline" className="text-xs">
                           {pipeline.repository}
                         </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">--</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {pipeline.baseUrl ? (
+                        <a
+                          href={pipeline.baseUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-primary hover:underline text-sm truncate max-w-[140px]"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {pipeline.baseUrl.replace(/^https?:\/\//, "")}
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
                       ) : (
                         <span className="text-muted-foreground">--</span>
                       )}

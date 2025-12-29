@@ -24,6 +24,7 @@ interface ResultDetail {
     startedAt: string;
     attachments: any[];
     annotations: any[];
+    baseUrl: string | null;
   };
   test: {
     id: string;
@@ -214,6 +215,19 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                     <span className="text-muted-foreground">Started</span>
                     <span>{formatDate(data.result.startedAt)}</span>
                   </div>
+                  {data.result.baseUrl && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Base URL</span>
+                      <a
+                        href={data.result.baseUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline truncate max-w-[200px]"
+                      >
+                        {data.result.baseUrl} <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {data.result.errorMessage && (

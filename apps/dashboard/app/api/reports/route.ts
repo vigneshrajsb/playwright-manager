@@ -122,6 +122,7 @@ interface TestResultPayload {
   attachments?: Array<{ name: string; contentType: string; path?: string }>;
   startTime: string;
   skippedByDashboard?: boolean;
+  baseUrl?: string;
 }
 
 interface ReportPayload {
@@ -132,6 +133,7 @@ interface ReportPayload {
     commitSha?: string;
     commitMessage?: string;
     ciJobUrl?: string;
+    baseUrl?: string;
     playwrightVersion?: string;
     workers?: number;
     shardCurrent?: number;
@@ -190,6 +192,7 @@ export async function POST(request: NextRequest) {
             commitSha: body.metadata?.commitSha,
             commitMessage: body.metadata?.commitMessage,
             ciJobUrl: body.metadata?.ciJobUrl,
+            baseUrl: body.metadata?.baseUrl,
             playwrightVersion: body.metadata?.playwrightVersion,
             totalWorkers: body.metadata?.workers,
             shardCurrent: body.metadata?.shardCurrent,
@@ -226,16 +229,26 @@ export async function POST(request: NextRequest) {
 
         let test;
         if (existingTest) {
+          // Build update data, including restore if test was deleted
+          const updateData: Record<string, any> = {
+            playwrightTestId: testResult.testId,
+            tags: testResult.tags || [],
+            locationLine: testResult.location.line,
+            locationColumn: testResult.location.column,
+            lastSeenAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          // Auto-restore if test was soft-deleted (it's back in the codebase)
+          if (existingTest.isDeleted) {
+            updateData.isDeleted = false;
+            updateData.deletedAt = null;
+            updateData.deletedReason = null;
+          }
+
           const [updated] = await tx
             .update(tests)
-            .set({
-              playwrightTestId: testResult.testId,
-              tags: testResult.tags || [],
-              locationLine: testResult.location.line,
-              locationColumn: testResult.location.column,
-              lastSeenAt: new Date(),
-              updatedAt: new Date(),
-            })
+            .set(updateData)
             .where(eq(tests.id, existingTest.id))
             .returning();
           test = updated;
@@ -273,6 +286,7 @@ export async function POST(request: NextRequest) {
           attachments: testResult.attachments || [],
           annotations: testResult.annotations || [],
           skippedByDashboard: testResult.skippedByDashboard || false,
+          baseUrl: testResult.baseUrl || body.metadata?.baseUrl,
           startedAt: new Date(testResult.startTime),
         });
 

@@ -35,7 +35,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, Search, X, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Loader2, Search, X, ChevronDown, MoreHorizontal, Trash2 } from "lucide-react";
 
 interface TestHealth {
   healthScore: number;
@@ -91,6 +97,18 @@ export default function TestsPage() {
   const [singleDisableTestId, setSingleDisableTestId] = useState<string | null>(null);
   const [singleDisableTestTitle, setSingleDisableTestTitle] = useState("");
   const [singleDisableReason, setSingleDisableReason] = useState("");
+
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTestId, setDeleteTestId] = useState<string | null>(null);
+  const [deleteTestTitle, setDeleteTestTitle] = useState("");
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  // Bulk delete dialog state
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteReason, setBulkDeleteReason] = useState("");
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Filter state from URL
   const search = searchParams.get("search") || "";
@@ -271,6 +289,62 @@ export default function TestsPage() {
       console.error("Failed to bulk disable:", error);
     } finally {
       setBulkDisabling(false);
+    }
+  };
+
+  const handleDeleteClick = (test: Test) => {
+    setDeleteTestId(test.id);
+    setDeleteTestTitle(test.testTitle);
+    setDeleteReason("");
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTestId || !deleteReason.trim()) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/tests/${deleteTestId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: deleteReason }),
+      });
+
+      if (response.ok) {
+        await fetchTests();
+        setDeleteDialogOpen(false);
+        setDeleteTestId(null);
+        setDeleteTestTitle("");
+        setDeleteReason("");
+      }
+    } catch (error) {
+      console.error("Failed to delete test:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    if (!bulkDeleteReason.trim()) return;
+
+    setBulkDeleting(true);
+    try {
+      const promises = Array.from(selectedIds).map((id) =>
+        fetch(`/api/tests/${id}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reason: bulkDeleteReason }),
+        })
+      );
+      await Promise.all(promises);
+      await fetchTests();
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      setBulkDeleteReason("");
+    } catch (error) {
+      console.error("Failed to bulk delete:", error);
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -465,6 +539,16 @@ export default function TestsPage() {
               Disable Selected
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setBulkDeleteOpen(true)}
+              disabled={bulkDeleting}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="mr-1 h-4 w-4" />
+              Delete Selected
+            </Button>
+            <Button
               variant="ghost"
               size="sm"
               onClick={() => setSelectedIds(new Set())}
@@ -489,24 +573,25 @@ export default function TestsPage() {
                   {...(someSelected ? { "data-state": "indeterminate" } : {})}
                 />
               </TableHead>
-              <TableHead>Test</TableHead>
-              <TableHead className="w-[120px]">Project</TableHead>
-              <TableHead className="w-[100px]">Health</TableHead>
-              <TableHead className="w-[80px]">Pass Rate</TableHead>
-              <TableHead className="w-[140px]">Last Run</TableHead>
-              <TableHead className="w-[80px]">Enabled</TableHead>
+              <TableHead className="min-w-[200px]">Test</TableHead>
+              <TableHead className="w-[100px]">Project</TableHead>
+              <TableHead className="w-[80px]">Health</TableHead>
+              <TableHead className="w-[70px]">Pass Rate</TableHead>
+              <TableHead className="w-[120px]">Last Run</TableHead>
+              <TableHead className="w-[70px]">Enabled</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : tests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No tests found
                 </TableCell>
               </TableRow>
@@ -564,6 +649,24 @@ export default function TestsPage() {
                       onCheckedChange={(enabled) => handleToggleSwitch(test, enabled)}
                       disabled={togglingId === test.id}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          className="text-red-600 focus:text-red-600"
+                          onClick={() => handleDeleteClick(test)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -676,6 +779,86 @@ export default function TestsPage() {
             >
               {togglingId === singleDisableTestId && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Disable Test
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Test Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Test</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium text-foreground">{deleteTestTitle}</span>
+              <br />
+              Please provide a reason for deleting this test.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Reason for deleting (required)"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setDeleteTestId(null);
+                setDeleteTestTitle("");
+                setDeleteReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={!deleteReason.trim() || deleting}
+            >
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Test
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Dialog */}
+      <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} Tests</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for deleting these tests.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder="Reason for deleting (required)"
+              value={bulkDeleteReason}
+              onChange={(e) => setBulkDeleteReason(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setBulkDeleteOpen(false);
+                setBulkDeleteReason("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDeleteConfirm}
+              disabled={!bulkDeleteReason.trim() || bulkDeleting}
+            >
+              {bulkDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Tests
             </Button>
           </DialogFooter>
         </DialogContent>

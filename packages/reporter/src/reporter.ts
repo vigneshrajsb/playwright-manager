@@ -30,6 +30,7 @@ export class TestManagerReporter implements Reporter {
   private config: FullConfig | null = null;
   private ciEnv: CIEnvironment = { isCI: false };
   private isDisabled: boolean = false;
+  private baseUrl: string | undefined = undefined;
 
   constructor(options: TestManagerReporterOptions) {
     // Check if disabled first
@@ -221,7 +222,14 @@ export class TestManagerReporter implements Reporter {
 
     this.config = config;
     this.startTime = new Date().toISOString();
+
+    // Extract baseURL from first project with a defined baseURL
+    this.baseUrl = config.projects.find((p) => p.use?.baseURL)?.use?.baseURL;
+
     this.log("Test run started:", this.runId);
+    if (this.baseUrl) {
+      this.log("Base URL:", this.baseUrl);
+    }
 
     // Start flush interval timer
     if (this.options.flushInterval > 0) {
@@ -268,6 +276,7 @@ export class TestManagerReporter implements Reporter {
         maxRetries
       ),
       startTime: new Date(result.startTime).toISOString(),
+      baseUrl: this.baseUrl,
     };
 
     // Add error if present
@@ -318,7 +327,10 @@ export class TestManagerReporter implements Reporter {
       if (!this.options.failSilently) {
         throw error;
       }
-      console.error("[TestManagerReporter] Failed to flush results:", error);
+      // Only log errors when debug is enabled
+      if (this.options.debug) {
+        console.error("[TestManagerReporter] Failed to flush results:", error);
+      }
       // Re-add results to queue for next flush attempt
       this.results = [...resultsToSend, ...this.results];
     }
@@ -334,6 +346,7 @@ export class TestManagerReporter implements Reporter {
       commitSha: this.options.commitSha || this.ciEnv.commitSha,
       commitMessage: this.ciEnv.commitMessage,
       ciJobUrl: this.options.ciJobUrl || this.ciEnv.jobUrl,
+      baseUrl: this.baseUrl,
       playwrightVersion: this.config?.version ?? "unknown",
       workers: this.config?.workers ?? 1,
     };
@@ -396,7 +409,10 @@ export class TestManagerReporter implements Reporter {
       if (!this.options.failSilently) {
         throw error;
       }
-      console.error("[TestManagerReporter] Failed to send final report:", error);
+      // Only log errors when debug is enabled
+      if (this.options.debug) {
+        console.error("[TestManagerReporter] Failed to send final report:", error);
+      }
     }
   }
 }

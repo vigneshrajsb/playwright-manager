@@ -31,6 +31,9 @@ export const tests = pgTable(
     isEnabled: boolean("is_enabled").default(true).notNull(),
     disabledAt: timestamp("disabled_at", { withTimezone: true }),
     disabledReason: text("disabled_reason"),
+    isDeleted: boolean("is_deleted").default(false).notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedReason: text("deleted_reason"),
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -53,6 +56,7 @@ export const tests = pgTable(
     ),
     index("idx_tests_playwright_id").on(table.playwrightTestId),
     index("idx_tests_enabled").on(table.isEnabled),
+    index("idx_tests_deleted").on(table.isDeleted),
     index("idx_tests_project").on(table.projectName),
     index("idx_tests_repository").on(table.repository),
   ]
@@ -70,6 +74,7 @@ export const testRuns = pgTable(
     commitSha: varchar("commit_sha", { length: 40 }),
     commitMessage: text("commit_message"),
     ciJobUrl: varchar("ci_job_url", { length: 1024 }),
+    baseUrl: varchar("base_url", { length: 1024 }),
     playwrightVersion: varchar("playwright_version", { length: 50 }),
     totalWorkers: integer("total_workers"),
     shardCurrent: integer("shard_current"),
@@ -120,6 +125,7 @@ export const testResults = pgTable(
     attachments: jsonb("attachments").default([]).notNull(),
     annotations: jsonb("annotations").default([]).notNull(),
     skippedByDashboard: boolean("skipped_by_dashboard").default(false).notNull(),
+    baseUrl: varchar("base_url", { length: 1024 }),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

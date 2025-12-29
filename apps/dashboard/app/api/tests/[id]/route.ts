@@ -104,3 +104,81 @@ export async function GET(
     );
   }
 }
+
+/**
+ * @swagger
+ * /api/tests/{id}:
+ *   delete:
+ *     tags:
+ *       - Tests
+ *     summary: Soft delete a test
+ *     description: Marks a test as deleted. The test and its history are preserved but hidden from views.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Test ID (UUID)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for deleting the test
+ *     responses:
+ *       200:
+ *         description: Test deleted successfully
+ *       400:
+ *         description: Reason is required
+ *       404:
+ *         description: Test not found
+ *       500:
+ *         description: Server error
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { reason } = body;
+
+    if (!reason?.trim()) {
+      return NextResponse.json(
+        { error: "Reason is required" },
+        { status: 400 }
+      );
+    }
+
+    const [updated] = await db
+      .update(tests)
+      .set({
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedReason: reason.trim(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tests.id, id))
+      .returning();
+
+    if (!updated) {
+      return NextResponse.json({ error: "Test not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, test: updated });
+  } catch (error) {
+    console.error("Error deleting test:", error);
+    return NextResponse.json(
+      { error: "Failed to delete test" },
+      { status: 500 }
+    );
+  }
+}

@@ -111,6 +111,9 @@ export async function GET(request: NextRequest) {
     // Build filters for tests table
     const conditions: any[] = [];
 
+    // Always exclude deleted tests
+    conditions.push(eq(tests.isDeleted, false));
+
     if (search) {
       conditions.push(
         or(
@@ -204,21 +207,26 @@ export async function GET(request: NextRequest) {
     const countResult = await countQuery.where(whereClause);
     const total = Number(countResult[0].count);
 
-    // Get unique repositories for filter dropdown
+    // Get unique repositories for filter dropdown (excluding deleted tests)
     const repositories = await db
       .selectDistinct({ repository: tests.repository })
-      .from(tests);
+      .from(tests)
+      .where(eq(tests.isDeleted, false));
 
-    // Get unique projects for filter dropdown
+    // Get unique projects for filter dropdown (excluding deleted tests)
     const projects = await db
       .selectDistinct({ projectName: tests.projectName })
-      .from(tests);
+      .from(tests)
+      .where(eq(tests.isDeleted, false));
 
-    // Get unique tags for filter dropdown
+    // Get unique tags for filter dropdown (excluding deleted tests)
     const tagsResult = await db
       .select({ tags: tests.tags })
       .from(tests)
-      .where(sql`${tests.tags} IS NOT NULL AND array_length(${tests.tags}, 1) > 0`);
+      .where(and(
+        eq(tests.isDeleted, false),
+        sql`${tests.tags} IS NOT NULL AND array_length(${tests.tags}, 1) > 0`
+      ));
 
     // Flatten and dedupe tags
     const allTags = new Set<string>();

@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
       conditions.push(
         or(
           ilike(testRuns.branch, `%${search}%`),
-          ilike(testRuns.commitMessage, `%${search}%`)
+          ilike(testRuns.commitMessage, `%${search}%`),
+          ilike(testRuns.baseUrl, `%${search}%`)
         )
       );
     }

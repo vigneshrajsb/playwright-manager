@@ -26,7 +26,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, Search, ChevronDown, Clock, GitBranch, MoreHorizontal, X } from "lucide-react";
+import { Loader2, Search, ChevronDown, Clock, GitBranch, MoreHorizontal, X, ExternalLink } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -47,6 +47,7 @@ interface TestResult {
   errorMessage: string | null;
   retryCount: number;
   startedAt: string;
+  baseUrl: string | null;
   test: {
     id: string;
     testTitle: string;
@@ -337,7 +338,7 @@ export default function ResultsPage() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by test title or path..."
+            placeholder="Search by test, path, URL..."
             value={search}
             onChange={(e) => updateUrl({ search: e.target.value })}
             className="pl-9"
@@ -481,26 +482,27 @@ export default function ResultsPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Test</TableHead>
-              <TableHead className="w-[100px]">Project</TableHead>
-              <TableHead className="w-[100px]">Status</TableHead>
-              <TableHead className="w-[90px]">Duration</TableHead>
-              <TableHead className="w-[140px]">Run Info</TableHead>
-              <TableHead className="w-[140px]">Started At</TableHead>
-              <TableHead className="w-[60px]">Actions</TableHead>
+              <TableHead className="min-w-[200px]">Test</TableHead>
+              <TableHead className="w-[90px]">Project</TableHead>
+              <TableHead className="w-[80px]">Status</TableHead>
+              <TableHead className="w-[80px]">Duration</TableHead>
+              <TableHead className="w-[130px]">Base URL</TableHead>
+              <TableHead className="w-[120px]">Run Info</TableHead>
+              <TableHead className="w-[130px]">Started At</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : results.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No results found
@@ -547,6 +549,21 @@ export default function ResultsPage() {
                       <Clock className="h-3.5 w-3.5" />
                       {formatDuration(result.durationMs)}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    {result.baseUrl ? (
+                      <a
+                        href={result.baseUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-primary hover:underline text-sm truncate max-w-[120px]"
+                      >
+                        {result.baseUrl.replace(/^https?:\/\//, "")}
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">--</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5 text-xs">
