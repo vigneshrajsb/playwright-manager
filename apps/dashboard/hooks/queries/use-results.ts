@@ -3,13 +3,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, buildUrl } from "@/lib/api";
 import { queryKeys, type ResultFilters } from "./keys";
-import type { TestResult, Pagination, ResultFiltersData, RunInfo } from "@/types";
+import type { TestResult, Pagination, ResultFiltersData, RunInfo, TestInfo } from "@/types";
 
 interface ResultsResponse {
   results: TestResult[];
   pagination: Pagination;
   filters: ResultFiltersData;
   runInfo: RunInfo | null;
+  testInfo: TestInfo | null;
 }
 
 export function useResults(filters: ResultFilters) {
@@ -25,6 +26,7 @@ export function useResults(filters: ResultFilters) {
           status: filters.status,
           outcome: filters.outcome,
           testRunId: filters.testRunId,
+          testId: filters.testId,
           sortBy: filters.sortBy,
           page: filters.page,
           limit: 20,

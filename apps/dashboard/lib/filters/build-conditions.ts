@@ -106,6 +106,7 @@ export interface ResultFilterParams {
   status?: string | null;
   outcome?: string | null;
   testRunId?: string | null;
+  testId?: string | null;
 }
 
 export function buildResultConditions(params: ResultFilterParams): SQL[] {
@@ -147,6 +148,10 @@ export function buildResultConditions(params: ResultFilterParams): SQL[] {
 
   if (params.testRunId) {
     conditions.push(eq(testResults.testRunId, params.testRunId));
+  }
+
+  if (params.testId) {
+    conditions.push(eq(testResults.testId, params.testId));
   }
 
   return conditions;

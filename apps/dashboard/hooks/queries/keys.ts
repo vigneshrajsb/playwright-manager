@@ -32,6 +32,7 @@ export interface ResultFilters {
   status?: string;
   outcome?: string;
   testRunId?: string;
+  testId?: string;
   sortBy?: string;
   page?: number;
 }

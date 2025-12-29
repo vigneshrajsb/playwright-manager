@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
 import { Search, X, Trash2, CheckCircle, XCircle, ClipboardList } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
   DataTable,
   DataTableColumnToggle,
   DataTableFacetedFilter,
+  DataTableResetFilter,
 } from "@/components/data-table";
 import { TagFilterPopover } from "@/components/filters";
 import { ConfirmationDialog } from "@/components/dialogs";
@@ -112,6 +114,7 @@ export default function TestsPage() {
   );
 
   return (
+    <TooltipProvider>
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Tests</h1>
@@ -167,7 +170,6 @@ export default function TestsPage() {
         </div>
       )}
 
-      {/* DataTable with toolbar */}
       <DataTable
         columns={testColumns}
         data={tests}
@@ -270,6 +272,11 @@ export default function TestsPage() {
               />
             </div>
 
+            <DataTableResetFilter
+              filterKeys={["search", "repository", "project", "tags", "status", "health"]}
+              searchParams={searchParams}
+              updateUrl={updateUrl}
+            />
             <DataTableColumnToggle table={table} />
           </div>
         )}
@@ -323,5 +330,6 @@ export default function TestsPage() {
         />
       )}
     </div>
+    </TooltipProvider>
   );
 }

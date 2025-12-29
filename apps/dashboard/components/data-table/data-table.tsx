@@ -182,7 +182,7 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {pageCount && pageCount > 1 && (
+      {pageCount != null && pageCount > 1 && (
         <DataTablePagination
           pageIndex={pageIndex}
           pageCount={pageCount}

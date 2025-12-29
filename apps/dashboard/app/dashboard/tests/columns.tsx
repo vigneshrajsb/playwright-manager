@@ -3,6 +3,15 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, ListChecks } from "lucide-react";
+import Link from "next/link";
 import { HealthBadge } from "@/components/badges";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { formatDate } from "@/lib/utils/format";
@@ -126,6 +135,31 @@ export const testColumns: ColumnDef<Test>[] = [
       );
     },
     size: 80,
+    enableSorting: false,
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const test = row.original;
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem asChild>
+              <Link href={`/dashboard/results?testId=${test.id}`}>
+                <ListChecks className="mr-2 h-4 w-4" />
+                View Results
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
+    size: 50,
     enableSorting: false,
   },
 ];

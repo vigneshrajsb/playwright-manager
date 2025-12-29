@@ -18,6 +18,7 @@ import {
   DataTable,
   DataTableColumnToggle,
   DataTableFacetedFilter,
+  DataTableResetFilter,
 } from "@/components/data-table";
 import { pipelineColumns } from "./columns";
 import { useDataTableUrlState } from "@/hooks";
@@ -77,7 +78,6 @@ export default function PipelinesPage() {
           </p>
         </div>
 
-        {/* DataTable with toolbar */}
         <DataTable
           columns={pipelineColumns}
           data={pipelines}
@@ -161,6 +161,11 @@ export default function PipelinesPage() {
                 />
               </div>
 
+              <DataTableResetFilter
+                filterKeys={["search", "repository", "branch", "status"]}
+                searchParams={searchParams}
+                updateUrl={updateUrl}
+              />
               <DataTableColumnToggle table={table} />
             </div>
           )}

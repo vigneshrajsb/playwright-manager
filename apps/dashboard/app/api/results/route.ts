@@ -191,7 +191,8 @@ export async function GET(request: NextRequest) {
   const tags = searchParams.get("tags"); // comma-separated
   const status = searchParams.get("status"); // passed, failed, timedOut, skipped
   const outcome = searchParams.get("outcome"); // expected, unexpected, flaky, skipped
-  const testRunId = searchParams.get("testRunId"); // filter by specific run
+  const testRunId = searchParams.get("testRunId");
+  const testId = searchParams.get("testId");
   const sortBy = searchParams.get("sortBy") || "startedAt";
   const sortOrder = searchParams.get("sortOrder") || "desc";
 
@@ -207,6 +208,7 @@ export async function GET(request: NextRequest) {
       status,
       outcome,
       testRunId,
+      testId,
     });
 
     const whereClause = combineConditions(conditions);
@@ -258,7 +260,6 @@ export async function GET(request: NextRequest) {
     // Get filter options
     const filters = await getFilterOptions();
 
-    // Get run info if filtering by testRunId
     let runInfo = null;
     if (testRunId) {
       const run = await db.query.testRuns.findFirst({
@@ -279,6 +280,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    let testInfo = null;
+    if (testId) {
+      const test = await db.query.tests.findFirst({
+        where: eq(tests.id, testId),
+      });
+      if (test) {
+        testInfo = {
+          id: test.id,
+          testTitle: test.testTitle,
+          filePath: test.filePath,
+          projectName: test.projectName,
+        };
+      }
+    }
+
     return NextResponse.json({
       results: results.map((r) => ({
         ...r.result,
@@ -293,6 +309,7 @@ export async function GET(request: NextRequest) {
       },
       filters,
       runInfo,
+      testInfo,
     });
   } catch (error) {
     logger.error({ err: error }, "Failed to fetch results");

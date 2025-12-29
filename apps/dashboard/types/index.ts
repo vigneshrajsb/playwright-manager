@@ -107,6 +107,13 @@ export interface RunInfo {
   failedCount: number;
 }
 
+export interface TestInfo {
+  id: string;
+  testTitle: string;
+  filePath: string;
+  projectName: string;
+}
+
 export interface Pipeline {
   id: string;
   runId: string;

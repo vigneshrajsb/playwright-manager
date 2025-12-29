@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { VisibilityState } from "@tanstack/react-table";
-import { Search, GitBranch, X, ClipboardList } from "lucide-react";
+import { Search, GitBranch, X, ClipboardList, FlaskConical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ import {
   DataTable,
   DataTableColumnToggle,
   DataTableFacetedFilter,
+  DataTableResetFilter,
 } from "@/components/data-table";
 import { ResultSheet } from "@/components/results/result-sheet";
 import { TagFilterPopover } from "@/components/filters";
@@ -52,6 +53,7 @@ export default function ResultsPage() {
   const status = searchParams.get("status") || "";
   const outcome = searchParams.get("outcome") || "";
   const testRunId = searchParams.get("testRunId") || "";
+  const testId = searchParams.get("testId") || "";
   const selectedResultId = searchParams.get("resultId") || null;
 
   const filters: ResultFilters = {
@@ -62,6 +64,7 @@ export default function ResultsPage() {
     status: status || undefined,
     outcome: outcome || undefined,
     testRunId: testRunId || undefined,
+    testId: testId || undefined,
     sortBy,
     page: pageIndex + 1,
   };
@@ -71,9 +74,14 @@ export default function ResultsPage() {
   const pagination = data?.pagination ?? null;
   const filterOptions = data?.filters ?? null;
   const runInfo = data?.runInfo ?? null;
+  const testInfo = data?.testInfo ?? null;
 
   const clearRunFilter = () => {
     updateUrl({ testRunId: undefined });
+  };
+
+  const clearTestFilter = () => {
+    updateUrl({ testId: undefined });
   };
 
   const openResultSheet = (id: string) => {
@@ -116,7 +124,6 @@ export default function ResultsPage() {
           </p>
         </div>
 
-        {/* Run filter banner */}
         {runInfo && (
           <Alert className="flex items-center justify-between">
             <AlertDescription className="flex items-center gap-2">
@@ -148,7 +155,30 @@ export default function ResultsPage() {
           </Alert>
         )}
 
-        {/* DataTable with toolbar */}
+        {testInfo && (
+          <Alert className="flex items-center justify-between">
+            <AlertDescription className="flex items-center gap-2">
+              <FlaskConical className="h-4 w-4" />
+              <span>
+                Showing results for test:{" "}
+                <span className="font-medium">{testInfo.testTitle}</span>
+                <span className="ml-2 text-muted-foreground">
+                  ({testInfo.projectName})
+                </span>
+              </span>
+            </AlertDescription>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearTestFilter}
+              className="h-auto p-1"
+            >
+              <X className="h-4 w-4" />
+              <span className="ml-1">Clear filter</span>
+            </Button>
+          </Alert>
+        )}
+
         <DataTable
           columns={columns}
           data={results}
@@ -249,6 +279,11 @@ export default function ResultsPage() {
                 />
               </div>
 
+              <DataTableResetFilter
+                filterKeys={["search", "repository", "project", "tags", "status", "outcome"]}
+                searchParams={searchParams}
+                updateUrl={updateUrl}
+              />
               <DataTableColumnToggle table={table} />
             </div>
           )}
