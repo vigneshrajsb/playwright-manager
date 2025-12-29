@@ -51,15 +51,15 @@ test("my test", async ({ page }) => {
 
 ## Configuration Options
 
-| Option       | Type      | Required | Default | Description                                |
-| ------------ | --------- | -------- | ------- | ------------------------------------------ |
-| `apiUrl`     | `string`  | Yes      | -       | URL of your Playwright Manager Dashboard   |
-| `repository` | `string`  | Yes      | -       | Repository identifier in `org/repo` format |
-| `disabled`   | `boolean` | No       | `false` | Disable the fixture                        |
-| `cacheTtl`   | `number`  | No       | `60000` | Cache duration in milliseconds (1 minute)  |
-| `failSilently` | `boolean` | No     | `true`  | Suppress errors if dashboard is unreachable |
-| `timeout`    | `number`  | No       | `5000`  | API request timeout in milliseconds        |
-| `debug`      | `boolean` | No       | `false` | Enable debug logging                       |
+| Option         | Type      | Required | Default | Description                                 |
+| -------------- | --------- | -------- | ------- | ------------------------------------------- |
+| `apiUrl`       | `string`  | Yes      | -       | URL of your Playwright Manager Dashboard    |
+| `repository`   | `string`  | Yes      | -       | Repository identifier in `org/repo` format  |
+| `disabled`     | `boolean` | No       | `false` | Disable the fixture                         |
+| `cacheTtl`     | `number`  | No       | `60000` | Cache duration in milliseconds (1 minute)   |
+| `failSilently` | `boolean` | No       | `true`  | Suppress errors if dashboard is unreachable |
+| `timeout`      | `number`  | No       | `5000`  | API request timeout in milliseconds         |
+| `debug`        | `boolean` | No       | `false` | Enable debug logging                        |
 
 ## Examples
 
@@ -107,7 +107,7 @@ export default defineConfig({
 
       // Error handling
       failSilently: true, // Don't fail tests if dashboard is down
-      timeout: 10000,     // Wait up to 10 seconds for API response
+      timeout: 10000, // Wait up to 10 seconds for API response
 
       // Debugging
       debug: true, // Log all fixture operations
@@ -125,3 +125,11 @@ By default (`failSilently: true`), if the dashboard is unreachable:
 - Dashboard outages don't block your CI pipeline
 
 Set `failSilently: false` if you want tests to fail when the API is unreachable.
+
+## Playwright Version Compatibility
+
+| Package Version | Playwright Version |
+| --------------- | ------------------ |
+| 0.1.x           | >= 1.25.0          |
+
+**Minimum supported version: 1.25.0**
