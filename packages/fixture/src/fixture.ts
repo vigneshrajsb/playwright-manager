@@ -127,7 +127,7 @@ export const test = base.extend<TestManagerFixtures>({
         apiUrl,
         repository,
         cacheTtl = 60000,
-        failOpen = true,
+        failSilently = true,
         debug = false,
         timeout = 5000,
       } = options;
@@ -167,16 +167,16 @@ export const test = base.extend<TestManagerFixtures>({
           testId: testInfo.testId,
           error: errorMessage,
           apiUrl,
-          failOpen,
+          failSilently,
         });
 
-        if (!failOpen) {
+        if (!failSilently) {
           throw new Error(
             `[TestManagerFixture] Failed to check disabled status: ${errorMessage}`
           );
         }
 
-        log("Fail-open enabled, continuing with test despite error");
+        log("failSilently enabled, continuing with test despite error");
       }
 
       // Skip test if disabled - OUTSIDE try-catch so skip exception propagates

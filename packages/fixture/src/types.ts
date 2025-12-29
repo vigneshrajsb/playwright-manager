@@ -29,11 +29,11 @@ export interface TestManagerFixtureOptions {
   cacheTtl?: number;
 
   /**
-   * If true, test continues if API is unreachable
+   * If true, API errors are suppressed and tests continue
    * If false, test fails on API errors
    * @default true
    */
-  failOpen?: boolean;
+  failSilently?: boolean;
 
   /**
    * Enable debug logging

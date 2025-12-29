@@ -1,16 +1,26 @@
 # @playwright-manager/fixture
 
-Playwright fixture that automatically skips tests disabled in the Test Manager Dashboard.
+Playwright fixture that automatically skips tests disabled in the Playwright Manager Dashboard. Enable remote test management without code changes.
+
+## Features
+
+- Automatic test skipping based on dashboard status
+- Per-worker caching with request deduplication
+- Fail-silently behavior to prevent dashboard outages from blocking CI
 
 ## Installation
 
 ```bash
+npm install @playwright-manager/fixture
+# or
 pnpm add @playwright-manager/fixture
+# or
+yarn add @playwright-manager/fixture
 ```
 
-## Usage
+## Quick Start
 
-### 1. Configure the fixture in `playwright.config.ts`:
+### 1. Configure in `playwright.config.ts`
 
 ```typescript
 import { defineConfig } from "@playwright/test";
@@ -19,19 +29,17 @@ import type { TestManagerFixtureOptions } from "@playwright-manager/fixture";
 export default defineConfig({
   use: {
     testManager: {
-      apiUrl: "http://localhost:3000",
-      cacheTtl: 60000, // 1 minute
-      failOpen: true,
-      debug: false,
+      apiUrl: "https://your-dashboard.example.com",
+      repository: "your-org/your-repo",
     } as TestManagerFixtureOptions,
   },
 });
 ```
 
-### 2. Import the extended test in your test files:
+### 2. Import from the fixture package in your tests
 
 ```typescript
-// tests/example.spec.ts
+// IMPORTANT: Import from @playwright-manager/fixture, NOT @playwright/test
 import { test, expect } from "@playwright-manager/fixture";
 
 test("my test", async ({ page }) => {
@@ -43,42 +51,77 @@ test("my test", async ({ page }) => {
 
 ## Configuration Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `apiUrl` | `string` | **required** | URL of the Test Manager Dashboard |
-| `cacheTtl` | `number` | `60000` | Cache TTL in milliseconds |
-| `failOpen` | `boolean` | `true` | Continue test if API unreachable |
-| `debug` | `boolean` | `false` | Enable debug logging |
-| `timeout` | `number` | `5000` | API request timeout in ms |
+| Option       | Type      | Required | Default | Description                                |
+| ------------ | --------- | -------- | ------- | ------------------------------------------ |
+| `apiUrl`     | `string`  | Yes      | -       | URL of your Playwright Manager Dashboard   |
+| `repository` | `string`  | Yes      | -       | Repository identifier in `org/repo` format |
+| `disabled`   | `boolean` | No       | `false` | Disable the fixture                        |
+| `cacheTtl`   | `number`  | No       | `60000` | Cache duration in milliseconds (1 minute)  |
+| `failSilently` | `boolean` | No     | `true`  | Suppress errors if dashboard is unreachable |
+| `timeout`    | `number`  | No       | `5000`  | API request timeout in milliseconds        |
+| `debug`      | `boolean` | No       | `false` | Enable debug logging                       |
 
-## How It Works
+## Examples
 
-1. Before each test runs, the fixture checks if the test is disabled
-2. Makes a POST request to `/api/tests/check` with the test ID and project
-3. If disabled, calls `testInfo.skip()` with the reason from the dashboard
-4. Results are cached per worker for the configured TTL
+### Basic Setup
 
-## Fail-Open Behavior
+```typescript
+import { defineConfig } from "@playwright/test";
+import type { TestManagerFixtureOptions } from "@playwright-manager/fixture";
 
-By default (`failOpen: true`), if the dashboard is unreachable:
-- The test will continue running normally
-- An error is logged but not thrown
-- This prevents dashboard outages from blocking your CI
-
-Set `failOpen: false` to fail tests when the API is unreachable.
-
-## Caching
-
-The fixture uses a per-worker cache to minimize API calls:
-- Each Playwright worker has its own cache
-- Cache TTL is configurable (default: 1 minute)
-- Concurrent requests for the same project are deduplicated
-
-## Skipped Test Annotation
-
-When a test is skipped by the dashboard, the skip reason includes:
-```
-[dashboard] <reason from dashboard>
+export default defineConfig({
+  use: {
+    testManager: {
+      apiUrl: "http://localhost:3031",
+      repository: "my-org/my-app",
+    } as TestManagerFixtureOptions,
+  },
+});
 ```
 
-This makes it easy to identify dashboard-skipped tests in reports.
+### CI Setup with Environment Variables
+
+```typescript
+export default defineConfig({
+  use: {
+    testManager: {
+      apiUrl: process.env.DASHBOARD_URL || "http://localhost:3031",
+      repository: process.env.GITHUB_REPOSITORY || "my-org/my-app",
+      disabled: process.env.SKIP_DASHBOARD_CHECK === "true",
+    } as TestManagerFixtureOptions,
+  },
+});
+```
+
+### Full Configuration
+
+```typescript
+export default defineConfig({
+  use: {
+    testManager: {
+      apiUrl: "https://dashboard.example.com",
+      repository: "my-org/my-app",
+
+      // Caching
+      cacheTtl: 30000, // Check every 30 seconds instead of 60
+
+      // Error handling
+      failSilently: true, // Don't fail tests if dashboard is down
+      timeout: 10000,     // Wait up to 10 seconds for API response
+
+      // Debugging
+      debug: true, // Log all fixture operations
+    } as TestManagerFixtureOptions,
+  },
+});
+```
+
+## Fail-Silently Behavior
+
+By default (`failSilently: true`), if the dashboard is unreachable:
+
+- Tests continue running normally
+- Errors are logged (when `debug: true`)
+- Dashboard outages don't block your CI pipeline
+
+Set `failSilently: false` if you want tests to fail when the API is unreachable.
