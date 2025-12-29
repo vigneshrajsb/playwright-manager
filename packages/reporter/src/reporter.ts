@@ -133,6 +133,18 @@ export class TestManagerReporter implements Reporter {
       };
     }
 
+    // Codefresh
+    if (env.CF_BUILD_URL) {
+      return {
+        isCI: true,
+        branch: env.CF_BRANCH,
+        commitSha: env.CF_REVISION,
+        commitMessage: env.CF_COMMIT_MESSAGE,
+        jobUrl: env.CF_BUILD_URL,
+        runId: `codefresh-${env.CF_BUILD_ID}`,
+      };
+    }
+
     // Generic CI detection
     if (env.CI) {
       return {
@@ -226,10 +238,14 @@ export class TestManagerReporter implements Reporter {
     // Extract baseURL from first project with a defined baseURL
     this.baseUrl = config.projects.find((p) => p.use?.baseURL)?.use?.baseURL;
 
-    this.log("Test run started:", this.runId);
-    if (this.baseUrl) {
-      this.log("Base URL:", this.baseUrl);
-    }
+    this.log("Test run started", {
+      runId: this.runId,
+      repository: this.options.repository,
+      apiUrl: this.options.apiUrl,
+      baseUrl: this.baseUrl,
+      branch: this.options.branch || this.ciEnv.branch,
+      isCI: this.ciEnv.isCI,
+    });
 
     // Start flush interval timer
     if (this.options.flushInterval > 0) {
@@ -305,7 +321,14 @@ export class TestManagerReporter implements Reporter {
     }
 
     this.results.push(resultData);
-    this.log(`Test ended: ${test.title} [${result.status}]`);
+    this.log("Test ended", {
+      testId: test.id,
+      title: test.title,
+      status: result.status,
+      duration: result.duration,
+      retry: result.retry,
+      project: project?.name,
+    });
 
     // Flush if batch size reached
     if (this.results.length >= this.options.batchSize) {
@@ -319,7 +342,7 @@ export class TestManagerReporter implements Reporter {
     const resultsToSend = [...this.results];
     this.results = [];
 
-    this.log(`Flushing ${resultsToSend.length} results...`);
+    this.log("Flushing results", { count: resultsToSend.length, runId: this.runId });
 
     try {
       await this.sendResults(resultsToSend, "running");
@@ -327,9 +350,12 @@ export class TestManagerReporter implements Reporter {
       if (!this.options.failSilently) {
         throw error;
       }
-      // Only log errors when debug is enabled
       if (this.options.debug) {
-        console.error("[TestManagerReporter] Failed to flush results:", error);
+        console.error(
+          "[TestManagerReporter] Failed to flush results",
+          { runId: this.runId, resultCount: resultsToSend.length, apiUrl: this.options.apiUrl },
+          error
+        );
       }
       // Re-add results to queue for next flush attempt
       this.results = [...resultsToSend, ...this.results];
@@ -382,7 +408,7 @@ export class TestManagerReporter implements Reporter {
       throw new Error(`API returned ${response.status}: ${text}`);
     }
 
-    this.log("Results sent successfully");
+    this.log("Results sent successfully", { runId: this.runId, count: results.length });
   }
 
   async onEnd(result: FullResult): Promise<void> {
@@ -399,7 +425,7 @@ export class TestManagerReporter implements Reporter {
                         result.status === "failed" ? "failed" :
                         result.status === "interrupted" ? "interrupted" : "failed";
 
-    this.log(`Test run ended with status: ${finalStatus}`);
+    this.log("Test run ended", { runId: this.runId, status: finalStatus, remainingResults: this.results.length });
 
     try {
       // Always send final report, even if no remaining results
@@ -409,9 +435,12 @@ export class TestManagerReporter implements Reporter {
       if (!this.options.failSilently) {
         throw error;
       }
-      // Only log errors when debug is enabled
       if (this.options.debug) {
-        console.error("[TestManagerReporter] Failed to send final report:", error);
+        console.error(
+          "[TestManagerReporter] Failed to send final report",
+          { runId: this.runId, status: finalStatus, resultCount: this.results.length, apiUrl: this.options.apiUrl },
+          error
+        );
       }
     }
   }
