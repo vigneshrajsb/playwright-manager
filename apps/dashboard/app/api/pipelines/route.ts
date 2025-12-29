@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
           SELECT DISTINCT t.repository
           FROM test_results tr
           INNER JOIN tests t ON tr.test_id = t.id
-          WHERE tr.test_run_id = ${testRuns.id}
+          WHERE tr.test_run_id = test_runs.id
           LIMIT 1
         )`.as("repository"),
       })

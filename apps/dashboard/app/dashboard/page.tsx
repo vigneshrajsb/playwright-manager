@@ -31,67 +31,8 @@ import { HealthBadge } from "@/components/badges";
 import { TagFilterPopover } from "@/components/filters";
 import { formatRelativeTime } from "@/lib/utils/format";
 
-interface Overview {
-  totalTests: number;
-  enabledTests: number;
-  disabledTests: number;
-  avgHealthScore: number;
-  overallPassRate: number;
-  flakyCount: number;
-  healthDistribution: {
-    healthy?: number;
-    warning?: number;
-    critical?: number;
-  };
-}
-
-interface RecentRun {
-  id: string;
-  runId: string;
-  branch: string | null;
-  commitSha: string | null;
-  status: string;
-  startedAt: string;
-  passRate: number;
-  totalTests: number;
-  passedCount: number;
-  failedCount: number;
-}
-
-interface TestWithHealth {
-  id: string;
-  testTitle: string;
-  filePath: string;
-  projectName: string;
-  health: {
-    healthScore: number;
-    passRate: string;
-    flakinessRate: string;
-    consecutiveFailures: number;
-  };
-}
-
-interface PassRateTimeline {
-  date: string;
-  passRate: number;
-  totalTests: number;
-  totalRuns: number;
-}
-
-interface FiltersData {
-  repositories: string[];
-  projects: string[];
-  tags: string[];
-}
-
-interface DashboardData {
-  overview: Overview;
-  recentRuns: RecentRun[];
-  passRateTimeline: PassRateTimeline[];
-  flakyTests: TestWithHealth[];
-  failingTests: TestWithHealth[];
-  filters: FiltersData;
-}
+// Shared types
+import type { DashboardData } from "@/types";
 
 export default function DashboardOverviewPage() {
   const router = useRouter();

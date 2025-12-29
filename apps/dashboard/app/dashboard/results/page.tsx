@@ -29,62 +29,8 @@ import { StatusBadgeWithTooltip } from "@/components/badges";
 import { TagFilterPopover } from "@/components/filters";
 import { formatDate, formatDuration } from "@/lib/utils/format";
 
-interface TestResult {
-  id: string;
-  testId: string;
-  testRunId: string;
-  status: string;
-  expectedStatus: string;
-  outcome: string;
-  durationMs: number;
-  errorMessage: string | null;
-  retryCount: number;
-  startedAt: string;
-  baseUrl: string | null;
-  test: {
-    id: string;
-    testTitle: string;
-    filePath: string;
-    projectName: string;
-    repository: string;
-    tags: string[] | null;
-  };
-  run: {
-    id: string;
-    runId: string;
-    branch: string | null;
-    commitSha: string | null;
-    status: string;
-    startedAt: string;
-  };
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-interface FiltersData {
-  repositories: string[];
-  projects: string[];
-  tags: string[];
-  statuses: string[];
-  outcomes: string[];
-}
-
-interface RunInfo {
-  id: string;
-  runId: string;
-  branch: string | null;
-  commitSha: string | null;
-  status: string;
-  startedAt: string;
-  totalTests: number;
-  passedCount: number;
-  failedCount: number;
-}
+// Shared types
+import type { TestResult, Pagination, ResultFiltersData, RunInfo } from "@/types";
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -92,7 +38,7 @@ export default function ResultsPage() {
 
   const [results, setResults] = useState<TestResult[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [filters, setFilters] = useState<FiltersData | null>(null);
+  const [filters, setFilters] = useState<ResultFiltersData | null>(null);
   const [runInfo, setRunInfo] = useState<RunInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedResultId, setSelectedResultId] = useState<string | null>(null);

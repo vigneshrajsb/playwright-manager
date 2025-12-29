@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests, testRuns, testHealth, testResults } from "@/lib/db/schema";
-import { eq, and, desc, sql, gte } from "drizzle-orm";
+import { eq, and, desc, sql, gte, SQL } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     since.setDate(since.getDate() - days);
 
     // Build test filter conditions
-    const testConditions: any[] = [];
+    const testConditions: SQL<unknown>[] = [];
     if (repository) {
       testConditions.push(eq(tests.repository, repository));
     }
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     const testStats = await testStatsQuery;
 
     // Health distribution (filtered)
-    let healthDistributionQuery = db
+    const healthDistributionQuery = db
       .select({
         bucket: sql<string>`
           case
@@ -65,13 +65,12 @@ export async function GET(request: NextRequest) {
         count: sql<number>`count(*)`,
       })
       .from(testHealth)
-      .innerJoin(tests, eq(testHealth.testId, tests.id));
+      .innerJoin(tests, eq(testHealth.testId, tests.id))
+      .$dynamic();
 
-    if (testConditions.length > 0) {
-      healthDistributionQuery = healthDistributionQuery.where(testWhereClause) as any;
-    }
-
-    const healthDistribution = await healthDistributionQuery.groupBy(sql`1`);
+    const healthDistribution = await healthDistributionQuery
+      .where(testWhereClause)
+      .groupBy(sql`1`);
 
     // Get test IDs that match the filter for run filtering
     let filteredTestIds: string[] = [];
@@ -168,18 +167,15 @@ export async function GET(request: NextRequest) {
       .limit(5);
 
     // Calculate overall health score (filtered)
-    let avgHealthQuery = db
+    const avgHealthQuery = db
       .select({
         avgHealth: sql<number>`round(avg(${testHealth.healthScore}))`,
       })
       .from(testHealth)
-      .innerJoin(tests, eq(testHealth.testId, tests.id));
+      .innerJoin(tests, eq(testHealth.testId, tests.id))
+      .$dynamic();
 
-    if (testConditions.length > 0) {
-      avgHealthQuery = avgHealthQuery.where(testWhereClause) as any;
-    }
-
-    const avgHealthResult = await avgHealthQuery;
+    const avgHealthResult = await avgHealthQuery.where(testWhereClause);
 
     // Calculate overall pass rate
     const totalPassed = recentRuns.reduce((acc, run) => acc + run.passedCount, 0);

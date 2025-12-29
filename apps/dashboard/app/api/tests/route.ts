@@ -147,19 +147,17 @@ export async function GET(request: NextRequest) {
             : tests.lastSeenAt;
 
     // Build the query with appropriate join type
-    let query = db
+    const baseQuery = db
       .select({
         test: tests,
         health: testHealth,
       })
-      .from(tests);
+      .from(tests)
+      .$dynamic();
 
-    if (needsHealthJoin) {
-      // Inner join when filtering by health to exclude tests without health data
-      query = query.innerJoin(testHealth, eq(tests.id, testHealth.testId)) as any;
-    } else {
-      query = query.leftJoin(testHealth, eq(tests.id, testHealth.testId)) as any;
-    }
+    const query = needsHealthJoin
+      ? baseQuery.innerJoin(testHealth, eq(tests.id, testHealth.testId))
+      : baseQuery.leftJoin(testHealth, eq(tests.id, testHealth.testId));
 
     const result = await query
       .where(whereClause)
@@ -168,13 +166,14 @@ export async function GET(request: NextRequest) {
       .offset(offset);
 
     // Get total count with same filters
-    let countQuery = db
+    const baseCountQuery = db
       .select({ count: sql<number>`count(*)` })
-      .from(tests);
+      .from(tests)
+      .$dynamic();
 
-    if (needsHealthJoin) {
-      countQuery = countQuery.innerJoin(testHealth, eq(tests.id, testHealth.testId)) as any;
-    }
+    const countQuery = needsHealthJoin
+      ? baseCountQuery.innerJoin(testHealth, eq(tests.id, testHealth.testId))
+      : baseCountQuery;
 
     const countResult = await countQuery.where(whereClause);
     const total = Number(countResult[0].count);

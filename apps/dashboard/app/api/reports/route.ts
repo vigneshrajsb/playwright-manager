@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tests, testRuns, testResults, testHealth } from "@/lib/db/schema";
+import { tests, testRuns, testResults, testHealth, TestResult as DbTestResult } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+
+type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /**
  * @swagger
@@ -335,18 +337,27 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function updateTestHealth(tx: any, testId: string) {
+interface HealthStats {
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  flaky: number;
+  totalDuration: number;
+}
+
+async function updateTestHealth(tx: Transaction, testId: string) {
   // Get last 50 results for this test
   const recentResults = await tx.query.testResults.findMany({
     where: eq(testResults.testId, testId),
-    orderBy: (results: any, { desc }: any) => [desc(results.startedAt)],
+    orderBy: (results, { desc }) => [desc(results.startedAt)],
     limit: 50,
   });
 
   if (recentResults.length === 0) return;
 
-  const stats = recentResults.reduce(
-    (acc: any, r: any) => {
+  const stats = recentResults.reduce<HealthStats>(
+    (acc, r) => {
       acc.total++;
       if (r.outcome === "expected") acc.passed++;
       if (r.outcome === "unexpected") acc.failed++;
@@ -403,11 +414,9 @@ async function updateTestHealth(tx: any, testId: string) {
     lastStatus: recentResults[0].status,
     lastRunAt: recentResults[0].startedAt,
     lastPassedAt:
-      recentResults.find((r: any) => r.outcome === "expected")?.startedAt ||
-      null,
+      recentResults.find((r) => r.outcome === "expected")?.startedAt || null,
     lastFailedAt:
-      recentResults.find((r: any) => r.outcome === "unexpected")?.startedAt ||
-      null,
+      recentResults.find((r) => r.outcome === "unexpected")?.startedAt || null,
     updatedAt: new Date(),
   };
 

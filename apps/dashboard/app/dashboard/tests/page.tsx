@@ -39,38 +39,8 @@ import { ConfirmationDialog, BulkConfirmationDialog } from "@/components/dialogs
 // Shared utilities
 import { formatDate } from "@/lib/utils/format";
 
-interface TestHealth {
-  healthScore: number;
-  passRate: string;
-  flakinessRate: string;
-  lastRunAt: string | null;
-}
-
-interface Test {
-  id: string;
-  testTitle: string;
-  filePath: string;
-  repository: string;
-  projectName: string;
-  tags: string[] | null;
-  isEnabled: boolean;
-  disabledReason: string | null;
-  lastSeenAt: string;
-  health: TestHealth | null;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-interface FiltersData {
-  repositories: string[];
-  projects: string[];
-  tags: string[];
-}
+// Shared types
+import type { Test, Pagination, TestFiltersData } from "@/types";
 
 export default function TestsPage() {
   const router = useRouter();
@@ -78,7 +48,7 @@ export default function TestsPage() {
 
   const [tests, setTests] = useState<Test[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [filters, setFilters] = useState<FiltersData | null>(null);
+  const [filters, setFilters] = useState<TestFiltersData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);

@@ -49,38 +49,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-interface Pipeline {
-  id: string;
-  runId: string;
-  repository: string | null;
-  branch: string | null;
-  commitSha: string | null;
-  commitMessage: string | null;
-  ciJobUrl: string | null;
-  baseUrl: string | null;
-  status: string;
-  startedAt: string;
-  finishedAt: string | null;
-  durationMs: number | null;
-  totalTests: number;
-  passedCount: number;
-  failedCount: number;
-  skippedCount: number;
-  flakyCount: number;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-interface FiltersData {
-  branches: string[];
-  repositories: string[];
-  statuses: string[];
-}
+// Shared types
+import type { Pipeline, Pagination, PipelineFiltersData } from "@/types";
 
 export default function PipelinesPage() {
   const router = useRouter();
@@ -88,7 +58,7 @@ export default function PipelinesPage() {
 
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [filters, setFilters] = useState<FiltersData | null>(null);
+  const [filters, setFilters] = useState<PipelineFiltersData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filter state from URL
