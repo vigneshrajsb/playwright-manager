@@ -28,6 +28,18 @@ export function formatDuration(ms: number): string {
 }
 
 /**
+ * Format a date string for display without time
+ * Example output: "Dec 28"
+ */
+export function formatShortDate(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
  * Format a date as relative time
  * Examples: "5m ago", "2h ago", "3d ago"
  */

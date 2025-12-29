@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,53 +22,31 @@ import {
   ArrowRight,
   Play,
 } from "lucide-react";
-import { toast } from "sonner";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { PassRateChart } from "@/components/dashboard/pass-rate-chart";
 import { HealthPieChart } from "@/components/dashboard/health-pie-chart";
 import { HealthBadge } from "@/components/badges";
 import { TagFilterPopover } from "@/components/filters";
 import { formatRelativeTime } from "@/lib/utils/format";
-
-// Shared types
-import type { DashboardData } from "@/types";
+import { useDashboard } from "@/hooks/queries";
+import type { DashboardFilters } from "@/hooks/queries";
 
 export default function DashboardOverviewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Filter state from URL
   const repository = searchParams.get("repository") || "";
   const project = searchParams.get("project") || "";
   const tags = searchParams.get("tags") || "";
   const selectedTags = tags ? tags.split(",").filter(Boolean) : [];
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (repository) params.set("repository", repository);
-      if (project) params.set("project", project);
-      if (tags) params.set("tags", tags);
-      params.set("days", "7");
+  const filters: DashboardFilters = {
+    repository: repository || undefined,
+    project: project || undefined,
+    tags: tags || undefined,
+  };
 
-      const response = await fetch(`/api/dashboard?${params.toString()}`);
-      const data = await response.json();
-      setData(data);
-    } catch (error) {
-      console.error("Failed to fetch dashboard:", error);
-      toast.error("Failed to load dashboard");
-    } finally {
-      setLoading(false);
-    }
-  }, [repository, project, tags]);
-
-  useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+  const { data, isLoading } = useDashboard(filters);
 
   const updateUrl = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -96,7 +73,7 @@ export default function DashboardOverviewPage() {
     }
   };
 
-  if (loading && !data) {
+  if (isLoading && !data) {
     return (
       <div className="flex h-[400px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -115,12 +92,12 @@ export default function DashboardOverviewPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
           <Select
             value={repository}
             onValueChange={(v) => updateUrl({ repository: v === "all" ? "" : v })}
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px] shrink-0">
               <SelectValue placeholder="Repository" />
             </SelectTrigger>
             <SelectContent>
@@ -137,7 +114,7 @@ export default function DashboardOverviewPage() {
             value={project}
             onValueChange={(v) => updateUrl({ project: v === "all" ? "" : v })}
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[140px] shrink-0">
               <SelectValue placeholder="Project" />
             </SelectTrigger>
             <SelectContent>
@@ -154,7 +131,7 @@ export default function DashboardOverviewPage() {
             tags={data?.filters?.tags || []}
             selectedTags={selectedTags}
             onTagsChange={(newTags) => updateUrl({ tags: newTags.join(",") })}
-            buttonClassName="w-[140px]"
+            buttonClassName="w-[140px] shrink-0"
             align="end"
           />
         </div>

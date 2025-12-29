@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Table,
@@ -33,7 +32,6 @@ import {
   ListChecks,
   GitPullRequest,
 } from "lucide-react";
-import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,20 +46,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-// Shared types
-import type { Pipeline, Pagination, PipelineFiltersData } from "@/types";
+import { usePipelines } from "@/hooks/queries";
+import type { PipelineFilters } from "@/hooks/queries";
+import { formatDate, formatDuration } from "@/lib/utils/format";
 
 export default function PipelinesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [pipelines, setPipelines] = useState<Pipeline[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [filters, setFilters] = useState<PipelineFiltersData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Filter state from URL
   const search = searchParams.get("search") || "";
   const repository = searchParams.get("repository") || "";
   const branch = searchParams.get("branch") || "";
@@ -69,35 +61,19 @@ export default function PipelinesPage() {
   const sortBy = searchParams.get("sortBy") || "startedAt";
   const page = parseInt(searchParams.get("page") || "1");
 
-  const fetchPipelines = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (repository) params.set("repository", repository);
-      if (branch) params.set("branch", branch);
-      if (status) params.set("status", status);
-      if (sortBy) params.set("sortBy", sortBy);
-      params.set("page", page.toString());
-      params.set("limit", "20");
+  const filters: PipelineFilters = {
+    search: search || undefined,
+    repository: repository || undefined,
+    branch: branch || undefined,
+    status: status || undefined,
+    sortBy,
+    page,
+  };
 
-      const response = await fetch(`/api/pipelines?${params.toString()}`);
-      const data = await response.json();
-
-      setPipelines(data.pipelines || []);
-      setPagination(data.pagination);
-      setFilters(data.filters);
-    } catch (error) {
-      console.error("Failed to fetch pipelines:", error);
-      toast.error("Failed to load pipelines");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, repository, branch, status, sortBy, page]);
-
-  useEffect(() => {
-    fetchPipelines();
-  }, [fetchPipelines]);
+  const { data, isLoading } = usePipelines(filters);
+  const pipelines = data?.pipelines ?? [];
+  const pagination = data?.pagination ?? null;
+  const filterOptions = data?.filters ?? null;
 
   const updateUrl = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -129,39 +105,6 @@ export default function PipelinesPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      passed: "bg-green-500/10 text-green-600",
-      failed: "bg-red-500/10 text-red-600",
-      running: "bg-blue-500/10 text-blue-600",
-      interrupted: "bg-yellow-500/10 text-yellow-600",
-    };
-    return (
-      <Badge className={variants[status] || "bg-gray-500/10 text-gray-600"}>
-        {status}
-      </Badge>
-    );
-  };
-
-  const formatDuration = (ms: number | null) => {
-    if (!ms) return "--";
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.round((ms % 60000) / 1000);
-    return `${minutes}m ${seconds}s`;
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   return (
     <TooltipProvider>
       <div className="space-y-4">
@@ -173,8 +116,8 @@ export default function PipelinesPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+        <div className="flex items-center gap-3 overflow-x-auto pb-2">
+          <div className="relative min-w-[200px] max-w-sm shrink-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by branch, commit, URL..."
@@ -186,14 +129,16 @@ export default function PipelinesPage() {
 
           <Select
             value={repository}
-            onValueChange={(v) => updateUrl({ repository: v === "all" ? "" : v })}
+            onValueChange={(v) =>
+              updateUrl({ repository: v === "all" ? "" : v })
+            }
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] shrink-0">
               <SelectValue placeholder="Repository" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Repositories</SelectItem>
-              {filters?.repositories?.map((r) => (
+              {filterOptions?.repositories?.map((r) => (
                 <SelectItem key={r} value={r}>
                   {r}
                 </SelectItem>
@@ -205,12 +150,12 @@ export default function PipelinesPage() {
             value={branch}
             onValueChange={(v) => updateUrl({ branch: v === "all" ? "" : v })}
           >
-            <SelectTrigger className="w-[150px]">
+            <SelectTrigger className="w-[150px] shrink-0">
               <SelectValue placeholder="Branch" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Branches</SelectItem>
-              {filters?.branches?.map((b) => (
+              {filterOptions?.branches?.map((b) => (
                 <SelectItem key={b} value={b}>
                   {b}
                 </SelectItem>
@@ -222,12 +167,12 @@ export default function PipelinesPage() {
             value={status}
             onValueChange={(v) => updateUrl({ status: v === "all" ? "" : v })}
           >
-            <SelectTrigger className="w-[130px]">
+            <SelectTrigger className="w-[130px] shrink-0">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              {filters?.statuses?.map((s) => (
+              {filterOptions?.statuses?.map((s) => (
                 <SelectItem key={s} value={s}>
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </SelectItem>
@@ -235,8 +180,11 @@ export default function PipelinesPage() {
             </SelectContent>
           </Select>
 
-          <Select value={sortBy} onValueChange={(v) => updateUrl({ sortBy: v })}>
-            <SelectTrigger className="w-[150px]">
+          <Select
+            value={sortBy}
+            onValueChange={(v) => updateUrl({ sortBy: v })}
+          >
+            <SelectTrigger className="w-[150px] shrink-0">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
@@ -262,7 +210,7 @@ export default function PipelinesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
@@ -284,7 +232,10 @@ export default function PipelinesPage() {
                 </TableRow>
               ) : (
                 pipelines.map((pipeline) => (
-                  <TableRow key={pipeline.id} className="cursor-pointer hover:bg-muted/50">
+                  <TableRow
+                    key={pipeline.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                  >
                     <TableCell>
                       <div className="flex items-center justify-center">
                         {getStatusIcon(pipeline.status)}
@@ -295,7 +246,9 @@ export default function PipelinesPage() {
                         {pipeline.branch && (
                           <div className="flex items-center gap-1.5">
                             <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="font-medium">{pipeline.branch}</span>
+                            <span className="font-medium">
+                              {pipeline.branch}
+                            </span>
                           </div>
                         )}
                         {pipeline.commitSha && (
@@ -348,7 +301,7 @@ export default function PipelinesPage() {
                     <TableCell>
                       <span className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="h-3.5 w-3.5" />
-                        {formatDuration(pipeline.durationMs)}
+                        {pipeline.durationMs ? formatDuration(pipeline.durationMs) : "--"}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -390,7 +343,9 @@ export default function PipelinesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem asChild>
-                            <Link href={`/dashboard/results?testRunId=${pipeline.id}`}>
+                            <Link
+                              href={`/dashboard/results?testRunId=${pipeline.id}`}
+                            >
                               <ListChecks className="mr-2 h-4 w-4" />
                               View Results
                             </Link>
@@ -425,8 +380,8 @@ export default function PipelinesPage() {
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-              {pagination.total} pipelines
+              {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+              of {pagination.total} pipelines
             </p>
             <div className="flex items-center gap-2">
               <Button

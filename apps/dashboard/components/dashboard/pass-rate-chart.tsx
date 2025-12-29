@@ -8,6 +8,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import { formatShortDate } from "@/lib/utils/format";
 
 interface PassRateChartProps {
   data: Array<{
@@ -26,11 +27,6 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function PassRateChart({ data }: PassRateChartProps) {
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -52,7 +48,7 @@ export function PassRateChart({ data }: PassRateChartProps) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="date"
-                tickFormatter={formatDate}
+                tickFormatter={formatShortDate}
                 tickLine={false}
                 axisLine={false}
                 tickMargin={8}
@@ -68,7 +64,7 @@ export function PassRateChart({ data }: PassRateChartProps) {
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(value) => formatDate(value as string)}
+                    labelFormatter={(value) => formatShortDate(value as string)}
                     formatter={(value) => [`${value}%`, "Pass Rate"]}
                   />
                 }

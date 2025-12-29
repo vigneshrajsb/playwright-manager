@@ -5,11 +5,7 @@ export type {
   UsePaginationReturn,
 } from "./use-pagination";
 
-export { useFetch, useMutation } from "./use-fetch";
-export type {
-  UseFetchState,
-  UseFetchOptions,
-  UseFetchReturn,
-} from "./use-fetch";
-
 export { useIsMobile } from "./use-mobile";
+
+// Query hooks
+export * from "./queries";

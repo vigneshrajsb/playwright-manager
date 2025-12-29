@@ -26,29 +26,32 @@ export async function GET(request: NextRequest) {
     if (tags) {
       const tagList = tags.split(",").filter(Boolean);
       if (tagList.length > 0) {
-        const tagArrayLiteral = tagList.map(t => `'${t.replace(/'/g, "''")}'`).join(",");
-        testConditions.push(sql`${tests.tags} && ARRAY[${sql.raw(tagArrayLiteral)}]::text[]`);
+        const tagParams = tagList.map((t) => sql`${t}`);
+        const tagArray = sql`ARRAY[${sql.join(tagParams, sql`, `)}]::text[]`;
+        testConditions.push(sql`${tests.tags} && ${tagArray}`);
       }
     }
-    const testWhereClause = testConditions.length > 0 ? and(...testConditions) : undefined;
+    const testWhereClause =
+      testConditions.length > 0 ? and(...testConditions) : undefined;
 
     // Overall test stats (filtered)
-    const testStatsQuery = testConditions.length > 0
-      ? db
-          .select({
-            totalTests: sql<number>`count(*)`,
-            enabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = true)`,
-            disabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = false)`,
-          })
-          .from(tests)
-          .where(testWhereClause)
-      : db
-          .select({
-            totalTests: sql<number>`count(*)`,
-            enabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = true)`,
-            disabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = false)`,
-          })
-          .from(tests);
+    const testStatsQuery =
+      testConditions.length > 0
+        ? db
+            .select({
+              totalTests: sql<number>`count(*)`,
+              enabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = true)`,
+              disabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = false)`,
+            })
+            .from(tests)
+            .where(testWhereClause)
+        : db
+            .select({
+              totalTests: sql<number>`count(*)`,
+              enabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = true)`,
+              disabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = false)`,
+            })
+            .from(tests);
 
     const testStats = await testStatsQuery;
 
@@ -79,21 +82,24 @@ export async function GET(request: NextRequest) {
         .select({ id: tests.id })
         .from(tests)
         .where(testWhereClause);
-      filteredTestIds = filteredTests.map(t => t.id);
+      filteredTestIds = filteredTests.map((t) => t.id);
     }
 
     // Get run IDs that have results from filtered tests
     let filteredRunIds: string[] = [];
     if (filteredTestIds.length > 0) {
+      const idParams = filteredTestIds.map((id) => sql`${id}`);
       const runsWithFilteredTests = await db
         .selectDistinct({ runId: testResults.testRunId })
         .from(testResults)
-        .where(sql`${testResults.testId} = ANY(ARRAY[${sql.raw(filteredTestIds.map(id => `'${id}'`).join(","))}]::uuid[])`);
-      filteredRunIds = runsWithFilteredTests.map(r => r.runId);
+        .where(
+          sql`${testResults.testId} = ANY(ARRAY[${sql.join(idParams, sql`, `)}]::uuid[])`,
+        );
+      filteredRunIds = runsWithFilteredTests.map((r) => r.runId);
     }
 
     // Recent runs (filtered by related tests if filters applied)
-    let recentRunsQuery = db
+    const recentRunsQuery = db
       .select()
       .from(testRuns)
       .where(gte(testRuns.startedAt, since))
@@ -104,11 +110,11 @@ export async function GET(request: NextRequest) {
 
     // Filter runs in memory if we have test filters
     if (filteredRunIds.length > 0) {
-      recentRuns = recentRuns.filter(run => filteredRunIds.includes(run.id));
+      recentRuns = recentRuns.filter((run) => filteredRunIds.includes(run.id));
     }
 
     // Pass rate over time (filtered)
-    let passRateTimelineQuery = db
+    const passRateTimelineQuery = db
       .select({
         date: sql<string>`date_trunc('day', ${testRuns.startedAt})::date::text`,
         passRate: sql<number>`
@@ -148,9 +154,7 @@ export async function GET(request: NextRequest) {
       .limit(5);
 
     // Top failing tests (filtered) - only show tests with healthScore < 50 (critical)
-    const failingConditionsForList = [
-      sql`${testHealth.healthScore} < 50`,
-    ];
+    const failingConditionsForList = [sql`${testHealth.healthScore} < 50`];
     if (testConditions.length > 0) {
       failingConditionsForList.push(...testConditions);
     }
@@ -178,12 +182,18 @@ export async function GET(request: NextRequest) {
     const avgHealthResult = await avgHealthQuery.where(testWhereClause);
 
     // Calculate overall pass rate
-    const totalPassed = recentRuns.reduce((acc, run) => acc + run.passedCount, 0);
+    const totalPassed = recentRuns.reduce(
+      (acc, run) => acc + run.passedCount,
+      0,
+    );
     const totalTests = recentRuns.reduce((acc, run) => acc + run.totalTests, 0);
-    const overallPassRate = totalTests > 0 ? Math.round((totalPassed / totalTests) * 100) : 0;
+    const overallPassRate =
+      totalTests > 0 ? Math.round((totalPassed / totalTests) * 100) : 0;
 
     // Count flaky tests
-    const flakyConditions = [sql`CAST(${testHealth.flakinessRate} AS numeric) > 10`];
+    const flakyConditions = [
+      sql`CAST(${testHealth.flakinessRate} AS numeric) > 10`,
+    ];
     if (testConditions.length > 0) {
       flakyConditions.push(...testConditions);
     }
@@ -206,7 +216,9 @@ export async function GET(request: NextRequest) {
     const tagsResult = await db
       .select({ tags: tests.tags })
       .from(tests)
-      .where(sql`${tests.tags} IS NOT NULL AND array_length(${tests.tags}, 1) > 0`);
+      .where(
+        sql`${tests.tags} IS NOT NULL AND array_length(${tests.tags}, 1) > 0`,
+      );
 
     const allTags = new Set<string>();
     for (const row of tagsResult) {
@@ -226,7 +238,7 @@ export async function GET(request: NextRequest) {
         overallPassRate,
         flakyCount: Number(flakyCountResult[0].count),
         healthDistribution: Object.fromEntries(
-          healthDistribution.map((h) => [h.bucket, Number(h.count)])
+          healthDistribution.map((h) => [h.bucket, Number(h.count)]),
         ),
       },
       recentRuns: recentRuns.map((run) => ({
@@ -260,7 +272,7 @@ export async function GET(request: NextRequest) {
     logger.error({ err: error }, "Failed to fetch dashboard data");
     return NextResponse.json(
       { error: "Failed to fetch dashboard data" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

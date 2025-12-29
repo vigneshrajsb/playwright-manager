@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Table,
@@ -21,29 +20,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Search, Clock, GitBranch, MoreHorizontal, X, ExternalLink, ClipboardList } from "lucide-react";
-import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ResultSheet } from "@/components/results/result-sheet";
 import { StatusBadgeWithTooltip } from "@/components/badges";
 import { TagFilterPopover } from "@/components/filters";
 import { formatDate, formatDuration } from "@/lib/utils/format";
-
-// Shared types
-import type { TestResult, Pagination, ResultFiltersData, RunInfo } from "@/types";
+import { useResults } from "@/hooks/queries";
+import type { ResultFilters } from "@/hooks/queries";
 
 export default function ResultsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [results, setResults] = useState<TestResult[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [filters, setFilters] = useState<ResultFiltersData | null>(null);
-  const [runInfo, setRunInfo] = useState<RunInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
-
-  // Filter state from URL
   const search = searchParams.get("search") || "";
   const repository = searchParams.get("repository") || "";
   const project = searchParams.get("project") || "";
@@ -52,50 +41,28 @@ export default function ResultsPage() {
   const status = searchParams.get("status") || "";
   const outcome = searchParams.get("outcome") || "";
   const testRunId = searchParams.get("testRunId") || "";
-  const resultId = searchParams.get("resultId") || "";
   const sortBy = searchParams.get("sortBy") || "startedAt";
   const page = parseInt(searchParams.get("page") || "1");
 
-  // Sync selectedResultId with URL param
-  useEffect(() => {
-    if (resultId) {
-      setSelectedResultId(resultId);
-    }
-  }, [resultId]);
+  const selectedResultId = searchParams.get("resultId") || null;
 
-  const fetchResults = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (repository) params.set("repository", repository);
-      if (project) params.set("project", project);
-      if (tags) params.set("tags", tags);
-      if (status) params.set("status", status);
-      if (outcome) params.set("outcome", outcome);
-      if (testRunId) params.set("testRunId", testRunId);
-      if (sortBy) params.set("sortBy", sortBy);
-      params.set("page", page.toString());
-      params.set("limit", "20");
+  const filters: ResultFilters = {
+    search: search || undefined,
+    repository: repository || undefined,
+    project: project || undefined,
+    tags: tags || undefined,
+    status: status || undefined,
+    outcome: outcome || undefined,
+    testRunId: testRunId || undefined,
+    sortBy,
+    page,
+  };
 
-      const response = await fetch(`/api/results?${params.toString()}`);
-      const data = await response.json();
-
-      setResults(data.results || []);
-      setPagination(data.pagination);
-      setFilters(data.filters);
-      setRunInfo(data.runInfo || null);
-    } catch (error) {
-      console.error("Failed to fetch results:", error);
-      toast.error("Failed to load results");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, repository, project, tags, status, outcome, testRunId, sortBy, page]);
-
-  useEffect(() => {
-    fetchResults();
-  }, [fetchResults]);
+  const { data, isLoading } = useResults(filters);
+  const results = data?.results ?? [];
+  const pagination = data?.pagination ?? null;
+  const filterOptions = data?.filters ?? null;
+  const runInfo = data?.runInfo ?? null;
 
   const updateUrl = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -117,12 +84,10 @@ export default function ResultsPage() {
   };
 
   const openResultSheet = (id: string) => {
-    setSelectedResultId(id);
     updateUrl({ resultId: id });
   };
 
   const closeResultSheet = () => {
-    setSelectedResultId(null);
     updateUrl({ resultId: "" });
   };
 
@@ -169,8 +134,8 @@ export default function ResultsPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+        <div className="relative min-w-[200px] max-w-sm shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by test, path, URL..."
@@ -184,12 +149,12 @@ export default function ResultsPage() {
           value={repository}
           onValueChange={(v) => updateUrl({ repository: v === "all" ? "" : v })}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] shrink-0">
             <SelectValue placeholder="Repository" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Repositories</SelectItem>
-            {filters?.repositories?.map((r) => (
+            {filterOptions?.repositories?.map((r) => (
               <SelectItem key={r} value={r}>
                 {r}
               </SelectItem>
@@ -201,12 +166,12 @@ export default function ResultsPage() {
           value={project}
           onValueChange={(v) => updateUrl({ project: v === "all" ? "" : v })}
         >
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px] shrink-0">
             <SelectValue placeholder="Project" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
-            {filters?.projects?.map((p) => (
+            {filterOptions?.projects?.map((p) => (
               <SelectItem key={p} value={p}>
                 {p}
               </SelectItem>
@@ -215,7 +180,7 @@ export default function ResultsPage() {
         </Select>
 
         <TagFilterPopover
-          tags={filters?.tags || []}
+          tags={filterOptions?.tags || []}
           selectedTags={selectedTags}
           onTagsChange={(newTags) => updateUrl({ tags: newTags.join(",") })}
         />
@@ -224,12 +189,12 @@ export default function ResultsPage() {
           value={status}
           onValueChange={(v) => updateUrl({ status: v === "all" ? "" : v })}
         >
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-[130px] shrink-0">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            {filters?.statuses?.map((s) => (
+            {filterOptions?.statuses?.map((s) => (
               <SelectItem key={s} value={s}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </SelectItem>
@@ -241,12 +206,12 @@ export default function ResultsPage() {
           value={outcome}
           onValueChange={(v) => updateUrl({ outcome: v === "all" ? "" : v })}
         >
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-[130px] shrink-0">
             <SelectValue placeholder="Outcome" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Outcomes</SelectItem>
-            {filters?.outcomes?.map((o) => (
+            {filterOptions?.outcomes?.map((o) => (
               <SelectItem key={o} value={o}>
                 {o.charAt(0).toUpperCase() + o.slice(1)}
               </SelectItem>
@@ -255,7 +220,7 @@ export default function ResultsPage() {
         </Select>
 
         <Select value={sortBy} onValueChange={(v) => updateUrl({ sortBy: v })}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px] shrink-0">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -281,7 +246,7 @@ export default function ResultsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />

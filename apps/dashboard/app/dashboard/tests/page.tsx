@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   Table,
@@ -11,7 +11,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,98 +21,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Loader2, Search, X, MoreHorizontal, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Loader2, Search, X, Trash2, CheckCircle, XCircle } from "lucide-react";
 
-// Shared components
 import { HealthBadge } from "@/components/badges";
 import { TagFilterPopover } from "@/components/filters";
-import { ConfirmationDialog, BulkConfirmationDialog } from "@/components/dialogs";
-
-// Shared utilities
+import { ConfirmationDialog } from "@/components/dialogs";
 import { formatDate } from "@/lib/utils/format";
-
-// Shared types
-import type { Test, Pagination, TestFiltersData } from "@/types";
+import { useTests, useToggleTests, useDeleteTests } from "@/hooks/queries";
+import type { TestFilters } from "@/hooks/queries";
+import type { DialogState } from "@/types/dialog";
+import { dialogActions } from "@/types/dialog";
 
 export default function TestsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [tests, setTests] = useState<Test[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [filters, setFilters] = useState<TestFiltersData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [dialogState, setDialogState] = useState<DialogState>({ type: "closed" });
 
-  // Bulk disable dialog state
-  const [bulkDisableOpen, setBulkDisableOpen] = useState(false);
-  const [bulkDisabling, setBulkDisabling] = useState(false);
-
-  // Single test disable dialog state
-  const [singleDisableOpen, setSingleDisableOpen] = useState(false);
-  const [singleDisableTestId, setSingleDisableTestId] = useState<string | null>(null);
-  const [singleDisableTestTitle, setSingleDisableTestTitle] = useState("");
-
-  // Delete dialog state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteTestId, setDeleteTestId] = useState<string | null>(null);
-  const [deleteTestTitle, setDeleteTestTitle] = useState("");
-  const [deleting, setDeleting] = useState(false);
-
-  // Bulk delete dialog state
-  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
-
-  // Filter state from URL
   const search = searchParams.get("search") || "";
   const repository = searchParams.get("repository") || "";
   const project = searchParams.get("project") || "";
-  const tags = searchParams.get("tags") || ""; // comma-separated
+  const tags = searchParams.get("tags") || "";
   const selectedTags = tags ? tags.split(",").filter(Boolean) : [];
   const status = searchParams.get("status") || "";
   const health = searchParams.get("health") || "";
   const sortBy = searchParams.get("sortBy") || "lastSeenAt";
   const page = parseInt(searchParams.get("page") || "1");
 
-  const fetchTests = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (repository) params.set("repository", repository);
-      if (project) params.set("project", project);
-      if (tags) params.set("tags", tags);
-      if (status) params.set("status", status);
-      if (health) params.set("health", health);
-      if (sortBy) params.set("sortBy", sortBy);
-      params.set("page", page.toString());
-      params.set("limit", "20");
+  const filters: TestFilters = {
+    search: search || undefined,
+    repository: repository || undefined,
+    project: project || undefined,
+    tags: tags || undefined,
+    status: status || undefined,
+    health: health || undefined,
+    sortBy,
+    page,
+  };
 
-      const response = await fetch(`/api/tests?${params.toString()}`);
-      const data = await response.json();
+  const { data, isLoading } = useTests(filters);
+  const tests = data?.tests ?? [];
+  const pagination = data?.pagination ?? null;
+  const filterOptions = data?.filters ?? null;
 
-      setTests(data.tests || []);
-      setPagination(data.pagination);
-      setFilters(data.filters);
-    } catch (error) {
-      console.error("Failed to fetch tests:", error);
-      toast.error("Failed to load tests");
-    } finally {
-      setLoading(false);
-    }
-  }, [search, repository, project, tags, status, health, sortBy, page]);
-
-  useEffect(() => {
-    fetchTests();
-  }, [fetchTests]);
+  const toggleMutation = useToggleTests();
+  const deleteMutation = useDeleteTests();
 
   const updateUrl = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -124,7 +77,6 @@ export default function TestsPage() {
         params.delete(key);
       }
     });
-    // Reset to page 1 when filters change
     if (!updates.page) {
       params.delete("page");
     }
@@ -133,48 +85,6 @@ export default function TestsPage() {
 
   const handleTagsChange = (newTags: string[]) => {
     updateUrl({ tags: newTags.join(",") });
-  };
-
-  const toggleTest = async (testId: string, enabled: boolean, reason?: string) => {
-    setTogglingId(testId);
-    try {
-      const response = await fetch(`/api/tests/${testId}/toggle`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled, reason }),
-      });
-
-      if (response.ok) {
-        setTests((prev) =>
-          prev.map((t) =>
-            t.id === testId
-              ? { ...t, isEnabled: enabled, disabledReason: enabled ? null : reason || null }
-              : t
-          )
-        );
-        toast.success(enabled ? "Test enabled" : "Test disabled");
-      } else {
-        const data = await response.json().catch(() => ({}));
-        toast.error(data.error || "Failed to toggle test");
-      }
-    } catch (error) {
-      console.error("Failed to toggle test:", error);
-      toast.error("Failed to toggle test");
-    } finally {
-      setTogglingId(null);
-    }
-  };
-
-  const handleToggleSwitch = (test: Test, enabled: boolean) => {
-    if (enabled) {
-      // Enable directly without confirmation
-      toggleTest(test.id, true);
-    } else {
-      // Show confirmation dialog for disabling
-      setSingleDisableTestId(test.id);
-      setSingleDisableTestTitle(test.testTitle);
-      setSingleDisableOpen(true);
-    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -195,37 +105,17 @@ export default function TestsPage() {
     setSelectedIds(newSet);
   };
 
-  const handleBulkEnable = async () => {
-    setBulkDisabling(true);
-    const count = selectedIds.size;
-    try {
-      const promises = Array.from(selectedIds).map((id) =>
-        fetch(`/api/tests/${id}/toggle`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ enabled: true }),
-        })
-      );
-      await Promise.all(promises);
-      await fetchTests();
-      setSelectedIds(new Set());
-      toast.success(`${count} test${count > 1 ? "s" : ""} enabled`);
-    } catch (error) {
-      console.error("Failed to bulk enable:", error);
-      toast.error("Failed to enable tests");
-    } finally {
-      setBulkDisabling(false);
-    }
-  };
-
-  const handleDeleteClick = (test: Test) => {
-    setDeleteTestId(test.id);
-    setDeleteTestTitle(test.testTitle);
-    setDeleteDialogOpen(true);
+  const handleEnable = async () => {
+    await toggleMutation.mutateAsync({
+      testIds: Array.from(selectedIds),
+      enabled: true,
+    });
+    setSelectedIds(new Set());
   };
 
   const allSelected = tests.length > 0 && selectedIds.size === tests.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < tests.length;
+  const isActionPending = toggleMutation.isPending || deleteMutation.isPending;
 
   return (
     <div className="space-y-4">
@@ -237,8 +127,8 @@ export default function TestsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+        <div className="relative min-w-[200px] max-w-sm shrink-0">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search tests..."
@@ -249,12 +139,12 @@ export default function TestsPage() {
         </div>
 
         <Select value={repository} onValueChange={(v) => updateUrl({ repository: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] shrink-0">
             <SelectValue placeholder="Repository" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Repositories</SelectItem>
-            {filters?.repositories?.map((r) => (
+            {filterOptions?.repositories?.map((r) => (
               <SelectItem key={r} value={r}>
                 {r}
               </SelectItem>
@@ -263,12 +153,12 @@ export default function TestsPage() {
         </Select>
 
         <Select value={project} onValueChange={(v) => updateUrl({ project: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px] shrink-0">
             <SelectValue placeholder="Project" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Projects</SelectItem>
-            {filters?.projects?.map((p) => (
+            {filterOptions?.projects?.map((p) => (
               <SelectItem key={p} value={p}>
                 {p}
               </SelectItem>
@@ -277,13 +167,13 @@ export default function TestsPage() {
         </Select>
 
         <TagFilterPopover
-          tags={filters?.tags || []}
+          tags={filterOptions?.tags || []}
           selectedTags={selectedTags}
           onTagsChange={handleTagsChange}
         />
 
         <Select value={status} onValueChange={(v) => updateUrl({ status: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-[130px] shrink-0">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -294,7 +184,7 @@ export default function TestsPage() {
         </Select>
 
         <Select value={health} onValueChange={(v) => updateUrl({ health: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[130px]">
+          <SelectTrigger className="w-[130px] shrink-0">
             <SelectValue placeholder="Health" />
           </SelectTrigger>
           <SelectContent>
@@ -306,7 +196,7 @@ export default function TestsPage() {
         </Select>
 
         <Select value={sortBy} onValueChange={(v) => updateUrl({ sortBy: v })}>
-          <SelectTrigger className="w-[150px]">
+          <SelectTrigger className="w-[150px] shrink-0">
             <SelectValue placeholder="Sort by" />
           </SelectTrigger>
           <SelectContent>
@@ -328,28 +218,30 @@ export default function TestsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleBulkEnable}
-              disabled={bulkDisabling}
+              onClick={handleEnable}
+              disabled={isActionPending}
             >
-              Enable Selected
+              <CheckCircle className="mr-1 h-4 w-4" />
+              Enable
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setBulkDisableOpen(true)}
-              disabled={bulkDisabling}
+              onClick={() => setDialogState(dialogActions.disable())}
+              disabled={isActionPending}
             >
-              Disable Selected
+              <XCircle className="mr-1 h-4 w-4" />
+              Disable
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setBulkDeleteOpen(true)}
-              disabled={bulkDeleting}
+              onClick={() => setDialogState(dialogActions.delete())}
+              disabled={isActionPending}
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <Trash2 className="mr-1 h-4 w-4" />
-              Delete Selected
+              Delete
             </Button>
             <Button
               variant="ghost"
@@ -381,20 +273,19 @@ export default function TestsPage() {
               <TableHead className="w-[80px]">Health</TableHead>
               <TableHead className="w-[70px]">Pass Rate</TableHead>
               <TableHead className="w-[120px]">Last Run</TableHead>
-              <TableHead className="w-[70px]">Enabled</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="w-[80px]">Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
+            {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                 </TableCell>
               </TableRow>
             ) : tests.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No tests found
                 </TableCell>
               </TableRow>
@@ -449,29 +340,9 @@ export default function TestsPage() {
                     {formatDate(test.health?.lastRunAt || null)}
                   </TableCell>
                   <TableCell>
-                    <Switch
-                      checked={test.isEnabled}
-                      onCheckedChange={(enabled) => handleToggleSwitch(test, enabled)}
-                      disabled={togglingId === test.id}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          className="text-red-600 focus:text-red-600"
-                          onClick={() => handleDeleteClick(test)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Badge variant={test.isEnabled ? "default" : "secondary"}>
+                      {test.isEnabled ? "Enabled" : "Disabled"}
+                    </Badge>
                   </TableCell>
                 </TableRow>
               ))
@@ -509,161 +380,53 @@ export default function TestsPage() {
         </div>
       )}
 
-      {/* Bulk Disable Dialog */}
-      <BulkConfirmationDialog
-        open={bulkDisableOpen}
-        onOpenChange={setBulkDisableOpen}
-        count={selectedIds.size}
-        action="disable"
-        description="Disabled tests will be automatically skipped during test runs."
-        loading={bulkDisabling}
-        requireReason
-        reasonPlaceholder="Reason for disabling (required)"
-        onConfirm={() => {}}
-        onConfirmWithReason={async (reason) => {
-          setBulkDisabling(true);
-          const count = selectedIds.size;
-          try {
-            const promises = Array.from(selectedIds).map((id) =>
-              fetch(`/api/tests/${id}/toggle`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ enabled: false, reason }),
-              })
-            );
-            await Promise.all(promises);
-            await fetchTests();
-            setSelectedIds(new Set());
-            setBulkDisableOpen(false);
-            toast.success(`${count} test${count > 1 ? "s" : ""} disabled`);
-          } catch (error) {
-            console.error("Failed to bulk disable:", error);
-            toast.error("Failed to disable tests");
-          } finally {
-            setBulkDisabling(false);
-          }
-        }}
-      />
-
-      {/* Single Test Disable Dialog */}
-      <ConfirmationDialog
-        open={singleDisableOpen}
-        onOpenChange={(open) => {
-          setSingleDisableOpen(open);
-          if (!open) {
-            setSingleDisableTestId(null);
-            setSingleDisableTestTitle("");
-          }
-        }}
-        title="Disable Test"
-        description={
-          <>
-            <span className="font-medium text-foreground">{singleDisableTestTitle}</span>
-            <br />
-            This test will be automatically skipped during test runs.
-          </>
-        }
-        confirmText="Disable Test"
-        loading={togglingId === singleDisableTestId}
-        requireReason
-        reasonPlaceholder="Reason for disabling (required)"
-        onConfirm={() => {}}
-        onConfirmWithReason={async (reason) => {
-          if (!singleDisableTestId) return;
-          await toggleTest(singleDisableTestId, false, reason);
-          setSingleDisableOpen(false);
-          setSingleDisableTestId(null);
-          setSingleDisableTestTitle("");
-        }}
-      />
-
-      {/* Delete Test Dialog */}
-      <ConfirmationDialog
-        open={deleteDialogOpen}
-        onOpenChange={(open) => {
-          setDeleteDialogOpen(open);
-          if (!open) {
-            setDeleteTestId(null);
-            setDeleteTestTitle("");
-          }
-        }}
-        title="Delete Test"
-        description={
-          <>
-            <span className="font-medium text-foreground">{deleteTestTitle}</span>
-            <br />
-            This action cannot be undone.
-          </>
-        }
-        confirmText="Delete Test"
-        confirmVariant="destructive"
-        loading={deleting}
-        requireReason
-        reasonPlaceholder="Reason for deleting (required)"
-        onConfirm={() => {}}
-        onConfirmWithReason={async (reason) => {
-          if (!deleteTestId) return;
-          setDeleting(true);
-          try {
-            const response = await fetch(`/api/tests/${deleteTestId}`, {
-              method: "DELETE",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ reason }),
+      {/* Disable Dialog */}
+      {dialogState.type === "disable" && (
+        <ConfirmationDialog
+          open={true}
+          onOpenChange={() => setDialogState(dialogActions.close())}
+          title={`Disable ${selectedIds.size} Test${selectedIds.size > 1 ? "s" : ""}`}
+          description="Disabled tests will be automatically skipped during test runs."
+          confirmText="Disable"
+          loading={toggleMutation.isPending}
+          requireReason
+          reasonPlaceholder="Reason for disabling (required)"
+          onConfirm={() => {}}
+          onConfirmWithReason={async (reason) => {
+            await toggleMutation.mutateAsync({
+              testIds: Array.from(selectedIds),
+              enabled: false,
+              reason,
             });
-            if (response.ok) {
-              await fetchTests();
-              setDeleteDialogOpen(false);
-              setDeleteTestId(null);
-              setDeleteTestTitle("");
-              toast.success("Test deleted");
-            } else {
-              const data = await response.json().catch(() => ({}));
-              toast.error(data.error || "Failed to delete test");
-            }
-          } catch (error) {
-            console.error("Failed to delete test:", error);
-            toast.error("Failed to delete test");
-          } finally {
-            setDeleting(false);
-          }
-        }}
-      />
-
-      {/* Bulk Delete Dialog */}
-      <BulkConfirmationDialog
-        open={bulkDeleteOpen}
-        onOpenChange={setBulkDeleteOpen}
-        count={selectedIds.size}
-        action="delete"
-        confirmVariant="destructive"
-        loading={bulkDeleting}
-        requireReason
-        reasonPlaceholder="Reason for deleting (required)"
-        onConfirm={() => {}}
-        onConfirmWithReason={async (reason) => {
-          setBulkDeleting(true);
-          const count = selectedIds.size;
-          try {
-            const promises = Array.from(selectedIds).map((id) =>
-              fetch(`/api/tests/${id}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ reason }),
-              })
-            );
-            await Promise.all(promises);
-            await fetchTests();
             setSelectedIds(new Set());
-            setBulkDeleteOpen(false);
-            toast.success(`${count} test${count > 1 ? "s" : ""} deleted`);
-          } catch (error) {
-            console.error("Failed to bulk delete:", error);
-            toast.error("Failed to delete tests");
-          } finally {
-            setBulkDeleting(false);
-          }
-        }}
-      />
+            setDialogState(dialogActions.close());
+          }}
+        />
+      )}
+
+      {/* Delete Dialog */}
+      {dialogState.type === "delete" && (
+        <ConfirmationDialog
+          open={true}
+          onOpenChange={() => setDialogState(dialogActions.close())}
+          title={`Delete ${selectedIds.size} Test${selectedIds.size > 1 ? "s" : ""}`}
+          description="This action cannot be undone. Deleted tests will be removed from the dashboard."
+          confirmText="Delete"
+          confirmVariant="destructive"
+          loading={deleteMutation.isPending}
+          requireReason
+          reasonPlaceholder="Reason for deleting (required)"
+          onConfirm={() => {}}
+          onConfirmWithReason={async (reason) => {
+            await deleteMutation.mutateAsync({
+              testIds: Array.from(selectedIds),
+              reason,
+            });
+            setSelectedIds(new Set());
+            setDialogState(dialogActions.close());
+          }}
+        />
+      )}
     </div>
   );
 }
