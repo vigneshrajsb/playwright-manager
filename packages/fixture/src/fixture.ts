@@ -48,30 +48,41 @@ async function getDisabledTests(
   repository: string,
   projectName: string,
   cacheTtl: number,
-  timeout: number
+  timeout: number,
+  debug: boolean = false
 ): Promise<DisabledTestsResponse> {
+  const log = (...args: unknown[]) => {
+    if (debug) {
+      console.log("[TestManagerFixture]", ...args);
+    }
+  };
+
   // Use repository:project as cache key to separate different repos
   const cacheKey = `${repository}:${projectName}`;
 
   // Check cache first
   const cached = disabledTestsCache.get(cacheKey, cacheTtl);
   if (cached) {
+    log("Cache hit", { cacheKey, disabledCount: Object.keys(cached.disabledTests).length });
     return cached;
   }
 
   // Check for pending request (deduplication)
   const pending = disabledTestsCache.getPendingRequest(cacheKey);
   if (pending) {
+    log("Waiting for pending request", { cacheKey });
     return pending;
   }
 
   // Create new request - fetch ALL disabled tests for this repo/project
+  log("Fetching disabled tests from API", { cacheKey, apiUrl, timeout });
   const request = fetchDisabledTestsForProject(apiUrl, repository, projectName, timeout);
   disabledTestsCache.setPendingRequest(cacheKey, request);
 
   try {
     const result = await request;
     disabledTestsCache.set(cacheKey, result);
+    log("Cached disabled tests", { cacheKey, disabledCount: Object.keys(result.disabledTests).length, ttl: cacheTtl });
     return result;
   } finally {
     disabledTestsCache.clearPendingRequest(cacheKey);
@@ -131,21 +142,33 @@ export const test = base.extend<TestManagerFixtures>({
 
       // Fetch disabled tests - API errors are caught here
       try {
-        log(`Checking if test is disabled: ${testInfo.testId}`);
+        log("Checking test status", {
+          testId: testInfo.testId,
+          title: testInfo.title,
+          project: testInfo.project.name,
+          repository,
+          apiUrl,
+        });
 
         const disabledTests = await getDisabledTests(
           apiUrl,
           repository,
           testInfo.project.name,
           cacheTtl,
-          timeout
+          timeout,
+          debug
         );
 
         disabledInfo = disabledTests.disabledTests[testInfo.testId];
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
-        log(`Error checking disabled status: ${errorMessage}`);
+        log("Error checking disabled status", {
+          testId: testInfo.testId,
+          error: errorMessage,
+          apiUrl,
+          failOpen,
+        });
 
         if (!failOpen) {
           throw new Error(
@@ -153,20 +176,23 @@ export const test = base.extend<TestManagerFixtures>({
           );
         }
 
-        // Fail open - continue with test despite error
-        log("Fail-open: continuing with test despite error");
+        log("Fail-open enabled, continuing with test despite error");
       }
 
       // Skip test if disabled - OUTSIDE try-catch so skip exception propagates
       if (disabledInfo) {
         const reason = disabledInfo.reason || "Disabled via dashboard";
-        log(`Skipping test: ${reason}`);
+        log("Skipping disabled test", {
+          testId: testInfo.testId,
+          title: testInfo.title,
+          reason,
+        });
         testInfo.skip(true, `[dashboard] ${reason}`);
         // Don't call use() - test is skipped
         return;
       }
 
-      log("Test is enabled, continuing...");
+      log("Test is enabled, proceeding", { testId: testInfo.testId });
       await use();
     },
     { auto: true },
