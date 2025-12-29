@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { VisibilityState } from "@tanstack/react-table";
 import { Search, GitBranch, X, ClipboardList, FlaskConical } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -84,9 +84,9 @@ export default function ResultsPage() {
     updateUrl({ testId: undefined });
   };
 
-  const openResultSheet = (id: string) => {
+  const openResultSheet = useCallback((id: string) => {
     updateUrl({ resultId: id });
-  };
+  }, [updateUrl]);
 
   const closeResultSheet = () => {
     updateUrl({ resultId: undefined });
@@ -112,7 +112,7 @@ export default function ResultsPage() {
   );
 
   // Memoize columns with the callback
-  const columns = useMemo(() => resultColumns(openResultSheet), []);
+  const columns = useMemo(() => resultColumns(openResultSheet), [openResultSheet]);
 
   return (
     <TooltipProvider>
