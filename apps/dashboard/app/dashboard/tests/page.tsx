@@ -1,19 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo } from "react";
+import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
+import { Search, X, Trash2, CheckCircle, XCircle, ClipboardList } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -21,24 +13,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Search, X, Trash2, CheckCircle, XCircle } from "lucide-react";
-
-import { HealthBadge } from "@/components/badges";
+import {
+  DataTable,
+  DataTableColumnToggle,
+  DataTableFacetedFilter,
+} from "@/components/data-table";
 import { TagFilterPopover } from "@/components/filters";
 import { ConfirmationDialog } from "@/components/dialogs";
-import { formatDate } from "@/lib/utils/format";
+import { testColumns } from "./columns";
+import { useDataTableUrlState } from "@/hooks";
 import { useTests, useToggleTests, useDeleteTests } from "@/hooks/queries";
 import type { TestFilters } from "@/hooks/queries";
 import type { DialogState } from "@/types/dialog";
 import { dialogActions } from "@/types/dialog";
 
 export default function TestsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const {
+    pageIndex,
+    sorting,
+    sortBy,
+    updateUrl,
+    onSortingChange,
+    onPageChange,
+    searchParams,
+  } = useDataTableUrlState({
+    basePath: "/dashboard/tests",
+    defaultSortField: "lastSeenAt",
+    defaultSortOrder: "desc",
+  });
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dialogState, setDialogState] = useState<DialogState>({ type: "closed" });
 
+  // Parse filters from URL
   const search = searchParams.get("search") || "";
   const repository = searchParams.get("repository") || "";
   const project = searchParams.get("project") || "";
@@ -46,8 +54,6 @@ export default function TestsPage() {
   const selectedTags = tags ? tags.split(",").filter(Boolean) : [];
   const status = searchParams.get("status") || "";
   const health = searchParams.get("health") || "";
-  const sortBy = searchParams.get("sortBy") || "lastSeenAt";
-  const page = parseInt(searchParams.get("page") || "1");
 
   const filters: TestFilters = {
     search: search || undefined,
@@ -57,7 +63,7 @@ export default function TestsPage() {
     status: status || undefined,
     health: health || undefined,
     sortBy,
-    page,
+    page: pageIndex + 1,
   };
 
   const { data, isLoading } = useTests(filters);
@@ -68,54 +74,42 @@ export default function TestsPage() {
   const toggleMutation = useToggleTests();
   const deleteMutation = useDeleteTests();
 
-  const updateUrl = (updates: Record<string, string>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-    });
-    if (!updates.page) {
-      params.delete("page");
-    }
-    router.push(`/dashboard/tests?${params.toString()}`);
-  };
+  // Get selected IDs from row selection
+  const selectedIds = useMemo(() => {
+    return Object.keys(rowSelection).filter((id) => rowSelection[id]);
+  }, [rowSelection]);
 
   const handleTagsChange = (newTags: string[]) => {
-    updateUrl({ tags: newTags.join(",") });
-  };
-
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedIds(new Set(tests.map((t) => t.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
-  };
-
-  const handleSelectOne = (testId: string, checked: boolean) => {
-    const newSet = new Set(selectedIds);
-    if (checked) {
-      newSet.add(testId);
-    } else {
-      newSet.delete(testId);
-    }
-    setSelectedIds(newSet);
+    updateUrl({ tags: newTags.join(",") || undefined });
   };
 
   const handleEnable = async () => {
     await toggleMutation.mutateAsync({
-      testIds: Array.from(selectedIds),
+      testIds: selectedIds,
       enabled: true,
     });
-    setSelectedIds(new Set());
+    setRowSelection({});
   };
 
-  const allSelected = tests.length > 0 && selectedIds.size === tests.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < tests.length;
   const isActionPending = toggleMutation.isPending || deleteMutation.isPending;
+
+  // Build faceted filter options
+  const healthFilterOptions = useMemo(
+    () => [
+      { label: "Healthy", value: "healthy" },
+      { label: "Flaky", value: "flaky" },
+      { label: "Failing", value: "failing" },
+    ],
+    []
+  );
+
+  const statusFilterOptions = useMemo(
+    () => [
+      { label: "Enabled", value: "enabled" },
+      { label: "Disabled", value: "disabled" },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-4">
@@ -126,93 +120,11 @@ export default function TestsPage() {
         </p>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-2">
-        <div className="relative min-w-[200px] max-w-sm shrink-0">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search tests..."
-            value={search}
-            onChange={(e) => updateUrl({ search: e.target.value })}
-            className="pl-9"
-          />
-        </div>
-
-        <Select value={repository} onValueChange={(v) => updateUrl({ repository: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[180px] shrink-0">
-            <SelectValue placeholder="Repository" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Repositories</SelectItem>
-            {filterOptions?.repositories?.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={project} onValueChange={(v) => updateUrl({ project: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[150px] shrink-0">
-            <SelectValue placeholder="Project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {filterOptions?.projects?.map((p) => (
-              <SelectItem key={p} value={p}>
-                {p}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <TagFilterPopover
-          tags={filterOptions?.tags || []}
-          selectedTags={selectedTags}
-          onTagsChange={handleTagsChange}
-        />
-
-        <Select value={status} onValueChange={(v) => updateUrl({ status: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[130px] shrink-0">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="enabled">Enabled</SelectItem>
-            <SelectItem value="disabled">Disabled</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={health} onValueChange={(v) => updateUrl({ health: v === "all" ? "" : v })}>
-          <SelectTrigger className="w-[130px] shrink-0">
-            <SelectValue placeholder="Health" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Health</SelectItem>
-            <SelectItem value="healthy">Healthy</SelectItem>
-            <SelectItem value="flaky">Flaky</SelectItem>
-            <SelectItem value="failing">Failing</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={sortBy} onValueChange={(v) => updateUrl({ sortBy: v })}>
-          <SelectTrigger className="w-[150px] shrink-0">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="lastSeenAt">Last Seen</SelectItem>
-            <SelectItem value="lastRunAt">Last Run</SelectItem>
-            <SelectItem value="healthScore">Health Score</SelectItem>
-            <SelectItem value="passRate">Pass Rate</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Bulk Actions Bar */}
-      {selectedIds.size > 0 && (
+      {selectedIds.length > 0 && (
         <div className="flex items-center gap-3 rounded-lg border bg-muted/50 px-4 py-2">
           <span className="text-sm font-medium">
-            {selectedIds.size} test{selectedIds.size > 1 ? "s" : ""} selected
+            {selectedIds.length} test{selectedIds.length > 1 ? "s" : ""} selected
           </span>
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -246,7 +158,7 @@ export default function TestsPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSelectedIds(new Set())}
+              onClick={() => setRowSelection({})}
             >
               <X className="h-4 w-4" />
               Clear
@@ -255,137 +167,120 @@ export default function TestsPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[40px]">
-                <Checkbox
-                  checked={allSelected}
-                  onCheckedChange={handleSelectAll}
-                  aria-label="Select all"
-                  {...(someSelected ? { "data-state": "indeterminate" } : {})}
+      {/* DataTable with toolbar */}
+      <DataTable
+        columns={testColumns}
+        data={tests}
+        isLoading={isLoading}
+        emptyMessage="No tests found"
+        emptyIcon={
+          <ClipboardList className="h-10 w-10 mx-auto text-muted-foreground/50" />
+        }
+        // Pagination
+        pageCount={pagination?.totalPages}
+        pageIndex={pageIndex}
+        pageSize={20}
+        total={pagination?.total}
+        onPaginationChange={onPageChange}
+        // Sorting
+        sorting={sorting}
+        onSortingChange={onSortingChange}
+        // Row selection
+        enableRowSelection
+        rowSelection={rowSelection}
+        onRowSelectionChange={setRowSelection}
+        getRowId={(row) => row.id}
+        // Column visibility
+        columnVisibility={columnVisibility}
+        onColumnVisibilityChange={setColumnVisibility}
+        // Toolbar
+        toolbar={(table) => (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1 overflow-x-auto pb-2">
+              <div className="relative min-w-[200px] max-w-sm shrink-0">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search tests..."
+                  value={search}
+                  onChange={(e) => updateUrl({ search: e.target.value || undefined })}
+                  className="pl-9"
                 />
-              </TableHead>
-              <TableHead className="min-w-[200px]">Test</TableHead>
-              <TableHead className="w-[100px]">Project</TableHead>
-              <TableHead className="w-[80px]">Health</TableHead>
-              <TableHead className="w-[70px]">Pass Rate</TableHead>
-              <TableHead className="w-[120px]">Last Run</TableHead>
-              <TableHead className="w-[80px]">Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            ) : tests.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No tests found
-                </TableCell>
-              </TableRow>
-            ) : (
-              tests.map((test) => (
-                <TableRow key={test.id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedIds.has(test.id)}
-                      onCheckedChange={(checked) =>
-                        handleSelectOne(test.id, checked as boolean)
-                      }
-                      aria-label={`Select ${test.testTitle}`}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium">{test.testTitle}</span>
-                      <span className="text-xs text-muted-foreground truncate max-w-[400px]">
-                        {test.filePath}
-                      </span>
-                      {test.tags && test.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {test.tags.map((t) => (
-                            <Badge
-                              key={t}
-                              variant="secondary"
-                              className="text-xs px-1.5 py-0"
-                            >
-                              {t}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      {!test.isEnabled && test.disabledReason && (
-                        <span className="text-xs text-red-500">
-                          Reason: {test.disabledReason}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{test.projectName}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <HealthBadge score={test.health?.healthScore} />
-                  </TableCell>
-                  <TableCell>
-                    {test.health ? `${Number(test.health.passRate).toFixed(0)}%` : "--"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(test.health?.lastRunAt || null)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={test.isEnabled ? "default" : "secondary"}>
-                      {test.isEnabled ? "Enabled" : "Disabled"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              </div>
 
-      {/* Pagination */}
-      {pagination && pagination.totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
-            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-            {pagination.total} tests
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => updateUrl({ page: (page - 1).toString() })}
-              disabled={page <= 1}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => updateUrl({ page: (page + 1).toString() })}
-              disabled={page >= pagination.totalPages}
-            >
-              Next
-            </Button>
+              <Select
+                value={repository}
+                onValueChange={(v) =>
+                  updateUrl({ repository: v === "all" ? undefined : v })
+                }
+              >
+                <SelectTrigger className="w-[180px] shrink-0">
+                  <SelectValue placeholder="Repository" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Repositories</SelectItem>
+                  {filterOptions?.repositories?.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={project}
+                onValueChange={(v) =>
+                  updateUrl({ project: v === "all" ? undefined : v })
+                }
+              >
+                <SelectTrigger className="w-[150px] shrink-0">
+                  <SelectValue placeholder="Project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Projects</SelectItem>
+                  {filterOptions?.projects?.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <TagFilterPopover
+                tags={filterOptions?.tags || []}
+                selectedTags={selectedTags}
+                onTagsChange={handleTagsChange}
+              />
+
+              <DataTableFacetedFilter
+                title="Status"
+                options={statusFilterOptions}
+                selectedValues={new Set(status ? status.split(",") : [])}
+                onSelectionChange={(values) =>
+                  updateUrl({ status: Array.from(values).join(",") || undefined })
+                }
+              />
+
+              <DataTableFacetedFilter
+                title="Health"
+                options={healthFilterOptions}
+                selectedValues={new Set(health ? health.split(",") : [])}
+                onSelectionChange={(values) =>
+                  updateUrl({ health: Array.from(values).join(",") || undefined })
+                }
+              />
+            </div>
+
+            <DataTableColumnToggle table={table} />
           </div>
-        </div>
-      )}
+        )}
+      />
 
       {/* Disable Dialog */}
       {dialogState.type === "disable" && (
         <ConfirmationDialog
           open={true}
           onOpenChange={() => setDialogState(dialogActions.close())}
-          title={`Disable ${selectedIds.size} Test${selectedIds.size > 1 ? "s" : ""}`}
+          title={`Disable ${selectedIds.length} Test${selectedIds.length > 1 ? "s" : ""}`}
           description="Disabled tests will be automatically skipped during test runs."
           confirmText="Disable"
           loading={toggleMutation.isPending}
@@ -394,11 +289,11 @@ export default function TestsPage() {
           onConfirm={() => {}}
           onConfirmWithReason={async (reason) => {
             await toggleMutation.mutateAsync({
-              testIds: Array.from(selectedIds),
+              testIds: selectedIds,
               enabled: false,
               reason,
             });
-            setSelectedIds(new Set());
+            setRowSelection({});
             setDialogState(dialogActions.close());
           }}
         />
@@ -409,7 +304,7 @@ export default function TestsPage() {
         <ConfirmationDialog
           open={true}
           onOpenChange={() => setDialogState(dialogActions.close())}
-          title={`Delete ${selectedIds.size} Test${selectedIds.size > 1 ? "s" : ""}`}
+          title={`Delete ${selectedIds.length} Test${selectedIds.length > 1 ? "s" : ""}`}
           description="This action cannot be undone. Deleted tests will be removed from the dashboard."
           confirmText="Delete"
           confirmVariant="destructive"
@@ -419,10 +314,10 @@ export default function TestsPage() {
           onConfirm={() => {}}
           onConfirmWithReason={async (reason) => {
             await deleteMutation.mutateAsync({
-              testIds: Array.from(selectedIds),
+              testIds: selectedIds,
               reason,
             });
-            setSelectedIds(new Set());
+            setRowSelection({});
             setDialogState(dialogActions.close());
           }}
         />

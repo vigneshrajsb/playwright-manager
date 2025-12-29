@@ -6,6 +6,7 @@ export type {
 } from "./use-pagination";
 
 export { useIsMobile } from "./use-mobile";
+export { useDataTableUrlState } from "./use-data-table";
 
 // Query hooks
 export * from "./queries";
