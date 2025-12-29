@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests, testRuns, testResults, testHealth } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 /**
  * @swagger
@@ -326,7 +327,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, runId: result.id });
   } catch (error) {
-    console.error("Error processing report:", error);
+    logger.error({ err: error }, "Failed to process report");
     return NextResponse.json(
       { error: "Failed to process report" },
       { status: 500 }

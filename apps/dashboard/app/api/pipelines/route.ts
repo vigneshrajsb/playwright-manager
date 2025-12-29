@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testRuns, testResults, tests } from "@/lib/db/schema";
-import { eq, ilike, and, or, desc, asc, sql, gte, lte } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
+import {
+  buildPipelineConditions,
+  combineConditions,
+} from "@/lib/filters/build-conditions";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -20,34 +25,14 @@ export async function GET(request: NextRequest) {
   try {
     const offset = (page - 1) * limit;
 
-    // Build conditions
-    const conditions: any[] = [];
-
-    if (search) {
-      conditions.push(
-        or(
-          ilike(testRuns.branch, `%${search}%`),
-          ilike(testRuns.commitMessage, `%${search}%`),
-          ilike(testRuns.baseUrl, `%${search}%`)
-        )
-      );
-    }
-
-    if (branch) {
-      conditions.push(eq(testRuns.branch, branch));
-    }
-
-    if (status) {
-      conditions.push(eq(testRuns.status, status));
-    }
-
-    if (startDate) {
-      conditions.push(gte(testRuns.startedAt, new Date(startDate)));
-    }
-
-    if (endDate) {
-      conditions.push(lte(testRuns.startedAt, new Date(endDate)));
-    }
+    // Build filter conditions using shared utilities
+    const conditions = buildPipelineConditions({
+      search,
+      branch,
+      status,
+      startDate,
+      endDate,
+    });
 
     // Get sort column
     const sortColumn =
@@ -55,11 +40,9 @@ export async function GET(request: NextRequest) {
         ? testRuns.durationMs
         : testRuns.startedAt;
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    let whereClause = combineConditions(conditions);
 
     // If repository filter is set, we need to filter runs that have results from tests in that repo
-    let pipelinesQuery;
-
     if (repository) {
       // Get runs that have at least one result from a test in this repository
       const runsWithRepo = await db
@@ -78,37 +61,31 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Add run ID filter
-      conditions.push(sql`${testRuns.id} = ANY(ARRAY[${sql.raw(runIds.map(id => `'${id}'`).join(","))}]::uuid[])`);
+      // Add run ID filter using parameterized query (safe from SQL injection)
+      const runIdParams = runIds.map((id) => sql`${id}`);
+      conditions.push(sql`${testRuns.id} = ANY(ARRAY[${sql.join(runIdParams, sql`, `)}]::uuid[])`);
     }
 
-    const updatedWhereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const updatedWhereClause = combineConditions(conditions);
 
-    // Query pipelines
-    const pipelines = await db
-      .select()
+    // Query pipelines with repository in a single query (fixes N+1 pattern)
+    // Using a subquery to get the first repository for each run
+    const pipelinesWithRepo = await db
+      .select({
+        pipeline: testRuns,
+        repository: sql<string | null>`(
+          SELECT DISTINCT t.repository
+          FROM test_results tr
+          INNER JOIN tests t ON tr.test_id = t.id
+          WHERE tr.test_run_id = ${testRuns.id}
+          LIMIT 1
+        )`.as("repository"),
+      })
       .from(testRuns)
       .where(updatedWhereClause)
       .orderBy(sortOrder === "desc" ? desc(sortColumn) : asc(sortColumn))
       .limit(limit)
       .offset(offset);
-
-    // Get repository for each pipeline (derived from first test result)
-    const pipelinesWithRepo = await Promise.all(
-      pipelines.map(async (pipeline) => {
-        const repoResult = await db
-          .selectDistinct({ repository: tests.repository })
-          .from(testResults)
-          .innerJoin(tests, eq(testResults.testId, tests.id))
-          .where(eq(testResults.testRunId, pipeline.id))
-          .limit(1);
-
-        return {
-          ...pipeline,
-          repository: repoResult[0]?.repository || null,
-        };
-      })
-    );
 
     // Get total count
     const countResult = await db
@@ -120,8 +97,14 @@ export async function GET(request: NextRequest) {
     // Get filter options
     const filters = await getFilterOptions();
 
+    // Format response to match expected structure
+    const formattedPipelines = pipelinesWithRepo.map((row) => ({
+      ...row.pipeline,
+      repository: row.repository,
+    }));
+
     return NextResponse.json({
-      pipelines: pipelinesWithRepo,
+      pipelines: formattedPipelines,
       pagination: {
         page,
         limit,
@@ -131,7 +114,7 @@ export async function GET(request: NextRequest) {
       filters,
     });
   } catch (error) {
-    console.error("Error fetching pipelines:", error);
+    logger.error({ err: error }, "Failed to fetch pipelines");
     return NextResponse.json(
       { error: "Failed to fetch pipelines" },
       { status: 500 }

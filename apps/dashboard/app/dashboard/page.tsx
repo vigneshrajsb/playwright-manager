@@ -4,9 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -15,25 +13,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
   Activity,
   FlaskConical,
   AlertTriangle,
   XCircle,
-  ChevronDown,
   Loader2,
   GitBranch,
-  Clock,
   CheckCircle2,
   ArrowRight,
+  Play,
 } from "lucide-react";
+import { toast } from "sonner";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { PassRateChart } from "@/components/dashboard/pass-rate-chart";
 import { HealthPieChart } from "@/components/dashboard/health-pie-chart";
+import { HealthBadge } from "@/components/badges";
+import { TagFilterPopover } from "@/components/filters";
+import { formatRelativeTime } from "@/lib/utils/format";
 
 interface Overview {
   totalTests: number;
@@ -110,8 +106,6 @@ export default function DashboardOverviewPage() {
   const tags = searchParams.get("tags") || "";
   const selectedTags = tags ? tags.split(",").filter(Boolean) : [];
 
-  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
-
   const fetchDashboard = useCallback(async () => {
     setLoading(true);
     try {
@@ -126,6 +120,7 @@ export default function DashboardOverviewPage() {
       setData(data);
     } catch (error) {
       console.error("Failed to fetch dashboard:", error);
+      toast.error("Failed to load dashboard");
     } finally {
       setLoading(false);
     }
@@ -147,17 +142,6 @@ export default function DashboardOverviewPage() {
     router.push(`/dashboard?${params.toString()}`);
   };
 
-  const toggleTag = (tag: string) => {
-    const newTags = selectedTags.includes(tag)
-      ? selectedTags.filter((t) => t !== tag)
-      : [...selectedTags, tag];
-    updateUrl({ tags: newTags.join(",") });
-  };
-
-  const clearTags = () => {
-    updateUrl({ tags: "" });
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "passed":
@@ -169,33 +153,6 @@ export default function DashboardOverviewPage() {
       default:
         return <AlertTriangle className="h-4 w-4 text-yellow-600" />;
     }
-  };
-
-  const getHealthBadge = (score: number) => {
-    if (score >= 80) {
-      return (
-        <Badge className="bg-green-500/10 text-green-600">Healthy</Badge>
-      );
-    } else if (score >= 50) {
-      return (
-        <Badge className="bg-yellow-500/10 text-yellow-600">Flaky</Badge>
-      );
-    } else {
-      return <Badge className="bg-red-500/10 text-red-600">Failing</Badge>;
-    }
-  };
-
-  const formatRelativeTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
   };
 
   if (loading && !data) {
@@ -252,58 +209,13 @@ export default function DashboardOverviewPage() {
             </SelectContent>
           </Select>
 
-          <Popover open={tagDropdownOpen} onOpenChange={setTagDropdownOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[140px] justify-between">
-                {selectedTags.length > 0 ? (
-                  <span className="truncate">
-                    {selectedTags.length} tag{selectedTags.length > 1 ? "s" : ""}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Tags</span>
-                )}
-                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[200px] p-0" align="end">
-              <div className="p-2 border-b">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Filter by tags</span>
-                  {selectedTags.length > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-auto p-1 text-xs"
-                      onClick={clearTags}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </div>
-              </div>
-              <div className="max-h-[200px] overflow-y-auto p-2">
-                {data?.filters?.tags?.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2 text-center">
-                    No tags found
-                  </p>
-                ) : (
-                  data?.filters?.tags?.map((t) => (
-                    <div
-                      key={t}
-                      className="flex items-center space-x-2 py-1.5 px-1 hover:bg-muted rounded cursor-pointer"
-                      onClick={() => toggleTag(t)}
-                    >
-                      <Checkbox
-                        checked={selectedTags.includes(t)}
-                        onCheckedChange={() => toggleTag(t)}
-                      />
-                      <span className="text-sm">{t}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <TagFilterPopover
+            tags={data?.filters?.tags || []}
+            selectedTags={selectedTags}
+            onTagsChange={(newTags) => updateUrl({ tags: newTags.join(",") })}
+            buttonClassName="w-[140px]"
+            align="end"
+          />
         </div>
       </div>
 
@@ -355,9 +267,15 @@ export default function DashboardOverviewPage() {
           </CardHeader>
           <CardContent>
             {!data?.recentRuns?.length ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No recent runs
-              </p>
+              <div className="text-center py-6">
+                <Play className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm font-medium text-muted-foreground">
+                  No runs yet
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Run your test suite to see activity.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {data.recentRuns.slice(0, 5).map((run) => (
@@ -425,7 +343,7 @@ export default function DashboardOverviewPage() {
                         {test.health.flakinessRate}% flaky
                       </span>
                     </div>
-                    {getHealthBadge(test.health.healthScore)}
+                    <HealthBadge score={test.health.healthScore} />
                   </div>
                 ))}
               </div>
@@ -469,7 +387,7 @@ export default function DashboardOverviewPage() {
                         Score: {test.health.healthScore}
                       </span>
                     </div>
-                    {getHealthBadge(test.health.healthScore)}
+                    <HealthBadge score={test.health.healthScore} />
                   </div>
                 ))}
               </div>

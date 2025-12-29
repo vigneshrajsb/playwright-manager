@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testRuns, testResults, tests } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 /**
  * @swagger
@@ -118,7 +119,7 @@ export async function GET(
       })),
     });
   } catch (error) {
-    console.error("Error fetching run:", error);
+    logger.error({ err: error }, "Failed to fetch run");
     return NextResponse.json({ error: "Failed to fetch run" }, { status: 500 });
   }
 }

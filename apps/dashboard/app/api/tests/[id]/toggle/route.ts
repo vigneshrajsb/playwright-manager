@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 /**
  * @swagger
@@ -82,7 +83,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, test: updated });
   } catch (error) {
-    console.error("Error toggling test:", error);
+    logger.error({ err: error }, "Failed to toggle test");
     return NextResponse.json(
       { error: "Failed to toggle test" },
       { status: 500 }

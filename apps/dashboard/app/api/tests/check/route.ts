@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests } from "@/lib/db/schema";
 import { inArray, and, eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 /**
  * @swagger
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Repository is required
     if (!repository) {
       return NextResponse.json(
-        { error: "repository is required" },
+        { error: "Repository is required" },
         { status: 400 }
       );
     }
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now(),
     });
   } catch (error) {
-    console.error("Error checking tests:", error);
+    logger.error({ err: error }, "Failed to check tests");
     return NextResponse.json(
       { error: "Failed to check tests" },
       { status: 500 }

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests, testHealth } from "@/lib/db/schema";
-import { eq, ilike, and, or, desc, asc, sql, gte, lt, gt } from "drizzle-orm";
+import { eq, desc, asc, sql, and } from "drizzle-orm";
+import {
+  buildTestConditions,
+  buildHealthConditions,
+  needsHealthInnerJoin,
+  combineConditions,
+} from "@/lib/filters/build-conditions";
+import { logger } from "@/lib/logger";
 
 /**
  * @swagger
@@ -108,58 +115,23 @@ export async function GET(request: NextRequest) {
   const sortOrder = searchParams.get("sortOrder") || "desc";
 
   try {
-    // Build filters for tests table
-    const conditions: any[] = [];
+    // Build filter conditions using shared utilities
+    const testConditions = buildTestConditions({
+      search,
+      repository,
+      project,
+      tags,
+      status,
+      excludeDeleted: true,
+    });
 
-    // Always exclude deleted tests
-    conditions.push(eq(tests.isDeleted, false));
-
-    if (search) {
-      conditions.push(
-        or(
-          ilike(tests.testTitle, `%${search}%`),
-          ilike(tests.filePath, `%${search}%`)
-        )
-      );
-    }
-
-    if (repository) {
-      conditions.push(eq(tests.repository, repository));
-    }
-
-    if (project) {
-      conditions.push(eq(tests.projectName, project));
-    }
-
-    if (tags) {
-      // Parse comma-separated tags and filter tests that have ANY of them
-      const tagList = tags.split(",").filter(Boolean);
-      if (tagList.length > 0) {
-        // PostgreSQL array overlap (&&) - tests with ANY of the specified tags
-        const tagArrayLiteral = tagList.map(t => `'${t.replace(/'/g, "''")}'`).join(",");
-        conditions.push(sql`${tests.tags} && ARRAY[${sql.raw(tagArrayLiteral)}]::text[]`);
-      }
-    }
-
-    if (status === "enabled") {
-      conditions.push(eq(tests.isEnabled, true));
-    } else if (status === "disabled") {
-      conditions.push(eq(tests.isEnabled, false));
-    }
-
-    // Health filter conditions - applied at database level
-    if (health === "healthy") {
-      conditions.push(gte(testHealth.healthScore, 80));
-    } else if (health === "flaky") {
-      conditions.push(gt(sql`CAST(${testHealth.flakinessRate} AS numeric)`, 10));
-    } else if (health === "failing") {
-      conditions.push(lt(testHealth.healthScore, 50));
-    }
+    const healthConditions = buildHealthConditions(health);
+    const allConditions = [...testConditions, ...healthConditions];
 
     // For health filters, we need an inner join to ensure we only get tests with health data
-    const needsHealthJoin = health === "healthy" || health === "flaky" || health === "failing";
+    const needsHealthJoin = needsHealthInnerJoin(health);
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const whereClause = combineConditions(allConditions);
 
     // Query with join to health
     const offset = (page - 1) * limit;
@@ -256,7 +228,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching tests:", error);
+    logger.error({ err: error }, "Failed to fetch tests");
     return NextResponse.json(
       { error: "Failed to fetch tests" },
       { status: 500 }

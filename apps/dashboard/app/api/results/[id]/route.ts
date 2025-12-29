@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testResults, tests, testRuns, testHealth } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(
   request: NextRequest,
@@ -77,7 +78,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching result:", error);
+    logger.error({ err: error }, "Failed to fetch result");
     return NextResponse.json(
       { error: "Failed to fetch result" },
       { status: 500 }

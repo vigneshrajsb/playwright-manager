@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests, testHealth, testResults, testRuns } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 /**
  * @swagger
@@ -97,7 +98,7 @@ export async function GET(
       })),
     });
   } catch (error) {
-    console.error("Error fetching test:", error);
+    logger.error({ err: error }, "Failed to fetch test");
     return NextResponse.json(
       { error: "Failed to fetch test" },
       { status: 500 }
@@ -175,7 +176,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, test: updated });
   } catch (error) {
-    console.error("Error deleting test:", error);
+    logger.error({ err: error }, "Failed to delete test");
     return NextResponse.json(
       { error: "Failed to delete test" },
       { status: 500 }

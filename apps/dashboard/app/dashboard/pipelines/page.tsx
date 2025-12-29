@@ -31,7 +31,9 @@ import {
   AlertCircle,
   MoreHorizontal,
   ListChecks,
+  GitPullRequest,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,6 +119,7 @@ export default function PipelinesPage() {
       setFilters(data.filters);
     } catch (error) {
       console.error("Failed to fetch pipelines:", error);
+      toast.error("Failed to load pipelines");
     } finally {
       setLoading(false);
     }
@@ -297,11 +300,16 @@ export default function PipelinesPage() {
                 </TableRow>
               ) : pipelines.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No pipelines found
+                  <TableCell colSpan={8} className="py-12">
+                    <div className="text-center">
+                      <GitPullRequest className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-sm font-medium text-muted-foreground">
+                        No pipelines found
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Run your CI pipeline to start tracking test runs.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (

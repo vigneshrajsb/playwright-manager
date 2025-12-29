@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests, testRuns, testHealth, testResults } from "@/lib/db/schema";
 import { eq, and, desc, sql, gte } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -260,7 +261,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error fetching dashboard data:", error);
+    logger.error({ err: error }, "Failed to fetch dashboard data");
     return NextResponse.json(
       { error: "Failed to fetch dashboard data" },
       { status: 500 }

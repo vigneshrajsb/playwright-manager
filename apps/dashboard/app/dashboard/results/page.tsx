@@ -13,7 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -21,20 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Loader2, Search, ChevronDown, Clock, GitBranch, MoreHorizontal, X, ExternalLink } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Loader2, Search, Clock, GitBranch, MoreHorizontal, X, ExternalLink, ClipboardList } from "lucide-react";
+import { toast } from "sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ResultSheet } from "@/components/results/result-sheet";
+import { StatusBadgeWithTooltip } from "@/components/badges";
+import { TagFilterPopover } from "@/components/filters";
+import { formatDate, formatDuration } from "@/lib/utils/format";
 
 interface TestResult {
   id: string;
@@ -124,8 +117,6 @@ export default function ResultsPage() {
     }
   }, [resultId]);
 
-  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
-
   const fetchResults = useCallback(async () => {
     setLoading(true);
     try {
@@ -150,6 +141,7 @@ export default function ResultsPage() {
       setRunInfo(data.runInfo || null);
     } catch (error) {
       console.error("Failed to fetch results:", error);
+      toast.error("Failed to load results");
     } finally {
       setLoading(false);
     }
@@ -174,111 +166,8 @@ export default function ResultsPage() {
     router.push(`/dashboard/results?${params.toString()}`);
   };
 
-  const toggleTag = (tag: string) => {
-    const newTags = selectedTags.includes(tag)
-      ? selectedTags.filter((t) => t !== tag)
-      : [...selectedTags, tag];
-    updateUrl({ tags: newTags.join(",") });
-  };
-
-  const clearTags = () => {
-    updateUrl({ tags: "" });
-  };
-
   const clearRunFilter = () => {
     updateUrl({ testRunId: "" });
-  };
-
-  const getStatusBadgeWithTooltip = (status: string, expectedStatus: string, outcomeValue: string) => {
-    // Red for failures AND unexpected outcomes
-    const isUnexpected = outcomeValue === "unexpected";
-    const isFailed = status === "failed" || status === "timedOut";
-    const isRed = isFailed || isUnexpected;
-
-    const variants: Record<string, string> = {
-      passed: isRed ? "bg-red-500/10 text-red-600" : "bg-green-500/10 text-green-600",
-      failed: "bg-red-500/10 text-red-600",
-      timedOut: "bg-orange-500/10 text-orange-600",
-      skipped: "bg-gray-500/10 text-gray-600",
-      interrupted: "bg-yellow-500/10 text-yellow-600",
-    };
-
-    // Generate tooltip message
-    let tooltipMessage = "";
-    let tooltipColor = "text-green-600";
-
-    if (outcomeValue === "skipped") {
-      tooltipMessage = "Skipped";
-      tooltipColor = "text-muted-foreground";
-    } else if (status === expectedStatus || (status === "passed" && expectedStatus === "passed")) {
-      tooltipMessage = expectedStatus === "failed" ? "Expected to fail" : "Expected to pass";
-      tooltipColor = "text-green-600";
-    } else if (expectedStatus === "failed" && status === "passed") {
-      tooltipMessage = "Expected to fail, but passed";
-      tooltipColor = "text-red-600";
-    } else if (expectedStatus === "passed" && (status === "failed" || status === "timedOut")) {
-      tooltipMessage = "Expected to pass, but failed";
-      tooltipColor = "text-red-600";
-    } else {
-      tooltipMessage = `Expected: ${expectedStatus}, Actual: ${status}`;
-      tooltipColor = isUnexpected ? "text-red-600" : "text-green-600";
-    }
-
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Badge className={`${variants[status] || variants.skipped} cursor-help`}>
-            {status}
-          </Badge>
-        </TooltipTrigger>
-        <TooltipContent>
-          <span className={tooltipColor}>{tooltipMessage}</span>
-        </TooltipContent>
-      </Tooltip>
-    );
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      passed: "bg-green-500/10 text-green-600",
-      failed: "bg-red-500/10 text-red-600",
-      timedOut: "bg-orange-500/10 text-orange-600",
-      skipped: "bg-gray-500/10 text-gray-600",
-      interrupted: "bg-yellow-500/10 text-yellow-600",
-    };
-    return (
-      <Badge className={variants[status] || variants.skipped}>{status}</Badge>
-    );
-  };
-
-  const getOutcomeBadge = (outcome: string) => {
-    const variants: Record<string, string> = {
-      expected: "bg-green-500/10 text-green-600",
-      unexpected: "bg-red-500/10 text-red-600",
-      flaky: "bg-yellow-500/10 text-yellow-600",
-      skipped: "bg-gray-500/10 text-gray-600",
-    };
-    return (
-      <Badge className={variants[outcome] || variants.skipped}>{outcome}</Badge>
-    );
-  };
-
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    const minutes = Math.floor(ms / 60000);
-    const seconds = Math.round((ms % 60000) / 1000);
-    return `${minutes}m ${seconds}s`;
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   };
 
   const openResultSheet = (id: string) => {
@@ -379,58 +268,11 @@ export default function ResultsPage() {
           </SelectContent>
         </Select>
 
-        <Popover open={tagDropdownOpen} onOpenChange={setTagDropdownOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[150px] justify-between">
-              {selectedTags.length > 0 ? (
-                <span className="truncate">
-                  {selectedTags.length} tag{selectedTags.length > 1 ? "s" : ""}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">Tags</span>
-              )}
-              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0" align="start">
-            <div className="p-2 border-b">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Filter by tags</span>
-                {selectedTags.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-auto p-1 text-xs"
-                    onClick={clearTags}
-                  >
-                    Clear
-                  </Button>
-                )}
-              </div>
-            </div>
-            <div className="max-h-[200px] overflow-y-auto p-2">
-              {filters?.tags?.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2 text-center">
-                  No tags found
-                </p>
-              ) : (
-                filters?.tags?.map((t) => (
-                  <div
-                    key={t}
-                    className="flex items-center space-x-2 py-1.5 px-1 hover:bg-muted rounded cursor-pointer"
-                    onClick={() => toggleTag(t)}
-                  >
-                    <Checkbox
-                      checked={selectedTags.includes(t)}
-                      onCheckedChange={() => toggleTag(t)}
-                    />
-                    <span className="text-sm">{t}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </PopoverContent>
-        </Popover>
+        <TagFilterPopover
+          tags={filters?.tags || []}
+          selectedTags={selectedTags}
+          onTagsChange={(newTags) => updateUrl({ tags: newTags.join(",") })}
+        />
 
         <Select
           value={status}
@@ -501,11 +343,16 @@ export default function ResultsPage() {
               </TableRow>
             ) : results.length === 0 ? (
               <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-center py-8 text-muted-foreground"
-                >
-                  No results found
+                <TableCell colSpan={8} className="py-12">
+                  <div className="text-center">
+                    <ClipboardList className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+                    <p className="text-sm font-medium text-muted-foreground">
+                      No results found
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Run your test suite or adjust filters to see results.
+                    </p>
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
@@ -543,7 +390,13 @@ export default function ResultsPage() {
                   <TableCell>
                     <Badge variant="outline">{result.test.projectName}</Badge>
                   </TableCell>
-                  <TableCell>{getStatusBadgeWithTooltip(result.status, result.expectedStatus, result.outcome)}</TableCell>
+                  <TableCell>
+                    <StatusBadgeWithTooltip
+                      status={result.status}
+                      expectedStatus={result.expectedStatus}
+                      outcome={result.outcome}
+                    />
+                  </TableCell>
                   <TableCell>
                     <span className="flex items-center gap-1 text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />

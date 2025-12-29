@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testResults, tests, testRuns } from "@/lib/db/schema";
-import { eq, ilike, and, or, desc, asc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql } from "drizzle-orm";
+import {
+  buildResultConditions,
+  combineConditions,
+} from "@/lib/filters/build-conditions";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -21,48 +26,18 @@ export async function GET(request: NextRequest) {
   try {
     const offset = (page - 1) * limit;
 
-    // Build conditions
-    const conditions: any[] = [];
+    // Build filter conditions using shared utilities
+    const conditions = buildResultConditions({
+      search,
+      repository,
+      project,
+      tags,
+      status,
+      outcome,
+      testRunId,
+    });
 
-    if (search) {
-      conditions.push(
-        or(
-          ilike(tests.testTitle, `%${search}%`),
-          ilike(tests.filePath, `%${search}%`),
-          ilike(testResults.baseUrl, `%${search}%`)
-        )
-      );
-    }
-
-    if (repository) {
-      conditions.push(eq(tests.repository, repository));
-    }
-
-    if (project) {
-      conditions.push(eq(tests.projectName, project));
-    }
-
-    if (tags) {
-      const tagList = tags.split(",").filter(Boolean);
-      if (tagList.length > 0) {
-        const tagArrayLiteral = tagList.map(t => `'${t.replace(/'/g, "''")}'`).join(",");
-        conditions.push(sql`${tests.tags} && ARRAY[${sql.raw(tagArrayLiteral)}]::text[]`);
-      }
-    }
-
-    if (status) {
-      conditions.push(eq(testResults.status, status));
-    }
-
-    if (outcome) {
-      conditions.push(eq(testResults.outcome, outcome));
-    }
-
-    if (testRunId) {
-      conditions.push(eq(testResults.testRunId, testRunId));
-    }
-
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const whereClause = combineConditions(conditions);
 
     // Get sort column
     const sortColumn =
@@ -148,7 +123,7 @@ export async function GET(request: NextRequest) {
       runInfo,
     });
   } catch (error) {
-    console.error("Error fetching results:", error);
+    logger.error({ err: error }, "Failed to fetch results");
     return NextResponse.json(
       { error: "Failed to fetch results" },
       { status: 500 }
