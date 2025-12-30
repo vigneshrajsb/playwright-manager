@@ -40,6 +40,16 @@ export interface ResultFilters {
   page?: number;
 }
 
+export interface QuarantinedFilters {
+  search?: string;
+  repository?: string;
+  project?: string;
+  ruleType?: string; // global, branch, env, branch+env
+  sortBy?: string;
+  sortOrder?: string;
+  page?: number;
+}
+
 export const queryKeys = {
   dashboard: {
     all: ["dashboard"] as const,
@@ -61,5 +71,10 @@ export const queryKeys = {
   skipRules: {
     all: ["skipRules"] as const,
     list: (testId: string | null) => ["skipRules", "list", testId] as const,
+  },
+  quarantined: {
+    all: ["quarantined"] as const,
+    list: (filters: QuarantinedFilters) =>
+      ["quarantined", "list", filters] as const,
   },
 } as const;

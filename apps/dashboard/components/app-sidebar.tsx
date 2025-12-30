@@ -22,6 +22,7 @@ import {
   PanelLeftClose,
   Workflow,
   ListChecks,
+  ShieldBan,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -46,6 +47,11 @@ const navItems = [
     title: "Results",
     path: "/dashboard/results",
     icon: ListChecks,
+  },
+  {
+    title: "Quarantined",
+    path: "/dashboard/quarantined",
+    icon: ShieldBan,
   },
 ];
 
