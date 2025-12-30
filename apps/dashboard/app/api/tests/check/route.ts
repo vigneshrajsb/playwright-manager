@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests, skipRules, SkipRule } from "@/lib/db/schema";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { minimatch } from "minimatch";
+import { matchRule } from "@/lib/skip-rules/matcher";
 
 /**
  * @swagger
@@ -74,71 +74,6 @@ interface CheckBody {
   projectName?: string;
   branch?: string;
   baseURL?: string;
-}
-
-interface MatchResult {
-  matches: boolean;
-  matchedBranch?: boolean;
-  matchedEnv?: boolean;
-}
-
-/**
- * Match a skip rule against the current branch and baseURL context
- */
-function matchRule(
-  rule: SkipRule,
-  branch: string | undefined,
-  baseURL: string | undefined
-): MatchResult {
-  const hasBranchPattern = !!rule.branchPattern;
-  const hasEnvPattern = !!rule.envPattern;
-
-  // Global rule (no patterns) - always matches
-  if (!hasBranchPattern && !hasEnvPattern) {
-    return { matches: true };
-  }
-
-  let branchMatches = true;
-  let envMatches = true;
-
-  // Safe minimatch options to prevent ReDoS attacks
-  const minimatchOptions = {
-    nocase: true,
-    nobrace: true, // Disable brace expansion
-    noext: true, // Disable extglob
-  };
-
-  if (hasBranchPattern) {
-    if (!branch) {
-      // No branch provided, branch-specific rule doesn't match
-      branchMatches = false;
-    } else {
-      branchMatches = minimatch(branch, rule.branchPattern!, minimatchOptions);
-    }
-  }
-
-  if (hasEnvPattern) {
-    if (!baseURL) {
-      // No baseURL provided, env-specific rule doesn't match
-      envMatches = false;
-    } else {
-      try {
-        const url = new URL(baseURL);
-        envMatches = minimatch(url.hostname, rule.envPattern!, minimatchOptions);
-      } catch {
-        envMatches = false;
-      }
-    }
-  }
-
-  // Both must match if both are specified (AND within rule)
-  const matches = branchMatches && envMatches;
-
-  return {
-    matches,
-    matchedBranch: hasBranchPattern ? branchMatches : undefined,
-    matchedEnv: hasEnvPattern ? envMatches : undefined,
-  };
 }
 
 export async function POST(request: NextRequest) {
