@@ -9,6 +9,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { HealthBadge } from "@/components/badges";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, ExternalLink, Clock, GitBranch } from "lucide-react";
 import { formatDuration, formatDate, formatRelativeTime } from "@/lib/utils/format";
@@ -39,6 +40,9 @@ interface ResultDetail {
     healthScore: number;
     passRate: string;
     flakinessRate: string;
+    recentPassRate?: string;
+    recentFlakinessRate?: string;
+    healthDivergence?: string;
     totalRuns: number;
     consecutivePasses: number;
     consecutiveFailures: number;
@@ -120,25 +124,6 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
     );
   };
 
-  const getHealthBadge = (score: number) => {
-    if (score >= 80) {
-      return (
-        <Badge className="bg-green-500/10 text-green-600">
-          Healthy ({score})
-        </Badge>
-      );
-    } else if (score >= 50) {
-      return (
-        <Badge className="bg-yellow-500/10 text-yellow-600">
-          Flaky ({score})
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge className="bg-red-500/10 text-red-600">Failing ({score})</Badge>
-      );
-    }
-  };
 
   return (
     <Sheet open={!!resultId} onOpenChange={(open) => !open && onClose()}>
@@ -266,7 +251,12 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                         <span className="text-muted-foreground">
                           Health Score
                         </span>
-                        {getHealthBadge(data.health.healthScore)}
+                        <HealthBadge
+                          score={data.health.healthScore}
+                          showScore
+                          recentPassRate={data.health.recentPassRate}
+                          overallPassRate={data.health.passRate}
+                        />
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Pass Rate</span>

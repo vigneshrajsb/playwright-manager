@@ -93,7 +93,16 @@ export const testColumns: ColumnDef<Test>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Health" />
     ),
-    cell: ({ row }) => <HealthBadge score={row.original.health?.healthScore} />,
+    cell: ({ row }) => {
+      const health = row.original.health;
+      return (
+        <HealthBadge
+          score={health?.healthScore}
+          recentPassRate={health?.recentPassRate}
+          overallPassRate={health?.passRate}
+        />
+      );
+    },
     size: 80,
   },
   {

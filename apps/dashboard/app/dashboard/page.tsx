@@ -261,7 +261,11 @@ export default function DashboardOverviewPage() {
                         {test.health.flakinessRate}% flaky
                       </span>
                     </div>
-                    <HealthBadge score={test.health.healthScore} />
+                    <HealthBadge
+                      score={test.health.healthScore}
+                      recentPassRate={test.health.recentPassRate}
+                      overallPassRate={test.health.passRate}
+                    />
                   </div>
                 ))}
               </div>
@@ -305,7 +309,11 @@ export default function DashboardOverviewPage() {
                         Score: {test.health.healthScore}
                       </span>
                     </div>
-                    <HealthBadge score={test.health.healthScore} />
+                    <HealthBadge
+                      score={test.health.healthScore}
+                      recentPassRate={test.health.recentPassRate}
+                      overallPassRate={test.health.passRate}
+                    />
                   </div>
                 ))}
               </div>

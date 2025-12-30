@@ -8,6 +8,9 @@ import {
 } from "@/lib/filters/build-conditions";
 import { logger } from "@/lib/logger";
 
+// Maximum number of results to return (with or without filters)
+const MAX_RESULTS = 2000;
+
 /**
  * @swagger
  * /api/results:
@@ -199,6 +202,25 @@ export async function GET(request: NextRequest) {
   try {
     const offset = (page - 1) * limit;
 
+    // Don't allow fetching beyond MAX_RESULTS
+    if (offset >= MAX_RESULTS) {
+      return NextResponse.json({
+        results: [],
+        pagination: {
+          page,
+          limit,
+          total: MAX_RESULTS,
+          totalPages: Math.ceil(MAX_RESULTS / limit),
+        },
+        filters: await getFilterOptions(),
+        runInfo: null,
+        testInfo: null,
+      });
+    }
+
+    // Adjust limit if it would exceed MAX_RESULTS
+    const effectiveLimit = Math.min(limit, MAX_RESULTS - offset);
+
     // Build filter conditions using shared utilities
     const conditions = buildResultConditions({
       search,
@@ -245,17 +267,18 @@ export async function GET(request: NextRequest) {
       .innerJoin(testRuns, eq(testResults.testRunId, testRuns.id))
       .where(whereClause)
       .orderBy(sortOrder === "desc" ? desc(sortColumn) : asc(sortColumn))
-      .limit(limit)
+      .limit(effectiveLimit)
       .offset(offset);
 
-    // Get total count
+    // Get total count (capped at MAX_RESULTS)
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(testResults)
       .innerJoin(tests, eq(testResults.testId, tests.id))
       .innerJoin(testRuns, eq(testResults.testRunId, testRuns.id))
       .where(whereClause);
-    const total = Number(countResult[0].count);
+    const rawTotal = Number(countResult[0].count);
+    const total = Math.min(rawTotal, MAX_RESULTS);
 
     // Get filter options
     const filters = await getFilterOptions();

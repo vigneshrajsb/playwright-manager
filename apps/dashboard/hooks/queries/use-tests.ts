@@ -30,6 +30,7 @@ export function useTests(filters: TestFilters) {
           status: filters.status,
           health: filters.health,
           sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder,
           page: filters.page,
           limit: 20,
         })

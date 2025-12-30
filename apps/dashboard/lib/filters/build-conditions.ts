@@ -77,26 +77,45 @@ export function buildTestConditions(params: TestFilterParams): SQL[] {
 
 /**
  * Build health-related filter conditions
+ * Supports comma-separated values like "flaky,failing"
  */
 export function buildHealthConditions(health: string | null | undefined): SQL[] {
-  const conditions: SQL[] = [];
+  if (!health) return [];
 
-  if (health === "healthy") {
-    conditions.push(gte(testHealth.healthScore, 80));
-  } else if (health === "flaky") {
-    conditions.push(gt(sql`CAST(${testHealth.flakinessRate} AS numeric)`, 10));
-  } else if (health === "failing") {
-    conditions.push(lt(testHealth.healthScore, 50));
+  const healthValues = health.split(",").map((h) => h.trim()).filter(Boolean);
+  if (healthValues.length === 0) return [];
+
+  const healthConditions: SQL[] = [];
+
+  for (const h of healthValues) {
+    if (h === "healthy") {
+      healthConditions.push(gte(testHealth.healthScore, 80));
+    } else if (h === "flaky") {
+      healthConditions.push(
+        and(
+          gte(testHealth.healthScore, 50),
+          lt(testHealth.healthScore, 80)
+        )!
+      );
+    } else if (h === "failing") {
+      healthConditions.push(lt(testHealth.healthScore, 50));
+    }
   }
 
-  return conditions;
+  // If multiple health filters, OR them together
+  if (healthConditions.length === 0) return [];
+  if (healthConditions.length === 1) return healthConditions;
+
+  return [or(...healthConditions)!];
 }
 
 /**
  * Check if a health filter requires an inner join
  */
 export function needsHealthInnerJoin(health: string | null | undefined): boolean {
-  return health === "healthy" || health === "flaky" || health === "failing";
+  if (!health) return false;
+  const healthValues = health.split(",").map((h) => h.trim());
+  return healthValues.some((h) => h === "healthy" || h === "flaky" || h === "failing");
 }
 
 /**
@@ -143,11 +162,21 @@ export function buildResultConditions(params: ResultFilterParams): SQL[] {
   }
 
   if (params.status) {
-    conditions.push(eq(testResults.status, params.status));
+    const statusValues = params.status.split(",").map((s) => s.trim()).filter(Boolean);
+    if (statusValues.length === 1) {
+      conditions.push(eq(testResults.status, statusValues[0]));
+    } else if (statusValues.length > 1) {
+      conditions.push(or(...statusValues.map((s) => eq(testResults.status, s)))!);
+    }
   }
 
   if (params.outcome) {
-    conditions.push(eq(testResults.outcome, params.outcome));
+    const outcomeValues = params.outcome.split(",").map((o) => o.trim()).filter(Boolean);
+    if (outcomeValues.length === 1) {
+      conditions.push(eq(testResults.outcome, outcomeValues[0]));
+    } else if (outcomeValues.length > 1) {
+      conditions.push(or(...outcomeValues.map((o) => eq(testResults.outcome, o)))!);
+    }
   }
 
   if (params.testRunId) {

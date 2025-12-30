@@ -28,6 +28,9 @@ export interface TestHealth {
   healthScore: number;
   passRate: string;
   flakinessRate: string;
+  recentPassRate?: string;
+  recentFlakinessRate?: string;
+  healthDivergence?: string;
   lastRunAt: string | null;
 }
 
@@ -65,6 +68,9 @@ export interface TestWithHealth {
     healthScore: number;
     passRate: string;
     flakinessRate: string;
+    recentPassRate?: string;
+    recentFlakinessRate?: string;
+    healthDivergence?: string;
     consecutiveFailures: number;
   };
 }

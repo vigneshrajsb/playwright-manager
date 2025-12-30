@@ -32,6 +32,7 @@ export default function ResultsPage() {
     pageIndex,
     sorting,
     sortBy,
+    sortOrder,
     updateUrl,
     onSortingChange,
     onPageChange,
@@ -66,6 +67,7 @@ export default function ResultsPage() {
     testRunId: testRunId || undefined,
     testId: testId || undefined,
     sortBy,
+    sortOrder,
     page: pageIndex + 1,
   };
 

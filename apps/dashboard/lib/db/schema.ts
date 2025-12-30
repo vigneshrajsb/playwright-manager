@@ -158,6 +158,15 @@ export const testHealth = pgTable(
     flakinessRate: decimal("flakiness_rate", { precision: 5, scale: 2 })
       .default("0")
       .notNull(),
+    recentPassRate: decimal("recent_pass_rate", { precision: 5, scale: 2 })
+      .default("0")
+      .notNull(),
+    recentFlakinessRate: decimal("recent_flakiness_rate", { precision: 5, scale: 2 })
+      .default("0")
+      .notNull(),
+    healthDivergence: decimal("health_divergence", { precision: 5, scale: 2 })
+      .default("0")
+      .notNull(),
     avgDurationMs: integer("avg_duration_ms").default(0).notNull(),
     healthScore: integer("health_score").default(100).notNull(),
     trend: varchar("trend", { length: 20 }).default("stable").notNull(),

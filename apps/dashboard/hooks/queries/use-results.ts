@@ -28,6 +28,7 @@ export function useResults(filters: ResultFilters) {
           testRunId: filters.testRunId,
           testId: filters.testId,
           sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder,
           page: filters.page,
           limit: 20,
         })

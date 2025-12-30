@@ -351,17 +351,14 @@ interface HealthStats {
   totalDuration: number;
 }
 
-async function updateTestHealth(tx: Transaction, testId: string) {
-  // Get last 50 results for this test
-  const recentResults = await tx.query.testResults.findMany({
-    where: eq(testResults.testId, testId),
-    orderBy: (results, { desc }) => [desc(results.startedAt)],
-    limit: 50,
-  });
+// Configurable health algorithm parameters
+const HEALTH_OVERALL_WINDOW = parseInt(process.env.HEALTH_OVERALL_WINDOW || "50");
+const HEALTH_RECENT_WINDOW = parseInt(process.env.HEALTH_RECENT_WINDOW || "10");
+const HEALTH_RECENT_WEIGHT = parseFloat(process.env.HEALTH_RECENT_WEIGHT || "0.6");
+const HEALTH_OVERALL_WEIGHT = 1 - HEALTH_RECENT_WEIGHT;
 
-  if (recentResults.length === 0) return;
-
-  const stats = recentResults.reduce<HealthStats>(
+function calculateStats(results: DbTestResult[]): HealthStats {
+  return results.reduce<HealthStats>(
     (acc, r) => {
       acc.total++;
       if (r.outcome === "expected") acc.passed++;
@@ -373,17 +370,47 @@ async function updateTestHealth(tx: Transaction, testId: string) {
     },
     { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, totalDuration: 0 }
   );
+}
 
-  // Only consider actual executions (exclude skipped from health calculation)
-  const executedTotal = stats.passed + stats.failed + stats.flaky;
-  const passRate = executedTotal > 0 ? (stats.passed / executedTotal) * 100 : 0;
-  const flakinessRate = executedTotal > 0 ? (stats.flaky / executedTotal) * 100 : 0;
-  const healthScore = Math.max(0, Math.round(passRate - flakinessRate * 2));
+async function updateTestHealth(tx: Transaction, testId: string) {
+  // Get last N results for this test (based on overall window)
+  const allResults = await tx.query.testResults.findMany({
+    where: eq(testResults.testId, testId),
+    orderBy: (results, { desc }) => [desc(results.startedAt)],
+    limit: HEALTH_OVERALL_WINDOW,
+  });
 
-  // Calculate consecutive passes/failures
+  if (allResults.length === 0) return;
+
+  // Calculate overall stats (all results in window)
+  const overallStats = calculateStats(allResults);
+  const overallExecuted = overallStats.passed + overallStats.failed + overallStats.flaky;
+  const overallPassRate = overallExecuted > 0 ? (overallStats.passed / overallExecuted) * 100 : 0;
+  const overallFlakinessRate = overallExecuted > 0 ? (overallStats.flaky / overallExecuted) * 100 : 0;
+
+  // Calculate recent stats (first N results only)
+  const recentResults = allResults.slice(0, HEALTH_RECENT_WINDOW);
+  const recentStats = calculateStats(recentResults);
+  const recentExecuted = recentStats.passed + recentStats.failed + recentStats.flaky;
+  const recentPassRate = recentExecuted > 0 ? (recentStats.passed / recentExecuted) * 100 : 0;
+  const recentFlakinessRate = recentExecuted > 0 ? (recentStats.flaky / recentExecuted) * 100 : 0;
+
+  // Weighted pass rate: recent window has more impact
+  const weightedPassRate = (recentPassRate * HEALTH_RECENT_WEIGHT) + (overallPassRate * HEALTH_OVERALL_WEIGHT);
+
+  // Use the higher flakiness rate (more conservative)
+  const flakinessRate = Math.max(recentFlakinessRate, overallFlakinessRate);
+
+  // Final health score with flakiness penalty
+  const healthScore = Math.max(0, Math.round(weightedPassRate - flakinessRate * 2));
+
+  // Health divergence: difference between recent and overall (negative = declining)
+  const healthDivergence = recentPassRate - overallPassRate;
+
+  // Calculate consecutive passes/failures (from most recent results)
   let consecutivePasses = 0,
     consecutiveFailures = 0;
-  for (const r of recentResults) {
+  for (const r of allResults) {
     if (r.outcome === "expected") {
       if (consecutiveFailures === 0) consecutivePasses++;
       else break;
@@ -393,10 +420,10 @@ async function updateTestHealth(tx: Transaction, testId: string) {
     }
   }
 
-  // Determine trend
+  // Determine trend (also consider divergence)
   let trend = "stable";
   if (healthScore < 50) trend = "critical";
-  else if (consecutiveFailures >= 3) trend = "degrading";
+  else if (consecutiveFailures >= 3 || healthDivergence < -15) trend = "degrading";
   else if (consecutivePasses >= 5 && healthScore > 80) trend = "improving";
 
   const existingHealth = await tx.query.testHealth.findFirst({
@@ -404,24 +431,27 @@ async function updateTestHealth(tx: Transaction, testId: string) {
   });
 
   const healthData = {
-    totalRuns: stats.total,
-    passedCount: stats.passed,
-    failedCount: stats.failed,
-    skippedCount: stats.skipped,
-    flakyCount: stats.flaky,
-    passRate: passRate.toFixed(2),
+    totalRuns: overallStats.total,
+    passedCount: overallStats.passed,
+    failedCount: overallStats.failed,
+    skippedCount: overallStats.skipped,
+    flakyCount: overallStats.flaky,
+    passRate: overallPassRate.toFixed(2),
     flakinessRate: flakinessRate.toFixed(2),
-    avgDurationMs: Math.round(stats.totalDuration / stats.total),
+    recentPassRate: recentPassRate.toFixed(2),
+    recentFlakinessRate: recentFlakinessRate.toFixed(2),
+    healthDivergence: healthDivergence.toFixed(2),
+    avgDurationMs: Math.round(overallStats.totalDuration / overallStats.total),
     healthScore,
     trend,
     consecutivePasses,
     consecutiveFailures,
-    lastStatus: recentResults[0].status,
-    lastRunAt: recentResults[0].startedAt,
+    lastStatus: allResults[0].status,
+    lastRunAt: allResults[0].startedAt,
     lastPassedAt:
-      recentResults.find((r) => r.outcome === "expected")?.startedAt || null,
+      allResults.find((r) => r.outcome === "expected")?.startedAt || null,
     lastFailedAt:
-      recentResults.find((r) => r.outcome === "unexpected")?.startedAt || null,
+      allResults.find((r) => r.outcome === "unexpected")?.startedAt || null,
     updatedAt: new Date(),
   };
 

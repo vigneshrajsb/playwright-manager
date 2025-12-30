@@ -37,6 +37,7 @@ export default function TestsPage() {
     pageIndex,
     sorting,
     sortBy,
+    sortOrder,
     updateUrl,
     onSortingChange,
     onPageChange,
@@ -69,6 +70,7 @@ export default function TestsPage() {
     status: status || undefined,
     health: health || undefined,
     sortBy,
+    sortOrder,
     page: pageIndex + 1,
   };
 

@@ -22,6 +22,7 @@ export function usePipelines(filters: PipelineFilters) {
           branch: filters.branch,
           status: filters.status,
           sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder,
           page: filters.page,
           limit: 20,
         })

@@ -30,6 +30,7 @@ export default function PipelinesPage() {
     pageIndex,
     sorting,
     sortBy,
+    sortOrder,
     updateUrl,
     onSortingChange,
     onPageChange,
@@ -54,6 +55,7 @@ export default function PipelinesPage() {
     branch: branch || undefined,
     status: status || undefined,
     sortBy,
+    sortOrder,
     page: pageIndex + 1,
   };
 

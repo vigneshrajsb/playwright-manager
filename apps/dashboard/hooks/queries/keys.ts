@@ -12,6 +12,7 @@ export interface TestFilters {
   status?: string;
   health?: string;
   sortBy?: string;
+  sortOrder?: string;
   page?: number;
 }
 
@@ -21,6 +22,7 @@ export interface PipelineFilters {
   branch?: string;
   status?: string;
   sortBy?: string;
+  sortOrder?: string;
   page?: number;
 }
 
@@ -34,6 +36,7 @@ export interface ResultFilters {
   testRunId?: string;
   testId?: string;
   sortBy?: string;
+  sortOrder?: string;
   page?: number;
 }
 
