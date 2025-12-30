@@ -46,6 +46,12 @@ export interface TestManagerFixtureOptions {
    * @default 5000
    */
   timeout?: number;
+
+  /**
+   * Override auto-detected git branch
+   * Useful for local development or custom CI setups
+   */
+  branch?: string;
 }
 
 /**
@@ -56,6 +62,9 @@ export interface DisabledTestsResponse {
     string,
     {
       reason?: string;
+      ruleId?: string;
+      matchedBranch?: boolean;
+      matchedEnv?: boolean;
     }
   >;
   timestamp: number;

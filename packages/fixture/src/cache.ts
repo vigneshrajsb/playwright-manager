@@ -10,18 +10,18 @@ class DisabledTestsCache {
     new Map();
 
   /**
-   * Get cached disabled tests for a project
-   * @param projectName - The Playwright project name
+   * Get cached disabled tests by cache key
+   * @param cacheKey - The cache key (e.g., "repo:project:branch:baseURL")
    * @param ttl - Cache TTL in milliseconds
    * @returns Cached data if valid, undefined if expired or not cached
    */
-  get(projectName: string, ttl: number): DisabledTestsResponse | undefined {
-    const cached = this.cache.get(projectName);
+  get(cacheKey: string, ttl: number): DisabledTestsResponse | undefined {
+    const cached = this.cache.get(cacheKey);
     if (!cached) return undefined;
 
     const age = Date.now() - cached.fetchedAt;
     if (age > ttl) {
-      this.cache.delete(projectName);
+      this.cache.delete(cacheKey);
       return undefined;
     }
 
@@ -29,40 +29,40 @@ class DisabledTestsCache {
   }
 
   /**
-   * Set cached disabled tests for a project
+   * Set cached disabled tests by cache key
    */
-  set(projectName: string, data: DisabledTestsResponse): void {
-    this.cache.set(projectName, {
+  set(cacheKey: string, data: DisabledTestsResponse): void {
+    this.cache.set(cacheKey, {
       data,
       fetchedAt: Date.now(),
     });
   }
 
   /**
-   * Get or create a pending request for deduplication
+   * Get a pending request for deduplication
    * Multiple tests might try to fetch at the same time
    */
   getPendingRequest(
-    projectName: string
+    cacheKey: string
   ): Promise<DisabledTestsResponse> | undefined {
-    return this.pendingRequests.get(projectName);
+    return this.pendingRequests.get(cacheKey);
   }
 
   /**
    * Set a pending request
    */
   setPendingRequest(
-    projectName: string,
+    cacheKey: string,
     promise: Promise<DisabledTestsResponse>
   ): void {
-    this.pendingRequests.set(projectName, promise);
+    this.pendingRequests.set(cacheKey, promise);
   }
 
   /**
    * Clear a pending request
    */
-  clearPendingRequest(projectName: string): void {
-    this.pendingRequests.delete(projectName);
+  clearPendingRequest(cacheKey: string): void {
+    this.pendingRequests.delete(cacheKey);
   }
 
   /**

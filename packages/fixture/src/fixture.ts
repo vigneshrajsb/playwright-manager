@@ -1,6 +1,8 @@
 import { test as base } from "@playwright/test";
 import type { TestManagerFixtureOptions, DisabledTestsResponse } from "./types";
 import { disabledTestsCache } from "./cache";
+import { detectCIContext } from "./ci-detection";
+import { DEFAULT_CACHE_TTL_MS, DEFAULT_API_TIMEOUT_MS } from "./constants";
 
 /**
  * Fetch ALL disabled tests for a repository/project from the API
@@ -10,6 +12,8 @@ async function fetchDisabledTestsForProject(
   apiUrl: string,
   repository: string,
   projectName: string,
+  branch: string | undefined,
+  baseURL: string | undefined,
   timeout: number
 ): Promise<DisabledTestsResponse> {
   const controller = new AbortController();
@@ -25,6 +29,8 @@ async function fetchDisabledTestsForProject(
         // Don't send testIds - fetch ALL disabled tests for this repo/project
         repository,
         projectName,
+        branch,
+        baseURL,
       }),
       signal: controller.signal,
     });
@@ -47,6 +53,8 @@ async function getDisabledTests(
   apiUrl: string,
   repository: string,
   projectName: string,
+  branch: string | undefined,
+  baseURL: string | undefined,
   cacheTtl: number,
   timeout: number,
   debug: boolean = false
@@ -57,32 +65,43 @@ async function getDisabledTests(
     }
   };
 
-  // Use repository:project as cache key to separate different repos
-  const cacheKey = `${repository}:${projectName}`;
+  // Cache key includes context for proper invalidation across different branches/environments
+  const cacheKey = `${repository}:${projectName}:${branch || "unknown"}:${baseURL || "unknown"}`;
 
-  // Check cache first
   const cached = disabledTestsCache.get(cacheKey, cacheTtl);
   if (cached) {
-    log("Cache hit", { cacheKey, disabledCount: Object.keys(cached.disabledTests).length });
+    log("Cache hit", {
+      cacheKey,
+      disabledCount: Object.keys(cached.disabledTests).length,
+    });
     return cached;
   }
 
-  // Check for pending request (deduplication)
   const pending = disabledTestsCache.getPendingRequest(cacheKey);
   if (pending) {
     log("Waiting for pending request", { cacheKey });
     return pending;
   }
 
-  // Create new request - fetch ALL disabled tests for this repo/project
   log("Fetching disabled tests from API", { cacheKey, apiUrl, timeout });
-  const request = fetchDisabledTestsForProject(apiUrl, repository, projectName, timeout);
+  const request = fetchDisabledTestsForProject(
+    apiUrl,
+    repository,
+    projectName,
+    branch,
+    baseURL,
+    timeout
+  );
   disabledTestsCache.setPendingRequest(cacheKey, request);
 
   try {
     const result = await request;
     disabledTestsCache.set(cacheKey, result);
-    log("Cached disabled tests", { cacheKey, disabledCount: Object.keys(result.disabledTests).length, ttl: cacheTtl });
+    log("Cached disabled tests", {
+      cacheKey,
+      disabledCount: Object.keys(result.disabledTests).length,
+      ttl: cacheTtl,
+    });
     return result;
   } finally {
     disabledTestsCache.clearPendingRequest(cacheKey);
@@ -126,10 +145,11 @@ export const test = base.extend<TestManagerFixtures>({
       const {
         apiUrl,
         repository,
-        cacheTtl = 60000,
+        branch: branchOverride,
+        cacheTtl = DEFAULT_CACHE_TTL_MS,
         failSilently = true,
         debug = false,
-        timeout = 5000,
+        timeout = DEFAULT_API_TIMEOUT_MS,
       } = options;
 
       const log = (...args: unknown[]) => {
@@ -138,7 +158,20 @@ export const test = base.extend<TestManagerFixtures>({
         }
       };
 
-      let disabledInfo: { reason?: string } | undefined;
+      const ciContext = detectCIContext();
+      const branch = branchOverride || ciContext.branch;
+      const baseURL = testInfo.project.use.baseURL;
+
+      log("Context", {
+        branch,
+        baseURL,
+        isCI: ciContext.isCI,
+        project: testInfo.project.name,
+      });
+
+      let disabledInfo:
+        | { reason?: string; ruleId?: string; matchedBranch?: boolean; matchedEnv?: boolean }
+        | undefined;
 
       // Fetch disabled tests - API errors are caught here
       try {
@@ -148,12 +181,16 @@ export const test = base.extend<TestManagerFixtures>({
           project: testInfo.project.name,
           repository,
           apiUrl,
+          branch,
+          baseURL,
         });
 
         const disabledTests = await getDisabledTests(
           apiUrl,
           repository,
           testInfo.project.name,
+          branch,
+          baseURL,
           cacheTtl,
           timeout,
           debug
@@ -186,6 +223,9 @@ export const test = base.extend<TestManagerFixtures>({
           testId: testInfo.testId,
           title: testInfo.title,
           reason,
+          ruleId: disabledInfo.ruleId,
+          matchedBranch: disabledInfo.matchedBranch,
+          matchedEnv: disabledInfo.matchedEnv,
         });
         testInfo.skip(true, `[dashboard] ${reason}`);
         // Don't call use() - test is skipped
