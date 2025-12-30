@@ -6,10 +6,12 @@ import {
   testRuns,
   testResults,
   testHealth,
+  skipRules,
   type NewTest,
   type NewTestRun,
   type NewTestResult,
   type NewTestHealth,
+  type NewSkipRule,
 } from "./schema";
 
 const connectionString = process.env.DATABASE_URL!;
@@ -33,7 +35,6 @@ const sampleTests: NewTest[] = [
     tags: ["@auth", "@smoke"],
     locationLine: 10,
     locationColumn: 5,
-    isEnabled: true,
   },
   {
     playwrightTestId: "test-1-firefox",
@@ -44,7 +45,6 @@ const sampleTests: NewTest[] = [
     tags: ["@auth", "@smoke"],
     locationLine: 10,
     locationColumn: 5,
-    isEnabled: true,
   },
   {
     playwrightTestId: "test-2-chromium",
@@ -55,7 +55,6 @@ const sampleTests: NewTest[] = [
     tags: ["@auth", "@negative"],
     locationLine: 25,
     locationColumn: 5,
-    isEnabled: true,
   },
   {
     playwrightTestId: "test-3-chromium",
@@ -66,8 +65,6 @@ const sampleTests: NewTest[] = [
     tags: ["@dashboard"],
     locationLine: 8,
     locationColumn: 5,
-    isEnabled: false,
-    disabledReason: "Flaky test - needs investigation",
   },
   {
     playwrightTestId: "test-4-chromium",
@@ -78,7 +75,6 @@ const sampleTests: NewTest[] = [
     tags: ["@dashboard", "@navigation"],
     locationLine: 20,
     locationColumn: 5,
-    isEnabled: true,
   },
   {
     playwrightTestId: "test-5-chromium",
@@ -89,7 +85,6 @@ const sampleTests: NewTest[] = [
     tags: ["@api", "@users"],
     locationLine: 15,
     locationColumn: 5,
-    isEnabled: true,
   },
   {
     playwrightTestId: "test-6-chromium",
@@ -100,7 +95,6 @@ const sampleTests: NewTest[] = [
     tags: ["@api", "@users"],
     locationLine: 30,
     locationColumn: 5,
-    isEnabled: true,
   },
   {
     playwrightTestId: "test-7-webkit",
@@ -111,25 +105,43 @@ const sampleTests: NewTest[] = [
     tags: ["@mobile", "@responsive"],
     locationLine: 12,
     locationColumn: 5,
-    isEnabled: true,
   },
 ];
 
 async function seed() {
-  console.log("🌱 Seeding database...\n");
+  console.log("Seeding database...\n");
 
   // Clear existing data
   console.log("Clearing existing data...");
+  await db.delete(skipRules);
   await db.delete(testHealth);
   await db.delete(testResults);
   await db.delete(testRuns);
   await db.delete(tests);
-  console.log("✓ Cleared existing data\n");
+  console.log("Cleared existing data\n");
 
   // Insert tests
   console.log("Inserting tests...");
   const insertedTests = await db.insert(tests).values(sampleTests).returning();
-  console.log(`✓ Inserted ${insertedTests.length} tests\n`);
+  console.log(`Inserted ${insertedTests.length} tests\n`);
+
+  // Create a skip rule for one test (test-3-chromium - the dashboard stats test)
+  const disabledTest = insertedTests.find(
+    (t) => t.playwrightTestId === "test-3-chromium"
+  );
+  if (disabledTest) {
+    console.log("Inserting skip rules...");
+    const sampleSkipRules: NewSkipRule[] = [
+      {
+        testId: disabledTest.id,
+        reason: "Flaky test - needs investigation",
+        branchPattern: null, // Global skip
+        envPattern: null,
+      },
+    ];
+    await db.insert(skipRules).values(sampleSkipRules);
+    console.log(`Inserted ${sampleSkipRules.length} skip rules\n`);
+  }
 
   // Create sample test runs
   const now = new Date();
@@ -189,10 +201,9 @@ async function seed() {
 
   console.log("Inserting test runs...");
   const insertedRuns = await db.insert(testRuns).values(runs).returning();
-  console.log(`✓ Inserted ${insertedRuns.length} test runs\n`);
+  console.log(`Inserted ${insertedRuns.length} test runs\n`);
 
   // Create sample test results
-  const outcomes = ["expected", "unexpected", "skipped", "flaky"] as const;
   const statuses = ["passed", "failed", "skipped"] as const;
 
   console.log("Inserting test results...");
@@ -200,13 +211,13 @@ async function seed() {
   for (const run of insertedRuns) {
     for (const test of insertedTests) {
       // Skip some tests randomly to simulate real data
-      if (Math.random() > 0.8 && test.isEnabled) continue;
+      if (Math.random() > 0.8) continue;
 
-      const isSkipped = !test.isEnabled;
-      const status = isSkipped
+      const isDisabledTest = test.id === disabledTest?.id;
+      const status = isDisabledTest
         ? "skipped"
         : statuses[Math.floor(Math.random() * 2)]; // passed or failed
-      const outcome = isSkipped
+      const outcome = isDisabledTest
         ? "skipped"
         : status === "passed"
           ? "expected"
@@ -230,10 +241,10 @@ async function seed() {
           status === "failed"
             ? "Error: Expected element to be visible\n    at tests/example.spec.ts:15:10"
             : null,
-        skippedByDashboard: isSkipped,
+        skippedByDashboard: isDisabledTest,
         startedAt: run.startedAt,
         attachments: [],
-        annotations: isSkipped
+        annotations: isDisabledTest
           ? [{ type: "skip", description: "[dashboard] Disabled via Test Manager" }]
           : [],
       };
@@ -242,11 +253,12 @@ async function seed() {
       resultCount++;
     }
   }
-  console.log(`✓ Inserted ${resultCount} test results\n`);
+  console.log(`Inserted ${resultCount} test results\n`);
 
   // Create test health records
   console.log("Inserting test health records...");
   for (const test of insertedTests) {
+    const isDisabledTest = test.id === disabledTest?.id;
     const passRate = Math.floor(Math.random() * 40) + 60; // 60-100%
     const flakinessRate = Math.floor(Math.random() * 20); // 0-20%
     const healthScore = Math.max(0, passRate - flakinessRate * 2);
@@ -256,7 +268,7 @@ async function seed() {
       totalRuns: Math.floor(Math.random() * 50) + 10,
       passedCount: Math.floor(Math.random() * 40) + 5,
       failedCount: Math.floor(Math.random() * 10),
-      skippedCount: test.isEnabled ? 0 : Math.floor(Math.random() * 5),
+      skippedCount: isDisabledTest ? Math.floor(Math.random() * 5) : 0,
       flakyCount: Math.floor(Math.random() * 5),
       passRate: passRate.toString(),
       flakinessRate: flakinessRate.toString(),
@@ -265,26 +277,27 @@ async function seed() {
       trend: healthScore > 80 ? "stable" : healthScore > 50 ? "degrading" : "critical",
       consecutivePasses: healthScore > 80 ? Math.floor(Math.random() * 10) + 1 : 0,
       consecutiveFailures: healthScore < 50 ? Math.floor(Math.random() * 5) + 1 : 0,
-      lastStatus: test.isEnabled ? (Math.random() > 0.3 ? "passed" : "failed") : "skipped",
+      lastStatus: isDisabledTest ? "skipped" : Math.random() > 0.3 ? "passed" : "failed",
       lastRunAt: now,
     };
 
     await db.insert(testHealth).values(health);
   }
-  console.log(`✓ Inserted ${insertedTests.length} test health records\n`);
+  console.log(`Inserted ${insertedTests.length} test health records\n`);
 
-  console.log("✅ Seeding complete!\n");
+  console.log("Seeding complete!\n");
   console.log("Summary:");
   console.log(`  - ${insertedTests.length} tests`);
   console.log(`  - ${insertedRuns.length} test runs`);
   console.log(`  - ${resultCount} test results`);
   console.log(`  - ${insertedTests.length} test health records`);
+  console.log(`  - 1 skip rule`);
 
   await client.end();
   process.exit(0);
 }
 
 seed().catch((err) => {
-  console.error("❌ Seeding failed:", err);
+  console.error("Seeding failed:", err);
   process.exit(1);
 });

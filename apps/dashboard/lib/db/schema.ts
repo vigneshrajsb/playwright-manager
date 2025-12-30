@@ -28,9 +28,6 @@ export const tests = pgTable(
     tags: text("tags").array().default([]),
     locationLine: integer("location_line"),
     locationColumn: integer("location_column"),
-    isEnabled: boolean("is_enabled").default(true).notNull(),
-    disabledAt: timestamp("disabled_at", { withTimezone: true }),
-    disabledReason: text("disabled_reason"),
     isDeleted: boolean("is_deleted").default(false).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     deletedReason: text("deleted_reason"),
@@ -55,7 +52,6 @@ export const tests = pgTable(
       table.projectName
     ),
     index("idx_tests_playwright_id").on(table.playwrightTestId),
-    index("idx_tests_enabled").on(table.isEnabled),
     index("idx_tests_deleted").on(table.isDeleted),
     index("idx_tests_project").on(table.projectName),
     index("idx_tests_repository").on(table.repository),
@@ -190,6 +186,7 @@ export const testsRelations = relations(tests, ({ many, one }) => ({
     fields: [tests.id],
     references: [testHealth.testId],
   }),
+  skipRules: many(skipRules),
 }));
 
 export const testRunsRelations = relations(testRuns, ({ many }) => ({
@@ -215,6 +212,34 @@ export const testHealthRelations = relations(testHealth, ({ one }) => ({
 }));
 
 // ============================================================================
+// Skip Rules Table - Conditional skip rules per test
+// ============================================================================
+export const skipRules = pgTable(
+  "skip_rules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    testId: uuid("test_id")
+      .notNull()
+      .references(() => tests.id, { onDelete: "cascade" }),
+    branchPattern: varchar("branch_pattern", { length: 255 }), // null = all branches
+    envPattern: varchar("env_pattern", { length: 1024 }), // null = all envs
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }), // null = active, set = soft deleted
+  },
+  (table) => [index("idx_skip_rules_test_id").on(table.testId)]
+);
+
+export const skipRulesRelations = relations(skipRules, ({ one }) => ({
+  test: one(tests, {
+    fields: [skipRules.testId],
+    references: [tests.id],
+  }),
+}));
+
+// ============================================================================
 // Types
 // ============================================================================
 export type Test = typeof tests.$inferSelect;
@@ -225,3 +250,5 @@ export type TestResult = typeof testResults.$inferSelect;
 export type NewTestResult = typeof testResults.$inferInsert;
 export type TestHealth = typeof testHealth.$inferSelect;
 export type NewTestHealth = typeof testHealth.$inferInsert;
+export type SkipRule = typeof skipRules.$inferSelect;
+export type NewSkipRule = typeof skipRules.$inferInsert;

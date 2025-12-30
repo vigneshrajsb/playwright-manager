@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tests, testRuns, testHealth, testResults } from "@/lib/db/schema";
+import { tests, testRuns, testHealth, testResults, skipRules } from "@/lib/db/schema";
 import { eq, and, desc, sql, gte, SQL } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
@@ -165,21 +165,22 @@ export async function GET(request: NextRequest) {
       testConditions.length > 0 ? and(...testConditions) : undefined;
 
     // Overall test stats (filtered)
+    // Enabled = no active skip rules, Disabled = has active skip rules (not soft-deleted)
     const testStatsQuery =
       testConditions.length > 0
         ? db
             .select({
               totalTests: sql<number>`count(*)`,
-              enabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = true)`,
-              disabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = false)`,
+              enabledTests: sql<number>`count(*) filter (where NOT EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
+              disabledTests: sql<number>`count(*) filter (where EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
             })
             .from(tests)
             .where(testWhereClause)
         : db
             .select({
               totalTests: sql<number>`count(*)`,
-              enabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = true)`,
-              disabledTests: sql<number>`count(*) filter (where ${tests.isEnabled} = false)`,
+              enabledTests: sql<number>`count(*) filter (where NOT EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
+              disabledTests: sql<number>`count(*) filter (where EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
             })
             .from(tests);
 

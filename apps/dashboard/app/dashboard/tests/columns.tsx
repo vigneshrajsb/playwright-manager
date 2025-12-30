@@ -8,14 +8,20 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, ListChecks } from "lucide-react";
+import { MoreHorizontal, ListChecks, ScrollText } from "lucide-react";
 import Link from "next/link";
 import { HealthBadge } from "@/components/badges";
+import { SkipRulesBadges } from "@/components/badges/skip-rule-badge";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { formatDate } from "@/lib/utils/format";
 import type { Test } from "@/types";
+
+export interface TestTableMeta {
+  onViewRules?: (test: Test) => void;
+}
 
 export const testColumns: ColumnDef<Test>[] = [
   {
@@ -62,11 +68,6 @@ export const testColumns: ColumnDef<Test>[] = [
                 </Badge>
               ))}
             </div>
-          )}
-          {!test.isEnabled && test.disabledReason && (
-            <span className="text-xs text-red-500">
-              Reason: {test.disabledReason}
-            </span>
           )}
         </div>
       );
@@ -121,26 +122,30 @@ export const testColumns: ColumnDef<Test>[] = [
     size: 120,
   },
   {
-    accessorKey: "isEnabled",
     id: "status",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Status" />
     ),
     cell: ({ row }) => {
-      const isEnabled = row.original.isEnabled;
-      return (
-        <Badge variant={isEnabled ? "default" : "secondary"}>
-          {isEnabled ? "Enabled" : "Disabled"}
-        </Badge>
-      );
+      const skipRules = row.original.skipRules;
+      const hasSkipRules = skipRules && skipRules.length > 0;
+
+      if (!hasSkipRules) {
+        return <Badge variant="default">Enabled</Badge>;
+      }
+
+      return <SkipRulesBadges rules={skipRules} maxVisible={1} />;
     },
-    size: 80,
+    size: 150,
     enableSorting: false,
   },
   {
     id: "actions",
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const test = row.original;
+      const meta = table.options.meta as TestTableMeta | undefined;
+      const hasSkipRules = test.skipRules && test.skipRules.length > 0;
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -155,6 +160,15 @@ export const testColumns: ColumnDef<Test>[] = [
                 View Results
               </Link>
             </DropdownMenuItem>
+            {hasSkipRules && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => meta?.onViewRules?.(test)}>
+                  <ScrollText className="mr-2 h-4 w-4" />
+                  View Rules
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       );

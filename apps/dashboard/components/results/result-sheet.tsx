@@ -34,7 +34,6 @@ interface ResultDetail {
     projectName: string;
     repository: string;
     tags: string[] | null;
-    isEnabled: boolean;
   };
   health: {
     healthScore: number;

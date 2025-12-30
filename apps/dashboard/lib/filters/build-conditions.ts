@@ -63,9 +63,13 @@ export function buildTestConditions(params: TestFilterParams): SQL[] {
   }
 
   if (params.status === "enabled") {
-    conditions.push(eq(tests.isEnabled, true));
+    conditions.push(
+      sql`NOT EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL)`
+    );
   } else if (params.status === "disabled") {
-    conditions.push(eq(tests.isEnabled, false));
+    conditions.push(
+      sql`EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL)`
+    );
   }
 
   return conditions;

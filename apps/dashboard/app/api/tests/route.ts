@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tests, testHealth } from "@/lib/db/schema";
-import { eq, desc, asc, sql, and } from "drizzle-orm";
+import { tests, testHealth, skipRules } from "@/lib/db/schema";
+import { eq, desc, asc, sql, and, inArray, isNull } from "drizzle-orm";
 import {
   buildTestConditions,
   buildHealthConditions,
@@ -196,52 +196,36 @@ export async function GET(request: NextRequest) {
     const countResult = await countQuery.where(whereClause);
     const total = Number(countResult[0].count);
 
-    // Get unique repositories for filter dropdown (excluding deleted tests)
-    const repositories = await db
-      .selectDistinct({ repository: tests.repository })
-      .from(tests)
-      .where(eq(tests.isDeleted, false));
+    const testIds = result.map((r) => r.test.id);
+    const rulesResult =
+      testIds.length > 0
+        ? await db
+            .select()
+            .from(skipRules)
+            .where(
+              and(inArray(skipRules.testId, testIds), isNull(skipRules.deletedAt))
+            )
+        : [];
 
-    // Get unique projects for filter dropdown (excluding deleted tests)
-    const projects = await db
-      .selectDistinct({ projectName: tests.projectName })
-      .from(tests)
-      .where(eq(tests.isDeleted, false));
-
-    // Get unique tags for filter dropdown (excluding deleted tests)
-    const tagsResult = await db
-      .select({ tags: tests.tags })
-      .from(tests)
-      .where(and(
-        eq(tests.isDeleted, false),
-        sql`${tests.tags} IS NOT NULL AND array_length(${tests.tags}, 1) > 0`
-      ));
-
-    // Flatten and dedupe tags
-    const allTags = new Set<string>();
-    for (const row of tagsResult) {
-      if (row.tags) {
-        for (const t of row.tags) {
-          allTags.add(t);
-        }
+    const rulesByTestId = new Map<string, typeof rulesResult>();
+    for (const rule of rulesResult) {
+      if (!rulesByTestId.has(rule.testId)) {
+        rulesByTestId.set(rule.testId, []);
       }
+      rulesByTestId.get(rule.testId)!.push(rule);
     }
 
     return NextResponse.json({
       tests: result.map((r) => ({
         ...r.test,
         health: r.health,
+        skipRules: rulesByTestId.get(r.test.id) || [],
       })),
       pagination: {
         page,
         limit,
         total,
         totalPages: Math.ceil(total / limit),
-      },
-      filters: {
-        repositories: repositories.map((r) => r.repository),
-        projects: projects.map((p) => p.projectName),
-        tags: Array.from(allTags).sort(),
       },
     });
   } catch (error) {

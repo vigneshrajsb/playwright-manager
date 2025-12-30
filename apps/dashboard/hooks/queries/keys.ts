@@ -55,4 +55,8 @@ export const queryKeys = {
     all: ["results"] as const,
     list: (filters: ResultFilters) => ["results", "list", filters] as const,
   },
+  skipRules: {
+    all: ["skipRules"] as const,
+    list: (testId: string | null) => ["skipRules", "list", testId] as const,
+  },
 } as const;

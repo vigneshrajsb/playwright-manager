@@ -22,12 +22,15 @@ import {
 } from "@/components/data-table";
 import { TagFilterPopover } from "@/components/filters";
 import { ConfirmationDialog } from "@/components/dialogs";
-import { testColumns } from "./columns";
+import { DisableTestDialog } from "@/components/dialogs/disable-test-dialog";
+import { RulesSheet } from "@/components/tests/rules-sheet";
+import { testColumns, type TestTableMeta } from "./columns";
 import { useDataTableUrlState } from "@/hooks";
-import { useTests, useToggleTests, useDeleteTests } from "@/hooks/queries";
+import { useTests, useTestFilters, useToggleTests, useDeleteTests } from "@/hooks/queries";
 import type { TestFilters } from "@/hooks/queries";
 import type { DialogState } from "@/types/dialog";
 import { dialogActions } from "@/types/dialog";
+import type { Test } from "@/types";
 
 export default function TestsPage() {
   const {
@@ -47,6 +50,7 @@ export default function TestsPage() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dialogState, setDialogState] = useState<DialogState>({ type: "closed" });
+  const [rulesSheetTest, setRulesSheetTest] = useState<Test | null>(null);
 
   // Parse filters from URL
   const search = searchParams.get("search") || "";
@@ -69,9 +73,10 @@ export default function TestsPage() {
   };
 
   const { data, isLoading } = useTests(filters);
+  const { data: filterOptionsData } = useTestFilters();
   const tests = data?.tests ?? [];
   const pagination = data?.pagination ?? null;
-  const filterOptions = data?.filters ?? null;
+  const filterOptions = filterOptionsData ?? null;
 
   const toggleMutation = useToggleTests();
   const deleteMutation = useDeleteTests();
@@ -94,6 +99,10 @@ export default function TestsPage() {
   };
 
   const isActionPending = toggleMutation.isPending || deleteMutation.isPending;
+
+  const tableMeta: TestTableMeta = {
+    onViewRules: (test) => setRulesSheetTest(test),
+  };
 
   // Build faceted filter options
   const healthFilterOptions = useMemo(
@@ -178,6 +187,7 @@ export default function TestsPage() {
         emptyIcon={
           <ClipboardList className="h-10 w-10 mx-auto text-muted-foreground/50" />
         }
+        meta={tableMeta}
         // Pagination
         pageCount={pagination?.totalPages}
         pageIndex={pageIndex}
@@ -284,21 +294,18 @@ export default function TestsPage() {
 
       {/* Disable Dialog */}
       {dialogState.type === "disable" && (
-        <ConfirmationDialog
+        <DisableTestDialog
           open={true}
           onOpenChange={() => setDialogState(dialogActions.close())}
-          title={`Disable ${selectedIds.length} Test${selectedIds.length > 1 ? "s" : ""}`}
-          description="Disabled tests will be automatically skipped during test runs."
-          confirmText="Disable"
+          testCount={selectedIds.length}
           loading={toggleMutation.isPending}
-          requireReason
-          reasonPlaceholder="Reason for disabling (required)"
-          onConfirm={() => {}}
-          onConfirmWithReason={async (reason) => {
+          onConfirm={async ({ reason, branchPattern, envPattern }) => {
             await toggleMutation.mutateAsync({
               testIds: selectedIds,
               enabled: false,
               reason,
+              branchPattern,
+              envPattern,
             });
             setRowSelection({});
             setDialogState(dialogActions.close());
@@ -329,6 +336,13 @@ export default function TestsPage() {
           }}
         />
       )}
+
+      {/* Rules Sheet */}
+      <RulesSheet
+        testId={rulesSheetTest?.id ?? null}
+        testTitle={rulesSheetTest?.testTitle}
+        onClose={() => setRulesSheetTest(null)}
+      />
     </div>
     </TooltipProvider>
   );

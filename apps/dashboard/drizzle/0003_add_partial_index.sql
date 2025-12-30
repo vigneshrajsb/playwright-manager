@@ -1,0 +1,1 @@
+CREATE INDEX idx_skip_rules_active ON skip_rules(test_id) WHERE deleted_at IS NULL;

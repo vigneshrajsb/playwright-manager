@@ -35,6 +35,15 @@ export interface TestHealthWithFailures extends TestHealth {
   consecutiveFailures: number;
 }
 
+export interface SkipRule {
+  id: string;
+  testId: string;
+  branchPattern: string | null;
+  envPattern: string | null;
+  reason: string;
+  createdAt: string;
+}
+
 export interface Test {
   id: string;
   testTitle: string;
@@ -42,10 +51,9 @@ export interface Test {
   repository: string;
   projectName: string;
   tags: string[] | null;
-  isEnabled: boolean;
-  disabledReason: string | null;
   lastSeenAt: string;
   health: TestHealth | null;
+  skipRules?: SkipRule[];
 }
 
 export interface TestWithHealth {

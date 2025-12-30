@@ -9,7 +9,12 @@ import type { Test, Pagination, TestFiltersData } from "@/types";
 interface TestsResponse {
   tests: Test[];
   pagination: Pagination;
-  filters: TestFiltersData;
+}
+
+interface TestFiltersResponse {
+  repositories: string[];
+  projects: string[];
+  tags: string[];
 }
 
 export function useTests(filters: TestFilters) {
@@ -32,30 +37,54 @@ export function useTests(filters: TestFilters) {
   });
 }
 
+/**
+ * Fetch filter options (repositories, projects, tags) for tests
+ * Uses longer staleTime since these rarely change
+ */
+export function useTestFilters() {
+  return useQuery({
+    queryKey: ["tests", "filters"],
+    queryFn: () => apiFetch<TestFiltersResponse>("/api/tests/filters"),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
 interface ToggleTestsParams {
   testIds: string[];
   enabled: boolean;
   reason?: string;
+  branchPattern?: string;
+  envPattern?: string;
 }
 
 export function useToggleTests() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ testIds, enabled, reason }: ToggleTestsParams) => {
-      const promises = testIds.map((id) =>
-        apiFetch(`/api/tests/${id}/toggle`, {
-          method: "PATCH",
-          body: JSON.stringify({ enabled, reason }),
-        })
-      );
-      return Promise.all(promises);
+    mutationFn: async ({
+      testIds,
+      enabled,
+      reason,
+      branchPattern,
+      envPattern,
+    }: ToggleTestsParams) => {
+      return apiFetch("/api/tests/toggle", {
+        method: "POST",
+        body: JSON.stringify({
+          testIds,
+          enabled,
+          reason,
+          branchPattern,
+          envPattern,
+        }),
+      });
     },
-    onSuccess: (_, { testIds, enabled }) => {
+    onSuccess: (_, { testIds, enabled, branchPattern, envPattern }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tests.all });
       const count = testIds.length;
+      const isConditional = branchPattern || envPattern;
       toast.success(
-        `${count} test${count > 1 ? "s" : ""} ${enabled ? "enabled" : "disabled"}`
+        `${count} test${count > 1 ? "s" : ""} ${enabled ? "enabled" : isConditional ? "conditionally disabled" : "disabled"}`
       );
     },
     onError: (error) => {

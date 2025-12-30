@@ -27,6 +27,9 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
+  // Table meta for custom data passed to cells
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  meta?: any;
   // Server-side pagination
   pageCount?: number;
   pageIndex?: number;
@@ -55,6 +58,7 @@ export function DataTable<TData, TValue>({
   isLoading,
   emptyMessage = "No results found",
   emptyIcon,
+  meta,
   pageCount,
   pageIndex = 0,
   pageSize = 20,
@@ -73,6 +77,7 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
+    meta,
     getCoreRowModel: getCoreRowModel(),
     // Manual pagination (server-side)
     manualPagination: true,
