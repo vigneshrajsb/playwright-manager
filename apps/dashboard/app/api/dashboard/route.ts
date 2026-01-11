@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { tests, testRuns, testHealth, testResults, skipRules } from "@/lib/db/schema";
-import { eq, and, desc, sql, gte, SQL } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lt, SQL } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 /**
@@ -265,9 +265,10 @@ export async function GET(request: NextRequest) {
 
     const passRateTimeline = await passRateTimelineQuery;
 
-    // Top flaky tests (filtered) - only show tests with flakinessRate > 0
-    const flakyConditionsForList = [
-      sql`CAST(${testHealth.flakinessRate} AS numeric) > 0`,
+    // Top flaky tests (filtered) - healthScore 50-80, consistent with tests page filter
+    const flakyConditionsForList: SQL[] = [
+      gte(testHealth.healthScore, 50),
+      lt(testHealth.healthScore, 80),
     ];
     if (testConditions.length > 0) {
       flakyConditionsForList.push(...testConditions);
@@ -281,7 +282,7 @@ export async function GET(request: NextRequest) {
       .from(tests)
       .innerJoin(testHealth, eq(tests.id, testHealth.testId))
       .where(and(...flakyConditionsForList))
-      .orderBy(desc(testHealth.flakinessRate))
+      .orderBy(testHealth.healthScore) // ASC - lower score = more flaky
       .limit(5);
 
     // Top failing tests (filtered) - only show tests with healthScore < 50 (critical)
@@ -321,9 +322,10 @@ export async function GET(request: NextRequest) {
     const overallPassRate =
       totalTests > 0 ? Math.round((totalPassed / totalTests) * 100) : 0;
 
-    // Count flaky tests
-    const flakyConditions = [
-      sql`CAST(${testHealth.flakinessRate} AS numeric) > 10`,
+    // Count flaky tests (healthScore 50-80, consistent with tests page filter)
+    const flakyConditions: SQL[] = [
+      gte(testHealth.healthScore, 50),
+      lt(testHealth.healthScore, 80),
     ];
     if (testConditions.length > 0) {
       flakyConditions.push(...testConditions);

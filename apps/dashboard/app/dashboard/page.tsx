@@ -155,7 +155,7 @@ export default function DashboardOverviewPage() {
           title="Flaky Tests"
           value={data?.overview?.flakyCount || 0}
           icon={AlertTriangle}
-          description="Flakiness rate > 10%"
+          description="Health score 50-80"
         />
         <StatsCard
           title="Disabled Tests"
