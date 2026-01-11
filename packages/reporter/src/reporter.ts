@@ -216,15 +216,15 @@ export class TestManagerReporter implements Reporter {
     // Check if test was expected to be skipped
     if (expectedStatus === "skipped") return "skipped";
 
+    // Flaky: passed but required retries (must check BEFORE expected!)
+    if (status === "passed" && retry > 0) return "flaky";
+
     // Check if result matches expectation
     const isExpected =
       (status === "passed" && expectedStatus === "passed") ||
       (status === "failed" && expectedStatus === "failed");
 
     if (isExpected) return "expected";
-
-    // Flaky: failed on retries but passed eventually
-    if (status === "passed" && retry > 0) return "flaky";
 
     return "unexpected";
   }
