@@ -1,0 +1,17 @@
+{{- if .Values.config.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "playwright-manager.configName" . }}
+  labels:
+    {{- include "playwright-manager.labels" . | nindent 4 }}
+  {{- with .Values.config.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  NODE_ENV: {{ .Values.config.nodeEnv | quote }}
+  {{- if .Values.config.dashboardUrl }}
+  DASHBOARD_URL: {{ .Values.config.dashboardUrl | quote }}
+  {{- end }}
+{{- end }}

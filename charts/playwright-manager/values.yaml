@@ -1,0 +1,172 @@
+nameOverride: ""
+fullnameOverride: ""
+extraLabels: {}
+
+image:
+  repository: vigneshrajsb/playwright-manager
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+# - name: regcred
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  # eks.amazonaws.com/role-arn: arn:aws:iam::xxx:role/xxx
+
+podSecurityContext:
+  fsGroup: 1001
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+
+deployment:
+  replicaCount: 1
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  extraEnv: []
+  # - name: LOG_LEVEL
+  #   value: "debug"
+
+  envFrom: []
+  # - configMapRef:
+  #     name: external-config
+
+  volumes: []
+  volumeMounts: []
+
+  podAnnotations: {}
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "3000"
+
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+
+startupProbe: {}
+# httpGet:
+#   path: /api/health
+#   port: http
+# initialDelaySeconds: 10
+# periodSeconds: 10
+# failureThreshold: 30
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+  annotations: {}
+  # service.beta.kubernetes.io/aws-load-balancer-type: nlb
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # kubernetes.io/ingress.class: nginx
+  # cert-manager.io/cluster-issuer: letsencrypt-prod
+
+  hosts: []
+  # - host: playwright.example.com
+  #   paths:
+  #     - path: /
+  #       pathType: Prefix
+
+  tls: []
+  # - secretName: playwright-tls
+  #   hosts:
+  #     - playwright.example.com
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+pdb:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+config:
+  enabled: true
+  annotations: {}
+  nodeEnv: "production"
+  # dashboardUrl: "https://playwright.example.com"
+
+secrets:
+  enabled: true
+  annotations: {}
+
+global:
+  security:
+    allowInsecureImages: true
+
+postgresql:
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/postgresql
+    tag: "16.6.0"
+    # pullPolicy: IfNotPresent
+
+  auth:
+    postgresPassword: "playwright-manager"
+    database: "playwright_manager"
+
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+      # storageClass: ""
+
+    # resources:
+    #   requests:
+    #     cpu: 100m
+    #     memory: 256Mi
+    #   limits:
+    #     cpu: 500m
+    #     memory: 512Mi
