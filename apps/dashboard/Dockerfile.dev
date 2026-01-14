@@ -15,10 +15,7 @@ RUN pnpm install
 
 COPY apps/dashboard ./apps/dashboard
 
-# Next.js writes build cache here during development
-RUN mkdir -p /app/apps/dashboard/.next && chown -R node:node /app/apps/dashboard/.next
-
-USER node
+# Dev container runs as root for simplicity (avoids permission issues with Next.js lockfiles)
 WORKDIR /app/apps/dashboard
 
 EXPOSE 3031
