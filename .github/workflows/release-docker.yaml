@@ -10,6 +10,8 @@ env:
 
 jobs:
   build-and-push:
+    # Skip npm package releases
+    if: ${{ !startsWith(github.ref_name, 'reporter-v') && !startsWith(github.ref_name, 'fixture-v') && !startsWith(github.ref_name, 'eslint-plugin-v') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
