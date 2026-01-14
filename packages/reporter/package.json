@@ -1,6 +1,6 @@
 {
   "name": "@playwright-manager/reporter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Playwright reporter for Test Manager Dashboard",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
