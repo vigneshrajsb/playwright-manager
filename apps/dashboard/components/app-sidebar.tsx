@@ -27,17 +27,26 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const navItems = [
-  {
-    title: "Overview",
-    path: "/dashboard",
-    icon: LayoutDashboard,
-  },
+const overviewItem = {
+  title: "Overview",
+  path: "/dashboard",
+  icon: LayoutDashboard,
+};
+
+const manageItems = [
   {
     title: "Tests",
     path: "/dashboard/tests",
     icon: FlaskConical,
   },
+  {
+    title: "Quarantined",
+    path: "/dashboard/quarantined",
+    icon: ShieldBan,
+  },
+];
+
+const reportItems = [
   {
     title: "Pipelines",
     path: "/dashboard/pipelines",
@@ -47,11 +56,6 @@ const navItems = [
     title: "Results",
     path: "/dashboard/results",
     icon: ListChecks,
-  },
-  {
-    title: "Quarantined",
-    path: "/dashboard/quarantined",
-    icon: ShieldBan,
   },
 ];
 
@@ -95,11 +99,59 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="py-2">
+        {/* Overview */}
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navItems.map((item) => (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === overviewItem.path}
+                  tooltip={overviewItem.title}
+                >
+                  <Link href={overviewItem.path}>
+                    <overviewItem.icon />
+                    <span>{overviewItem.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <Separator className="mx-2" />
+
+        {/* Manage */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Manage</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {manageItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.path}
+                    tooltip={item.title}
+                  >
+                    <Link href={item.path}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <Separator className="mx-2" />
+
+        {/* Reports */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Reports</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {reportItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     asChild
