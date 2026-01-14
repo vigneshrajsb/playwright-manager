@@ -26,6 +26,9 @@ jobs:
         with:
           version: v3.14.0
 
+      - name: Build dependencies
+        run: helm dependency build charts/playwright-manager
+
       - name: Lint Helm chart
         run: helm lint charts/playwright-manager
 
@@ -47,6 +50,9 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           version: v3.14.0
+
+      - name: Build dependencies
+        run: helm dependency build charts/playwright-manager
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.6.0
@@ -74,6 +80,7 @@ jobs:
       - name: Package and push Helm chart to GHCR
         run: |
           cd charts/playwright-manager
+          helm dependency build
           CHART_VERSION=$(grep '^version:' Chart.yaml | awk '{print $2}')
           helm package .
           helm push playwright-manager-${CHART_VERSION}.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
