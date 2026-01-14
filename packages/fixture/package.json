@@ -25,5 +25,13 @@
     "fixture",
     "test-manager"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vigneshrajsb/playwright-manager.git",
+    "directory": "packages/fixture"
+  }
 }
