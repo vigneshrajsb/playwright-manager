@@ -1,0 +1,49 @@
+name: Publish npm Package
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    # Only run for package release tags
+    if: startsWith(github.ref_name, 'reporter-v') || startsWith(github.ref_name, 'fixture-v') || startsWith(github.ref_name, 'eslint-plugin-v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Determine package to publish
+        id: package
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" == reporter-v* ]]; then
+            echo "name=reporter" >> $GITHUB_OUTPUT
+            echo "version=${TAG#reporter-v}" >> $GITHUB_OUTPUT
+          elif [[ "$TAG" == fixture-v* ]]; then
+            echo "name=fixture" >> $GITHUB_OUTPUT
+            echo "version=${TAG#fixture-v}" >> $GITHUB_OUTPUT
+          elif [[ "$TAG" == eslint-plugin-v* ]]; then
+            echo "name=eslint-plugin" >> $GITHUB_OUTPUT
+            echo "version=${TAG#eslint-plugin-v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm --filter @playwright-manager/${{ steps.package.outputs.name }} build
+
+      - name: Publish to npm
+        run: pnpm --filter @playwright-manager/${{ steps.package.outputs.name }} publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
