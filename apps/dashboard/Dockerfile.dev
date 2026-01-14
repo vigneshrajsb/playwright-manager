@@ -1,18 +1,26 @@
-# Development Dockerfile with hot reload
+# Uses repo root as build context to access pnpm-lock.yaml
 FROM node:20-alpine
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@latest
+
 WORKDIR /app
 
-# Install dependencies
-COPY package.json pnpm-lock.yaml ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/dashboard/package.json ./apps/dashboard/
+COPY packages/reporter/package.json ./packages/reporter/
+COPY packages/fixture/package.json ./packages/fixture/
+COPY packages/eslint-plugin/package.json ./packages/eslint-plugin/
+
 RUN pnpm install
 
-# Copy source code
-COPY . .
+COPY apps/dashboard ./apps/dashboard
 
-# Expose port
+# Next.js writes build cache here during development
+RUN mkdir -p /app/apps/dashboard/.next && chown -R node:node /app/apps/dashboard/.next
+
+USER node
+WORKDIR /app/apps/dashboard
+
 EXPOSE 3031
 
-# Start dev server
 CMD ["pnpm", "dev"]

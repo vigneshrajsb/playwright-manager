@@ -1,17 +1,10 @@
 # -*- mode: Python -*-
 
-# ============================================================================
-# Playwright Test Manager - Tilt Configuration
-# ============================================================================
-
-# Load docker-compose for development
 docker_compose('./docker-compose.dev.yml')
 
-# Build dashboard image
-# Note: Hot reload is provided by docker-compose volume mount, not Tilt live_update
 docker_build(
     'pw-apps-dashboard',
-    './apps/dashboard',
+    '.',
     dockerfile='./apps/dashboard/Dockerfile.dev',
     ignore=[
         '.next',
@@ -19,18 +12,26 @@ docker_build(
         '.git',
         '*.log',
         '.turbo',
+        'charts',
+        'specs',
+    ],
+    live_update=[
+        sync('./apps/dashboard/app', '/app/apps/dashboard/app'),
+        sync('./apps/dashboard/components', '/app/apps/dashboard/components'),
+        sync('./apps/dashboard/lib', '/app/apps/dashboard/lib'),
+        sync('./apps/dashboard/hooks', '/app/apps/dashboard/hooks'),
+        sync('./apps/dashboard/types', '/app/apps/dashboard/types'),
+        sync('./apps/dashboard/public', '/app/apps/dashboard/public'),
+        run(
+            'cd /app && pnpm install --filter @playwright-manager/dashboard',
+            trigger=['./apps/dashboard/package.json']
+        ),
     ],
 )
 
-# Configure resources
 dc_resource('db', labels=['database'])
-dc_resource(
-    'dashboard',
-    labels=['app'],
-    resource_deps=['db'],
-)
+dc_resource('dashboard', labels=['app'], resource_deps=['db'])
 
-# Database migrations
 local_resource(
     'db-push',
     cmd='cd apps/dashboard && pnpm db:push',
@@ -39,7 +40,6 @@ local_resource(
     auto_init=False,
 )
 
-# Database seeding
 local_resource(
     'db-seed',
     cmd='cd apps/dashboard && pnpm db:seed',
@@ -48,7 +48,6 @@ local_resource(
     auto_init=False,
 )
 
-# Drizzle Studio (database GUI)
 local_resource(
     'db-studio',
     serve_cmd='cd apps/dashboard && pnpm db:studio',
@@ -57,10 +56,7 @@ local_resource(
     auto_init=False,
 )
 
-# ============================================================================
-# Usage Instructions
-# ============================================================================
-#
+# Usage:
 # Start everything:
 #   tilt up
 #

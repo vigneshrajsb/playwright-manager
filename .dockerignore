@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+.pnpm-store
+**/node_modules
+**/.pnpm-store
+
+# Next.js build output
+.next
+**/.next
+
+# Environment files (secrets)
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+**/.DS_Store
+
+# Logs
+*.log
+**/*.log
+
+# Tilt/Dev
+.tilt
+tilt_modules
+
+# Charts (not needed in app image)
+charts
+
+# Specs
+specs

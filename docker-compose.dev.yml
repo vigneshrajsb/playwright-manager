@@ -1,10 +1,7 @@
-# Development docker-compose with hot reload
 services:
-  # PostgreSQL Database
   db:
     image: postgres:16-alpine
     container_name: ptm-db
-    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -19,21 +16,21 @@ services:
       timeout: 5s
       retries: 5
 
-  # Dashboard App (Development with hot reload)
   dashboard:
+    build:
+      context: .
+      dockerfile: apps/dashboard/Dockerfile.dev
     image: pw-apps-dashboard
     container_name: ptm-dashboard-dev
-    restart: unless-stopped
     ports:
       - "3031:3031"
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/playwright_test_manager
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/playwright_test_manager
+      - NEXT_PUBLIC_APP_URL=http://localhost:3031
     volumes:
-      # Mount source for hot reload
-      - ./apps/dashboard:/app
-      - /app/node_modules
-      - /app/.next
+      - ./apps/dashboard:/app/apps/dashboard
+      - /app/apps/dashboard/node_modules
+      - /app/apps/dashboard/.next
     depends_on:
       db:
         condition: service_healthy
