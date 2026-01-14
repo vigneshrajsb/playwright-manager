@@ -2,8 +2,8 @@ apiVersion: v2
 name: playwright-manager
 description: Self-hosted test management for Playwright - track health, manage flaky tests, and control test execution remotely via quarantine rules
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.2.0
+appVersion: "0.2.0"
 home: https://github.com/vigneshrajsb/playwright-manager
 sources:
   - https://github.com/vigneshrajsb/playwright-manager
