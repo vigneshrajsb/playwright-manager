@@ -1,0 +1,33 @@
+{
+  "name": "@playwright-manager/eslint-plugin",
+  "version": "0.1.0",
+  "description": "ESLint plugin to enforce @playwright-manager/fixture imports",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "eslint": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/eslint": "^8.56.0",
+    "@types/estree": "^1.0.5",
+    "@types/node": "^20.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "eslint-plugin",
+    "playwright",
+    "playwright-manager"
+  ],
+  "license": "MIT"
+}
