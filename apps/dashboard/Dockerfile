@@ -13,7 +13,15 @@ WORKDIR /app
 # ============================================================================
 FROM base AS deps
 
-COPY package.json pnpm-lock.yaml ./
+# Copy workspace config and lockfile from repo root
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+
+# Copy all workspace package.json files
+COPY apps/dashboard/package.json ./apps/dashboard/
+COPY packages/reporter/package.json ./packages/reporter/
+COPY packages/fixture/package.json ./packages/fixture/
+COPY packages/eslint-plugin/package.json ./packages/eslint-plugin/
+
 RUN pnpm install --frozen-lockfile
 
 # ============================================================================
@@ -22,7 +30,10 @@ RUN pnpm install --frozen-lockfile
 FROM base AS builder
 
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/dashboard/node_modules ./apps/dashboard/node_modules
 COPY . .
+
+WORKDIR /app/apps/dashboard
 
 # Set environment for build
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -44,16 +55,16 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Copy built assets
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/apps/dashboard/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/static ./.next/static
 
 # Copy drizzle for migrations
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/lib/db ./lib/db
-COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/apps/dashboard/drizzle ./drizzle
+COPY --from=builder /app/apps/dashboard/lib/db ./lib/db
+COPY --from=builder /app/apps/dashboard/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder /app/apps/dashboard/node_modules ./node_modules
+COPY --from=builder /app/apps/dashboard/package.json ./package.json
 
 USER nextjs
 
