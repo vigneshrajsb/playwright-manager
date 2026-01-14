@@ -229,6 +229,21 @@ export class TestManagerReporter implements Reporter {
     return "unexpected";
   }
 
+  private isFinalAttempt(
+    status: TestResult["status"],
+    retry: number,
+    maxRetries: number
+  ): boolean {
+    // Passed tests are always final (no retry needed)
+    if (status === "passed") return true;
+
+    // Skipped and interrupted are final
+    if (status === "skipped" || status === "interrupted") return true;
+
+    // Failed/timedOut: final only if retries exhausted
+    return retry >= maxRetries;
+  }
+
   onBegin(config: FullConfig, suite: Suite): void {
     if (this.isDisabled) return;
 
@@ -283,6 +298,7 @@ export class TestManagerReporter implements Reporter {
       expectedStatus: test.expectedStatus,
       duration: result.duration,
       retry: result.retry,
+      isFinalAttempt: this.isFinalAttempt(result.status, result.retry, maxRetries),
       workerIndex: result.workerIndex,
       parallelIndex: result.parallelIndex,
       outcome: this.determineOutcome(

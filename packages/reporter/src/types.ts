@@ -88,6 +88,7 @@ export interface TestResultData {
   expectedStatus: "passed" | "failed" | "skipped" | "timedOut" | "interrupted";
   duration: number;
   retry: number;
+  isFinalAttempt: boolean;
   workerIndex: number;
   parallelIndex: number;
   outcome: "expected" | "unexpected" | "skipped" | "flaky";
