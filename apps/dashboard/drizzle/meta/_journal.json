@@ -36,6 +36,13 @@
       "when": 1767066650297,
       "tag": "0004_strange_greymalkin",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1768378322364,
+      "tag": "0005_slim_jigsaw",
+      "breakpoints": true
     }
   ]
 }

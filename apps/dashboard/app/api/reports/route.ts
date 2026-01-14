@@ -118,6 +118,7 @@ interface TestResultPayload {
   expectedStatus: "passed" | "failed" | "timedOut" | "skipped" | "interrupted";
   duration: number;
   retry: number;
+  isFinalAttempt?: boolean;
   workerIndex: number;
   parallelIndex: number;
   outcome: "expected" | "unexpected" | "skipped" | "flaky";
@@ -174,14 +175,17 @@ export async function POST(request: NextRequest) {
       });
 
       let testRun;
+      // Count only final attempts for accurate test totals
+      const finalAttemptCount = body.results.filter(r => r.isFinalAttempt ?? true).length;
+
       if (existingRun) {
-        // Update existing run - accumulate totalTests
+        // Update existing run - accumulate totalTests (final attempts only)
         const [updated] = await tx
           .update(testRuns)
           .set({
             finishedAt: body.endTime ? new Date(body.endTime) : null,
             status: body.status || existingRun.status,
-            totalTests: existingRun.totalTests + body.results.length,
+            totalTests: existingRun.totalTests + finalAttemptCount,
             durationMs: body.endTime
               ? new Date(body.endTime).getTime() -
                 new Date(body.startTime).getTime()
@@ -212,7 +216,7 @@ export async function POST(request: NextRequest) {
                 new Date(body.startTime).getTime()
               : null,
             status: body.status || "running",
-            totalTests: body.results.length,
+            totalTests: finalAttemptCount,
           })
           .returning();
         testRun = created;
@@ -285,6 +289,7 @@ export async function POST(request: NextRequest) {
           expectedStatus: testResult.expectedStatus,
           durationMs: testResult.duration,
           retryCount: testResult.retry,
+          isFinalAttempt: testResult.isFinalAttempt ?? true,
           workerIndex: testResult.workerIndex,
           parallelIndex: testResult.parallelIndex,
           errorMessage: testResult.error?.message || null,
@@ -298,20 +303,23 @@ export async function POST(request: NextRequest) {
           startedAt: new Date(testResult.startTime),
         });
 
-        // Update counts
-        switch (testResult.outcome) {
-          case "expected":
-            passedCount++;
-            break;
-          case "unexpected":
-            failedCount++;
-            break;
-          case "skipped":
-            skippedCount++;
-            break;
-          case "flaky":
-            flakyCount++;
-            break;
+        // Update counts - only count final attempts for accurate totals
+        const isFinal = testResult.isFinalAttempt ?? true;
+        if (isFinal) {
+          switch (testResult.outcome) {
+            case "expected":
+              passedCount++;
+              break;
+            case "unexpected":
+              failedCount++;
+              break;
+            case "skipped":
+              skippedCount++;
+              break;
+            case "flaky":
+              flakyCount++;
+              break;
+          }
         }
 
         // Update test health
@@ -373,9 +381,13 @@ function calculateStats(results: DbTestResult[]): HealthStats {
 }
 
 async function updateTestHealth(tx: Transaction, testId: string) {
-  // Get last N results for this test (based on overall window)
+  // Get last N final results for this test (based on overall window)
+  // Only count final attempts to avoid skewing health metrics with retry attempts
   const allResults = await tx.query.testResults.findMany({
-    where: eq(testResults.testId, testId),
+    where: and(
+      eq(testResults.testId, testId),
+      eq(testResults.isFinalAttempt, true)
+    ),
     orderBy: (results, { desc }) => [desc(results.startedAt)],
     limit: HEALTH_OVERALL_WINDOW,
   });

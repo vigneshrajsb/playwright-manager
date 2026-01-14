@@ -112,6 +112,7 @@ export const testResults = pgTable(
     expectedStatus: varchar("expected_status", { length: 50 }).notNull(),
     durationMs: integer("duration_ms").notNull(),
     retryCount: integer("retry_count").default(0).notNull(),
+    isFinalAttempt: boolean("is_final_attempt").default(true).notNull(),
     workerIndex: integer("worker_index"),
     parallelIndex: integer("parallel_index"),
     errorMessage: text("error_message"),
