@@ -1,0 +1,35 @@
+apiVersion: v1
+entries:
+  playwright-manager:
+  - annotations:
+      artifacthub.io/changes: |
+        - Initial release
+      artifacthub.io/license: MIT
+    apiVersion: v2
+    appVersion: 0.2.0
+    created: "2026-01-14T18:18:29.9579423Z"
+    dependencies:
+    - name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: ~16.4.0
+    description: Self-hosted test management for Playwright - track health, manage
+      flaky tests, and control test execution remotely via quarantine rules
+    digest: 9ab0328b59a29324b0ca3c3afce3a188b2faad3cc9b21f546c7a9332de2e4026
+    home: https://github.com/vigneshrajsb/playwright-manager
+    keywords:
+    - playwright
+    - testing
+    - test-management
+    - dashboard
+    - flaky-tests
+    - quarantine
+    maintainers:
+    - name: vigneshrajsb
+    name: playwright-manager
+    sources:
+    - https://github.com/vigneshrajsb/playwright-manager
+    type: application
+    urls:
+    - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.0/playwright-manager-0.2.0.tgz
+    version: 0.2.0
+generated: "2026-01-14T18:18:29.957951387Z"
