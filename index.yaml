@@ -3,6 +3,37 @@ entries:
   playwright-manager:
   - annotations:
       artifacthub.io/changes: |
+        - Fix static assets and public folder paths for monorepo standalone output
+      artifacthub.io/license: MIT
+    apiVersion: v2
+    appVersion: 0.2.2
+    created: "2026-01-15T00:49:37.600047317Z"
+    dependencies:
+    - name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: ~16.4.0
+    description: Self-hosted test management for Playwright - track health, manage
+      flaky tests, and control test execution remotely via quarantine rules
+    digest: 93125e041f60badd052bebce8876049686d920976ff9c2f5b7e04ace4940329f
+    home: https://github.com/vigneshrajsb/playwright-manager
+    keywords:
+    - playwright
+    - testing
+    - test-management
+    - dashboard
+    - flaky-tests
+    - quarantine
+    maintainers:
+    - name: vigneshrajsb
+    name: playwright-manager
+    sources:
+    - https://github.com/vigneshrajsb/playwright-manager
+    type: application
+    urls:
+    - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.2/playwright-manager-0.2.2.tgz
+    version: 0.2.2
+  - annotations:
+      artifacthub.io/changes: |
         - Fix server.js path for monorepo standalone output
       artifacthub.io/license: MIT
     apiVersion: v2
@@ -63,4 +94,4 @@ entries:
     urls:
     - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.0/playwright-manager-0.2.0.tgz
     version: 0.2.0
-generated: "2026-01-14T18:47:27.322034506Z"
+generated: "2026-01-15T00:49:37.600066322Z"
