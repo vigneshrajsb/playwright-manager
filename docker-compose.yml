@@ -18,6 +18,44 @@ services:
       timeout: 5s
       retries: 5
 
+  # MinIO - S3-compatible object storage for HTML reports (optional)
+  minio:
+    image: minio/minio:latest
+    container_name: ptm-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console UI
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - with-storage
+
+  # MinIO bucket initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: ptm-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb myminio/playwright-reports --ignore-existing;
+      echo 'Bucket created successfully';
+      "
+    profiles:
+      - with-storage
+
   # Dashboard App
   dashboard:
     build:
@@ -30,9 +68,16 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/playwright_test_manager
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # S3 Report Storage (optional - configure for MinIO or AWS S3)
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   postgres_data:
+  minio_data:
