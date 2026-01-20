@@ -1,0 +1,1 @@
+ALTER TABLE "test_runs" ADD COLUMN "report_path" varchar(1024);

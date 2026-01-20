@@ -147,6 +147,7 @@ interface ReportPayload {
     workers?: number;
     shardCurrent?: number;
     shardTotal?: number;
+    reportPath?: string; // S3 path to HTML report
   };
   startTime: string;
   endTime?: string;
@@ -190,6 +191,8 @@ export async function POST(request: NextRequest) {
               ? new Date(body.endTime).getTime() -
                 new Date(body.startTime).getTime()
               : null,
+            // Only update reportPath if provided (don't overwrite existing)
+            reportPath: body.metadata?.reportPath ?? existingRun.reportPath,
           })
           .where(eq(testRuns.runId, body.runId))
           .returning();
@@ -205,6 +208,7 @@ export async function POST(request: NextRequest) {
             commitMessage: body.metadata?.commitMessage,
             ciJobUrl: body.metadata?.ciJobUrl,
             baseUrl: body.metadata?.baseUrl,
+            reportPath: body.metadata?.reportPath,
             playwrightVersion: body.metadata?.playwrightVersion,
             totalWorkers: body.metadata?.workers,
             shardCurrent: body.metadata?.shardCurrent,

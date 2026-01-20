@@ -82,10 +82,12 @@ export interface TestResultRun {
   commitSha: string | null;
   status: string;
   startedAt: string;
+  reportPath: string | null;
 }
 
 export interface TestResultTest {
   id: string;
+  playwrightTestId: string;
   testTitle: string;
   filePath: string;
   projectName: string;
@@ -137,6 +139,7 @@ export interface Pipeline {
   commitMessage: string | null;
   ciJobUrl: string | null;
   baseUrl: string | null;
+  reportPath: string | null;
   status: string;
   startedAt: string;
   finishedAt: string | null;

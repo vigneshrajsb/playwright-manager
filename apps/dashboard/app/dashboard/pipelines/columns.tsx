@@ -25,10 +25,12 @@ import {
   AlertCircle,
   MoreHorizontal,
   ListChecks,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { formatDate, formatDuration } from "@/lib/utils/format";
+import { openReportUrl } from "@/lib/utils/report";
 import type { Pipeline } from "@/types";
 
 const getStatusIcon = (status: string) => {
@@ -220,6 +222,15 @@ export const pipelineColumns: ColumnDef<Pipeline>[] = [
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Open CI Job
                   </a>
+                </DropdownMenuItem>
+              </>
+            )}
+            {pipeline.reportPath && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => openReportUrl(pipeline.id)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  View HTML Report
                 </DropdownMenuItem>
               </>
             )}

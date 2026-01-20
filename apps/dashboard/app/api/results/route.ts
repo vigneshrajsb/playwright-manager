@@ -247,6 +247,7 @@ export async function GET(request: NextRequest) {
         result: testResults,
         test: {
           id: tests.id,
+          playwrightTestId: tests.playwrightTestId,
           testTitle: tests.testTitle,
           filePath: tests.filePath,
           projectName: tests.projectName,
@@ -260,6 +261,7 @@ export async function GET(request: NextRequest) {
           commitSha: testRuns.commitSha,
           status: testRuns.status,
           startedAt: testRuns.startedAt,
+          reportPath: testRuns.reportPath,
         },
       })
       .from(testResults)

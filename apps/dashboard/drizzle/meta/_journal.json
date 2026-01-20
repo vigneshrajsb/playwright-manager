@@ -43,6 +43,13 @@
       "when": 1768378322364,
       "tag": "0005_slim_jigsaw",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1768867883665,
+      "tag": "0006_slippery_master_mold",
+      "breakpoints": true
     }
   ]
 }
