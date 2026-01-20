@@ -151,6 +151,7 @@ export async function GET(
     const recentHistory = await db
       .select({
         id: testResults.id,
+        testRunId: testResults.testRunId,
         status: testResults.status,
         outcome: testResults.outcome,
         durationMs: testResults.durationMs,
@@ -158,6 +159,8 @@ export async function GET(
         errorMessage: testResults.errorMessage,
         branch: testRuns.branch,
         commitSha: testRuns.commitSha,
+        ciJobUrl: testRuns.ciJobUrl,
+        reportPath: testRuns.reportPath,
       })
       .from(testResults)
       .innerJoin(testRuns, eq(testResults.testRunId, testRuns.id))

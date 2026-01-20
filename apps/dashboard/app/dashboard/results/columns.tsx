@@ -10,7 +10,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Clock, GitBranch, MoreHorizontal, ExternalLink, FileText } from "lucide-react";
+import { Clock, GitBranch, MoreHorizontal, ExternalLink } from "lucide-react";
+import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { StatusBadgeWithTooltip } from "@/components/badges";
 import { formatDate, formatDuration } from "@/lib/utils/format";
@@ -175,7 +176,7 @@ export const resultColumns = (
                     openReportUrl(result.run.id, result.test.playwrightTestId)
                   }
                 >
-                  <FileText className="mr-2 h-4 w-4" />
+                  <PlaywrightIcon className="mr-2 h-4 w-4" />
                   View in Report
                 </DropdownMenuItem>
               </>

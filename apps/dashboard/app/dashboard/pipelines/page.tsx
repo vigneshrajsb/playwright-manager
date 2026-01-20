@@ -119,7 +119,7 @@ export default function PipelinesPage() {
           // Row click
           onRowClick={(row) => openPipelineSheet(row.id)}
           // Highlight selected row
-          highlightedRowId={selectedPipelineId ?? undefined}
+          highlightedRowId={selectedPipelineId || undefined}
           // Toolbar
           toolbar={(table) => (
             <div className="flex items-center justify-between gap-3">

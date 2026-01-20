@@ -11,9 +11,16 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { HealthBadge } from "@/components/badges";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, ExternalLink, Clock, GitBranch } from "lucide-react";
+import { Loader2, ExternalLink, Clock, GitBranch, ListChecks } from "lucide-react";
+import Link from "next/link";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDuration, formatDate, formatRelativeTime } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
+import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 
 interface ResultDetail {
   result: {
@@ -53,6 +60,7 @@ interface ResultDetail {
   } | null;
   recentHistory: Array<{
     id: string;
+    testRunId: string;
     status: string;
     outcome: string;
     durationMs: number;
@@ -60,6 +68,8 @@ interface ResultDetail {
     errorMessage: string | null;
     branch: string | null;
     commitSha: string | null;
+    ciJobUrl: string | null;
+    reportPath: string | null;
   }>;
   run: {
     id: string;
@@ -78,6 +88,42 @@ interface ResultDetail {
 interface ResultSheetProps {
   resultId: string | null;
   onClose: () => void;
+}
+
+const STATUS_BADGE_VARIANTS: Record<string, string> = {
+  passed: "bg-green-500/10 text-green-600",
+  failed: "bg-red-500/10 text-red-600",
+  timedOut: "bg-orange-500/10 text-orange-600",
+  skipped: "bg-gray-500/10 text-gray-600",
+  interrupted: "bg-yellow-500/10 text-yellow-600",
+};
+
+const OUTCOME_BADGE_VARIANTS: Record<string, string> = {
+  expected: "bg-green-500/10 text-green-600",
+  unexpected: "bg-red-500/10 text-red-600",
+  flaky: "bg-yellow-500/10 text-yellow-600",
+  skipped: "bg-gray-500/10 text-gray-600",
+};
+
+const ANNOTATION_BADGE_VARIANTS: Record<string, string> = {
+  fail: "bg-red-500/10 text-red-600",
+  skip: "bg-yellow-500/10 text-yellow-600",
+  fixme: "bg-yellow-500/10 text-yellow-600",
+  slow: "bg-orange-500/10 text-orange-600",
+};
+
+function getStatusBadge(status: string) {
+  const variant = STATUS_BADGE_VARIANTS[status] || STATUS_BADGE_VARIANTS.skipped;
+  return <Badge className={variant}>{status}</Badge>;
+}
+
+function getOutcomeBadge(outcome: string) {
+  const variant = OUTCOME_BADGE_VARIANTS[outcome] || OUTCOME_BADGE_VARIANTS.skipped;
+  return <Badge className={variant}>{outcome}</Badge>;
+}
+
+function getAnnotationBadgeVariant(type: string): string {
+  return ANNOTATION_BADGE_VARIANTS[type] || "bg-gray-500/10 text-gray-600";
 }
 
 export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
@@ -101,31 +147,6 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
       setData(null);
     }
   }, [resultId]);
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      passed: "bg-green-500/10 text-green-600",
-      failed: "bg-red-500/10 text-red-600",
-      timedOut: "bg-orange-500/10 text-orange-600",
-      skipped: "bg-gray-500/10 text-gray-600",
-      interrupted: "bg-yellow-500/10 text-yellow-600",
-    };
-    return (
-      <Badge className={variants[status] || variants.skipped}>{status}</Badge>
-    );
-  };
-
-  const getOutcomeBadge = (outcome: string) => {
-    const variants: Record<string, string> = {
-      expected: "bg-green-500/10 text-green-600",
-      unexpected: "bg-red-500/10 text-red-600",
-      flaky: "bg-yellow-500/10 text-yellow-600",
-      skipped: "bg-gray-500/10 text-gray-600",
-    };
-    return (
-      <Badge className={variants[outcome] || variants.skipped}>{outcome}</Badge>
-    );
-  };
 
 
   return (
@@ -241,7 +262,9 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                   )}
                   {data.run.reportPath && (
                     <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Report</span>
+                      <span className="flex items-center gap-1 text-muted-foreground">
+                        Report <PlaywrightIcon className="h-[1em] w-[1em]" />
+                      </span>
                       <button
                         onClick={() => openReportUrl(data.run.id, data.test.playwrightTestId)}
                         className="flex items-center gap-1 text-primary hover:underline"
@@ -317,7 +340,7 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                             {formatDuration(run.durationMs)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           {run.branch && (
                             <span className="flex items-center gap-1">
                               <GitBranch className="h-3 w-3" />
@@ -325,6 +348,47 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                             </span>
                           )}
                           <span>{formatRelativeTime(run.startedAt)}</span>
+                          <div className="flex items-center gap-1">
+                            {run.reportPath && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => openReportUrl(run.testRunId, data.test.playwrightTestId)}
+                                    className="p-1 hover:bg-muted rounded"
+                                  >
+                                    <PlaywrightIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>View in Report</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {run.ciJobUrl && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a
+                                    href={run.ciJobUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 hover:bg-muted rounded"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>Open CI Job</TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link
+                                  href={`/dashboard/results?testRunId=${run.testRunId}`}
+                                  className="p-1 hover:bg-muted rounded"
+                                >
+                                  <ListChecks className="h-3.5 w-3.5" />
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>View All Results</TooltipContent>
+                            </Tooltip>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -361,17 +425,7 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                           key={idx}
                           className="flex items-start gap-2 rounded-md border p-2"
                         >
-                          <Badge
-                            className={
-                              annotation.type === "fail"
-                                ? "bg-red-500/10 text-red-600"
-                                : annotation.type === "skip" || annotation.type === "fixme"
-                                ? "bg-yellow-500/10 text-yellow-600"
-                                : annotation.type === "slow"
-                                ? "bg-orange-500/10 text-orange-600"
-                                : "bg-gray-500/10 text-gray-600"
-                            }
-                          >
+                          <Badge className={getAnnotationBadgeVariant(annotation.type)}>
                             {annotation.type}
                           </Badge>
                           {annotation.description && (

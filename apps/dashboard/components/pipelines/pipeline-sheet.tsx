@@ -20,10 +20,10 @@ import {
   ExternalLink,
   Clock,
   GitBranch,
-  FileText,
   Server,
   ListChecks,
 } from "lucide-react";
+import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 import Link from "next/link";
 import { formatDuration, formatRelativeTime } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
@@ -65,6 +65,8 @@ interface PipelineDetail {
     failedCount: number;
     skippedCount: number;
     flakyCount: number;
+    ciJobUrl: string | null;
+    reportPath: string | null;
   }>;
   stats: {
     avgDuration: number | null;
@@ -201,7 +203,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                     title="Open Playwright HTML report in new tab"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border bg-background hover:bg-muted transition-colors"
                   >
-                    <FileText className="h-4 w-4" />
+                    <PlaywrightIcon className="h-4 w-4" />
                     Report
                   </button>
                 )}
@@ -359,10 +361,9 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                 ) : (
                   <div className="space-y-2">
                     {recentRuns.map((run) => (
-                      <Link
+                      <div
                         key={run.id}
-                        href={`/dashboard/pipelines?pipelineId=${run.id}`}
-                        className="flex items-center justify-between rounded-md border p-2 text-sm hover:bg-muted/50 transition-colors"
+                        className="flex items-center justify-between rounded-md border p-2 text-sm"
                       >
                         <div className="flex items-center gap-2">
                           {getStatusDot(run.status)}
@@ -371,15 +372,54 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                             {run.branch || "unknown"}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-xs">
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
                           <span className="text-green-600">{run.passedCount}</span>
-                          <span className="text-muted-foreground">/</span>
+                          <span>/</span>
                           <span className="text-red-600">{run.failedCount}</span>
-                          <span className="text-muted-foreground">
-                            {formatRelativeTime(run.startedAt)}
-                          </span>
+                          <span>{formatRelativeTime(run.startedAt)}</span>
+                          <div className="flex items-center gap-1">
+                            {run.reportPath && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => openReportUrl(run.id)}
+                                    className="p-1 hover:bg-muted rounded"
+                                  >
+                                    <PlaywrightIcon className="h-3.5 w-3.5" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>View Report</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {run.ciJobUrl && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a
+                                    href={run.ciJobUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1 hover:bg-muted rounded"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>Open CI Job</TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Link
+                                  href={`/dashboard/results?testRunId=${run.id}`}
+                                  className="p-1 hover:bg-muted rounded"
+                                >
+                                  <ListChecks className="h-3.5 w-3.5" />
+                                </Link>
+                              </TooltipTrigger>
+                              <TooltipContent>View All Results</TooltipContent>
+                            </Tooltip>
+                          </div>
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </div>
                 )}

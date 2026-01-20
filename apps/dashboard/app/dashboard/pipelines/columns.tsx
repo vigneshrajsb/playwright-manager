@@ -25,9 +25,9 @@ import {
   AlertCircle,
   MoreHorizontal,
   ListChecks,
-  FileText,
   Eye,
 } from "lucide-react";
+import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 import Link from "next/link";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { formatDate, formatDuration } from "@/lib/utils/format";
@@ -237,7 +237,7 @@ export const pipelineColumns = (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => openReportUrl(pipeline.id)}>
-                  <FileText className="mr-2 h-4 w-4" />
+                  <PlaywrightIcon className="mr-2 h-4 w-4" />
                   View HTML Report
                 </DropdownMenuItem>
               </>

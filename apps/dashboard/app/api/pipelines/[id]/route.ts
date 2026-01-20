@@ -69,6 +69,8 @@ export async function GET(
       failedCount: number;
       skippedCount: number;
       flakyCount: number;
+      ciJobUrl: string | null;
+      reportPath: string | null;
     }> = [];
 
     if (repository) {
@@ -97,6 +99,8 @@ export async function GET(
             failedCount: testRuns.failedCount,
             skippedCount: testRuns.skippedCount,
             flakyCount: testRuns.flakyCount,
+            ciJobUrl: testRuns.ciJobUrl,
+            reportPath: testRuns.reportPath,
           })
           .from(testRuns)
           .where(
