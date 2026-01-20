@@ -386,7 +386,7 @@ export class TestManagerReporter implements Reporter {
     results: TestResultData[],
     status: ReportPayload["status"],
     reportPath?: string
-  ): Promise<void> {
+  ): Promise<{ runId?: string }> {
     const metadata: RunMetadata = {
       repository: this.options.repository,
       branch: this.options.branch || this.ciEnv.branch,
@@ -430,7 +430,9 @@ export class TestManagerReporter implements Reporter {
       throw new Error(`API returned ${response.status}: ${text}`);
     }
 
+    const data = await response.json() as { runId?: string };
     this.log("Results sent successfully", { runId: this.runId, count: results.length });
+    return { runId: data.runId };
   }
 
   async onEnd(result: FullResult): Promise<void> {
@@ -443,9 +445,7 @@ export class TestManagerReporter implements Reporter {
     }
 
     // Send remaining results with final status
-    const finalStatus = result.status === "passed" ? "passed" :
-                        result.status === "failed" ? "failed" :
-                        result.status === "interrupted" ? "interrupted" : "failed";
+    const finalStatus = this.mapFinalStatus(result.status);
 
     this.log("Test run ended", { runId: this.runId, status: finalStatus, remainingResults: this.results.length });
 
@@ -476,8 +476,13 @@ export class TestManagerReporter implements Reporter {
 
     try {
       // Always send final report, even if no remaining results
-      await this.sendResults(this.results, finalStatus, reportPath);
+      const response = await this.sendResults(this.results, finalStatus, reportPath);
       this.results = [];
+
+      // Print dashboard link
+      if (response.runId) {
+        this.printSummary(response.runId, reportPath);
+      }
     } catch (error) {
       if (!this.options.failSilently) {
         throw error;
@@ -490,5 +495,36 @@ export class TestManagerReporter implements Reporter {
         );
       }
     }
+  }
+
+  private mapFinalStatus(status: FullResult["status"]): ReportPayload["status"] {
+    switch (status) {
+      case "passed":
+        return "passed";
+      case "failed":
+        return "failed";
+      case "interrupted":
+        return "interrupted";
+      case "timedout":
+        return "failed";
+    }
+  }
+
+  private printSummary(pipelineId: string, reportPath?: string): void {
+    const branch = this.options.branch || this.ciEnv.branch;
+    const commitSha = this.options.commitSha || this.ciEnv.commitSha;
+    const shortSha = commitSha ? ` (${commitSha.slice(0, 7)})` : "";
+    const dashboardUrl = `${this.options.apiUrl}/dashboard/pipelines?pipelineId=${pipelineId}`;
+
+    console.log("");
+    console.log("[Playwright Manager] Results uploaded successfully");
+    if (branch) {
+      console.log(`  Branch:     ${branch}${shortSha}`);
+    }
+    if (reportPath) {
+      console.log(`  Report:     Uploaded`);
+    }
+    console.log(`  Dashboard:  ${dashboardUrl}`);
+    console.log("");
   }
 }
