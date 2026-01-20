@@ -120,6 +120,20 @@ export interface TestManagerReporterOptions {
    * If not provided, report upload is disabled
    */
   s3?: S3ReportConfig;
+
+  /**
+   * If true, exit with code 0 when all failures are detected as flaky
+   * Requires the verdict API to confirm all failures are flaky with high confidence
+   * @default false
+   */
+  autoPassFlaky?: boolean;
+
+  /**
+   * Minimum confidence threshold to auto-pass flaky failures
+   * Only applies when autoPassFlaky is true
+   * @default 90
+   */
+  autoPassThreshold?: number;
 }
 
 /**
