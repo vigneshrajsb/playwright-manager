@@ -1,6 +1,7 @@
 {
   "name": "playwright-manager",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "pnpm --filter @playwright-manager/dashboard dev",
     "build": "pnpm --filter @playwright-manager/dashboard build",
