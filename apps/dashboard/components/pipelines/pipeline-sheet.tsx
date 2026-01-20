@@ -27,6 +27,8 @@ import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 import Link from "next/link";
 import { formatDuration, formatRelativeTime } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
+import { useVerdict } from "@/hooks/queries";
+import { VerdictBanner } from "./verdict-banner";
 
 interface PipelineDetail {
   pipeline: {
@@ -106,6 +108,10 @@ function getStatusDot(status: string) {
 export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
   const [data, setData] = useState<PipelineDetail | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const { data: verdict, isLoading: verdictLoading } = useVerdict(
+    data?.pipeline?.status === "failed" ? pipelineId : null
+  );
 
   useEffect(() => {
     if (pipelineId) {
@@ -220,6 +226,23 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                   </a>
                 )}
               </div>
+
+              {/* Verdict Banner - show for failed pipelines */}
+              {pipeline.status === "failed" && (
+                <>
+                  <Separator />
+                  {verdictLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      <span className="ml-2 text-sm text-muted-foreground">
+                        Analyzing failures...
+                      </span>
+                    </div>
+                  ) : verdict ? (
+                    <VerdictBanner verdict={verdict} pipelineId={pipeline.id} />
+                  ) : null}
+                </>
+              )}
 
               <Separator />
 
