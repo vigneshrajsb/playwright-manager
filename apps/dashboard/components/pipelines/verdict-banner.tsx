@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,12 +13,42 @@ import { VerdictDetails } from "./verdict-details";
 import type { PipelineVerdict } from "@/lib/flakiness-analyzer/types";
 
 interface VerdictBannerProps {
-  verdict: PipelineVerdict;
+  verdict: PipelineVerdict | null;
   pipelineId: string;
+  isLoading?: boolean;
+  error?: Error | null;
 }
 
-export function VerdictBanner({ verdict, pipelineId }: VerdictBannerProps) {
+export function VerdictBanner({ verdict, pipelineId, isLoading, error }: VerdictBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border p-4 bg-muted/50">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            Analyzing failures...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg border p-4 bg-red-500/10 border-red-500/20">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-600" />
+          <span className="text-sm text-red-600">
+            Failed to analyze failures. Please try again.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!verdict) return null;
 
   const isFlaky = verdict.verdict === "flaky";
   const Icon = isFlaky ? CheckCircle2 : AlertTriangle;

@@ -231,16 +231,11 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
               {pipeline.status === "failed" && (
                 <>
                   <Separator />
-                  {verdictLoading ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      <span className="ml-2 text-sm text-muted-foreground">
-                        Analyzing failures...
-                      </span>
-                    </div>
-                  ) : verdict ? (
-                    <VerdictBanner verdict={verdict} pipelineId={pipeline.id} />
-                  ) : null}
+                  <VerdictBanner
+                    verdict={verdict ?? null}
+                    pipelineId={pipeline.id}
+                    isLoading={verdictLoading}
+                  />
                 </>
               )}
 
