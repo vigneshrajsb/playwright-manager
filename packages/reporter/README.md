@@ -556,6 +556,18 @@ debug: true, // Logs upload progress
 
 ---
 
+## Releasing
+
+To release a new version:
+
+1. Update version in `package.json`
+2. Commit and push to main
+3. Create a git tag: `git tag reporter-vX.Y.Z`
+4. Push the tag: `git push origin reporter-vX.Y.Z`
+5. Create a GitHub release with tag `reporter-vX.Y.Z` and title `Reporter vX.Y.Z`
+
+The release triggers the npm publish workflow automatically.
+
 ## Playwright Version Compatibility
 
 | Package Version | Playwright Version |
