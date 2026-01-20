@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { VisibilityState } from "@tanstack/react-table";
 import { Search, GitPullRequest } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import {
   DataTableFacetedFilter,
   DataTableResetFilter,
 } from "@/components/data-table";
+import { PipelineSheet } from "@/components/pipelines/pipeline-sheet";
 import { pipelineColumns } from "./columns";
 import { useDataTableUrlState } from "@/hooks";
 import { usePipelines } from "@/hooks/queries";
@@ -48,6 +49,17 @@ export default function PipelinesPage() {
   const repository = searchParams.get("repository") || "";
   const branch = searchParams.get("branch") || "";
   const status = searchParams.get("status") || "";
+  const selectedPipelineId = searchParams.get("pipelineId") || null;
+
+  const openPipelineSheet = useCallback(
+    (id: string) => updateUrl({ pipelineId: id }),
+    [updateUrl]
+  );
+
+  const closePipelineSheet = useCallback(
+    () => updateUrl({ pipelineId: undefined }),
+    [updateUrl]
+  );
 
   const filters: PipelineFilters = {
     search: search || undefined,
@@ -70,6 +82,9 @@ export default function PipelinesPage() {
     value: s,
   }));
 
+  // Memoize columns with the callback
+  const columns = useMemo(() => pipelineColumns(openPipelineSheet), [openPipelineSheet]);
+
   return (
     <TooltipProvider>
       <div className="space-y-4">
@@ -81,7 +96,7 @@ export default function PipelinesPage() {
         </div>
 
         <DataTable
-          columns={pipelineColumns}
+          columns={columns}
           data={pipelines}
           isLoading={isLoading}
           emptyMessage="No pipelines found"
@@ -101,6 +116,8 @@ export default function PipelinesPage() {
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
           getRowId={(row) => row.id}
+          // Row click
+          onRowClick={(row) => openPipelineSheet(row.id)}
           // Toolbar
           toolbar={(table) => (
             <div className="flex items-center justify-between gap-3">
@@ -172,6 +189,9 @@ export default function PipelinesPage() {
             </div>
           )}
         />
+
+        {/* Pipeline Detail Sheet */}
+        <PipelineSheet pipelineId={selectedPipelineId} onClose={closePipelineSheet} />
       </div>
     </TooltipProvider>
   );

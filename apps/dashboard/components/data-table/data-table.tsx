@@ -48,6 +48,8 @@ interface DataTableProps<TData, TValue> {
   onColumnVisibilityChange?: (visibility: VisibilityState) => void;
   // Row ID accessor
   getRowId?: (row: TData) => string;
+  // Row click handler
+  onRowClick?: (row: TData) => void;
   // Render toolbar with table instance
   toolbar?: (table: TanStackTable<TData>) => React.ReactNode;
 }
@@ -72,6 +74,7 @@ export function DataTable<TData, TValue>({
   columnVisibility,
   onColumnVisibilityChange,
   getRowId,
+  onRowClick,
   toolbar,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
@@ -160,6 +163,8 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={onRowClick ? "cursor-pointer" : undefined}
+                  onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

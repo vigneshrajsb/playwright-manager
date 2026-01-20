@@ -26,6 +26,7 @@ import {
   MoreHorizontal,
   ListChecks,
   FileText,
+  Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { DataTableColumnHeader } from "@/components/data-table";
@@ -48,7 +49,9 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-export const pipelineColumns: ColumnDef<Pipeline>[] = [
+export const pipelineColumns = (
+  onOpenSheet: (id: string) => void
+): ColumnDef<Pipeline>[] => [
   {
     accessorKey: "status",
     id: "status",
@@ -204,6 +207,11 @@ export const pipelineColumns: ColumnDef<Pipeline>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onOpenSheet(pipeline.id)}>
+              <Eye className="mr-2 h-4 w-4" />
+              View Details
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href={`/dashboard/results?testRunId=${pipeline.id}`}>
                 <ListChecks className="mr-2 h-4 w-4" />
