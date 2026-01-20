@@ -177,6 +177,7 @@ export async function GET(
         commitSha: run.commitSha,
         commitMessage: run.commitMessage,
         ciJobUrl: run.ciJobUrl,
+        reportPath: run.reportPath,
         status: run.status,
         startedAt: run.startedAt,
         finishedAt: run.finishedAt,

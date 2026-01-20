@@ -52,6 +52,8 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void;
   // Render toolbar with table instance
   toolbar?: (table: TanStackTable<TData>) => React.ReactNode;
+  // Highlighted row ID (for visual selection without TanStack row selection)
+  highlightedRowId?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -76,6 +78,7 @@ export function DataTable<TData, TValue>({
   getRowId,
   onRowClick,
   toolbar,
+  highlightedRowId,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -162,7 +165,7 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
+                  data-state={(row.getIsSelected() || row.id === highlightedRowId) && "selected"}
                   className={onRowClick ? "cursor-pointer" : undefined}
                   onClick={() => onRowClick?.(row.original)}
                 >

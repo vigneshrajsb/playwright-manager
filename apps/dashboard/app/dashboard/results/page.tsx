@@ -206,6 +206,8 @@ export default function ResultsPage() {
           getRowId={(row) => row.id}
           // Row click
           onRowClick={(row) => openResultSheet(row.id)}
+          // Highlight selected row
+          highlightedRowId={selectedResultId ?? undefined}
           // Toolbar
           toolbar={(table) => (
             <div className="flex items-center justify-between gap-3">

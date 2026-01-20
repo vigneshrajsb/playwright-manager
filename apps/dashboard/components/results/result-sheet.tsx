@@ -13,6 +13,7 @@ import { HealthBadge } from "@/components/badges";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, ExternalLink, Clock, GitBranch } from "lucide-react";
 import { formatDuration, formatDate, formatRelativeTime } from "@/lib/utils/format";
+import { openReportUrl } from "@/lib/utils/report";
 
 interface ResultDetail {
   result: {
@@ -30,6 +31,7 @@ interface ResultDetail {
   };
   test: {
     id: string;
+    playwrightTestId: string;
     testTitle: string;
     filePath: string;
     projectName: string;
@@ -66,6 +68,7 @@ interface ResultDetail {
     commitSha: string | null;
     commitMessage: string | null;
     ciJobUrl: string | null;
+    reportPath: string | null;
     status: string;
     startedAt: string;
     finishedAt: string | null;
@@ -234,6 +237,17 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                       >
                         View <ExternalLink className="h-3 w-3" />
                       </a>
+                    </div>
+                  )}
+                  {data.run.reportPath && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Report</span>
+                      <button
+                        onClick={() => openReportUrl(data.run.id, data.test.playwrightTestId)}
+                        className="flex items-center gap-1 text-primary hover:underline"
+                      >
+                        View <ExternalLink className="h-3 w-3" />
+                      </button>
                     </div>
                   )}
                 </div>
