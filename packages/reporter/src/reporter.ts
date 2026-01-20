@@ -12,13 +12,16 @@ import type {
   RunMetadata,
   ReportPayload,
   CIEnvironment,
+  S3ReportConfig,
 } from "./types";
+import { uploadReportDirectory } from "./s3-uploader";
 
-// Options type with most fields required but branch/commitSha/ciJobUrl optional
-type ResolvedOptions = Required<Omit<TestManagerReporterOptions, 'branch' | 'commitSha' | 'ciJobUrl'>> & {
+// Options type with most fields required but branch/commitSha/ciJobUrl/s3 optional
+type ResolvedOptions = Required<Omit<TestManagerReporterOptions, 'branch' | 'commitSha' | 'ciJobUrl' | 's3'>> & {
   branch?: string;
   commitSha?: string;
   ciJobUrl?: string;
+  s3?: S3ReportConfig;
 };
 
 export class TestManagerReporter implements Reporter {
@@ -58,6 +61,7 @@ export class TestManagerReporter implements Reporter {
       failSilently: options.failSilently ?? true,
       runId: options.runId ?? "",
       debug: options.debug ?? false,
+      s3: options.s3,
     };
 
     this.ciEnv = this.detectCIEnvironment();
@@ -380,8 +384,9 @@ export class TestManagerReporter implements Reporter {
 
   private async sendResults(
     results: TestResultData[],
-    status: ReportPayload["status"]
-  ): Promise<void> {
+    status: ReportPayload["status"],
+    reportPath?: string
+  ): Promise<{ runId?: string }> {
     const metadata: RunMetadata = {
       repository: this.options.repository,
       branch: this.options.branch || this.ciEnv.branch,
@@ -391,6 +396,7 @@ export class TestManagerReporter implements Reporter {
       baseUrl: this.baseUrl,
       playwrightVersion: this.config?.version ?? "unknown",
       workers: this.config?.workers ?? 1,
+      reportPath,
     };
 
     // Add shard info if present
@@ -424,7 +430,9 @@ export class TestManagerReporter implements Reporter {
       throw new Error(`API returned ${response.status}: ${text}`);
     }
 
+    const data = await response.json() as { runId?: string };
     this.log("Results sent successfully", { runId: this.runId, count: results.length });
+    return { runId: data.runId };
   }
 
   async onEnd(result: FullResult): Promise<void> {
@@ -437,16 +445,44 @@ export class TestManagerReporter implements Reporter {
     }
 
     // Send remaining results with final status
-    const finalStatus = result.status === "passed" ? "passed" :
-                        result.status === "failed" ? "failed" :
-                        result.status === "interrupted" ? "interrupted" : "failed";
+    const finalStatus = this.mapFinalStatus(result.status);
 
     this.log("Test run ended", { runId: this.runId, status: finalStatus, remainingResults: this.results.length });
 
+    // Upload HTML report to S3 if configured
+    let reportPath: string | undefined;
+    if (this.options.s3) {
+      try {
+        this.log("Uploading HTML report to S3...");
+        reportPath = await uploadReportDirectory(
+          this.options.s3,
+          this.options.repository,
+          this.runId,
+          this.options.debug
+        );
+        this.log("HTML report uploaded", { reportPath });
+      } catch (error) {
+        if (!this.options.failSilently) {
+          throw error;
+        }
+        if (this.options.debug) {
+          console.error(
+            "[TestManagerReporter] Failed to upload HTML report",
+            { runId: this.runId, error }
+          );
+        }
+      }
+    }
+
     try {
       // Always send final report, even if no remaining results
-      await this.sendResults(this.results, finalStatus);
+      const response = await this.sendResults(this.results, finalStatus, reportPath);
       this.results = [];
+
+      // Print dashboard link
+      if (response.runId) {
+        this.printSummary(response.runId, reportPath);
+      }
     } catch (error) {
       if (!this.options.failSilently) {
         throw error;
@@ -459,5 +495,36 @@ export class TestManagerReporter implements Reporter {
         );
       }
     }
+  }
+
+  private mapFinalStatus(status: FullResult["status"]): ReportPayload["status"] {
+    switch (status) {
+      case "passed":
+        return "passed";
+      case "failed":
+        return "failed";
+      case "interrupted":
+        return "interrupted";
+      case "timedout":
+        return "failed";
+    }
+  }
+
+  private printSummary(pipelineId: string, reportPath?: string): void {
+    const branch = this.options.branch || this.ciEnv.branch;
+    const commitSha = this.options.commitSha || this.ciEnv.commitSha;
+    const shortSha = commitSha ? ` (${commitSha.slice(0, 7)})` : "";
+    const dashboardUrl = `${this.options.apiUrl}/dashboard/pipelines?pipelineId=${pipelineId}`;
+
+    console.log("");
+    console.log("[Playwright Manager] Results uploaded successfully");
+    if (branch) {
+      console.log(`  Branch:     ${branch}${shortSha}`);
+    }
+    if (reportPath) {
+      console.log(`  Report:     Uploaded`);
+    }
+    console.log(`  Dashboard:  ${dashboardUrl}`);
+    console.log("");
   }
 }

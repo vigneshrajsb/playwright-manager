@@ -71,6 +71,7 @@ export const testRuns = pgTable(
     commitMessage: text("commit_message"),
     ciJobUrl: varchar("ci_job_url", { length: 1024 }),
     baseUrl: varchar("base_url", { length: 1024 }),
+    reportPath: varchar("report_path", { length: 1024 }), // S3 path to HTML report
     playwrightVersion: varchar("playwright_version", { length: 50 }),
     totalWorkers: integer("total_workers"),
     shardCurrent: integer("shard_current"),

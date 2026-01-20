@@ -1,4 +1,51 @@
 /**
+ * S3-compatible storage configuration for HTML report hosting
+ */
+export interface S3ReportConfig {
+  /**
+   * S3 bucket name
+   * @example "playwright-reports"
+   */
+  bucket: string;
+
+  /**
+   * AWS region or S3-compatible endpoint region
+   * @example "us-east-1"
+   */
+  region: string;
+
+  /**
+   * Custom endpoint for S3-compatible storage (MinIO, R2, etc.)
+   * If not provided, uses AWS S3
+   * @example "https://minio.example.com"
+   */
+  endpoint?: string;
+
+  /**
+   * Access key ID (can also use AWS_ACCESS_KEY_ID env var)
+   */
+  accessKeyId?: string;
+
+  /**
+   * Secret access key (can also use AWS_SECRET_ACCESS_KEY env var)
+   */
+  secretAccessKey?: string;
+
+  /**
+   * Path prefix in bucket
+   * @default "reports"
+   */
+  pathPrefix?: string;
+
+  /**
+   * Path to Playwright HTML report output directory
+   * If not provided, auto-detects from playwright config
+   * @default "playwright-report"
+   */
+  reportDir?: string;
+}
+
+/**
  * Configuration options for the Test Manager Reporter
  */
 export interface TestManagerReporterOptions {
@@ -67,6 +114,12 @@ export interface TestManagerReporterOptions {
    * @default false
    */
   debug?: boolean;
+
+  /**
+   * S3 configuration for HTML report hosting
+   * If not provided, report upload is disabled
+   */
+  s3?: S3ReportConfig;
 }
 
 /**
@@ -124,6 +177,7 @@ export interface RunMetadata {
   workers: number;
   shardCurrent?: number;
   shardTotal?: number;
+  reportPath?: string; // S3 path to HTML report
 }
 
 /**

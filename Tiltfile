@@ -30,7 +30,9 @@ docker_build(
 )
 
 dc_resource('db', labels=['database'])
-dc_resource('dashboard', labels=['app'], resource_deps=['db'])
+dc_resource('minio', labels=['storage'])
+dc_resource('minio-init', labels=['storage'], resource_deps=['minio'])
+dc_resource('dashboard', labels=['app'], resource_deps=['db', 'minio-init'])
 
 local_resource(
     'db-push',
@@ -74,4 +76,9 @@ local_resource(
 #
 # Access dashboard:
 #   http://localhost:3031
+#
+# Access MinIO Console (S3 storage):
+#   http://localhost:9001
+#   Login: minioadmin / minioadmin
+#   Bucket: playwright-reports
 #

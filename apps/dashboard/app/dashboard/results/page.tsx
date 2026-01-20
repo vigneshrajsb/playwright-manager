@@ -86,13 +86,15 @@ export default function ResultsPage() {
     updateUrl({ testId: undefined });
   };
 
-  const openResultSheet = useCallback((id: string) => {
-    updateUrl({ resultId: id });
-  }, [updateUrl]);
+  const openResultSheet = useCallback(
+    (id: string) => updateUrl({ resultId: id }),
+    [updateUrl]
+  );
 
-  const closeResultSheet = () => {
-    updateUrl({ resultId: undefined });
-  };
+  const closeResultSheet = useCallback(
+    () => updateUrl({ resultId: undefined }),
+    [updateUrl]
+  );
 
   // Build faceted filter options
   const statusFilterOptions = useMemo(
@@ -202,6 +204,10 @@ export default function ResultsPage() {
           columnVisibility={columnVisibility}
           onColumnVisibilityChange={setColumnVisibility}
           getRowId={(row) => row.id}
+          // Row click
+          onRowClick={(row) => openResultSheet(row.id)}
+          // Highlight selected row
+          highlightedRowId={selectedResultId || undefined}
           // Toolbar
           toolbar={(table) => (
             <div className="flex items-center justify-between gap-3">

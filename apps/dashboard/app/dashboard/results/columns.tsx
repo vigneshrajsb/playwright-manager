@@ -3,10 +3,19 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Clock, GitBranch, MoreHorizontal, ExternalLink } from "lucide-react";
+import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { StatusBadgeWithTooltip } from "@/components/badges";
 import { formatDate, formatDuration } from "@/lib/utils/format";
+import { openReportUrl } from "@/lib/utils/report";
 import type { TestResult } from "@/types";
 
 export const resultColumns = (
@@ -145,15 +154,37 @@ export const resultColumns = (
   },
   {
     id: "actions",
-    cell: ({ row }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => onOpenSheet(row.original.id)}
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </Button>
-    ),
+    cell: ({ row }) => {
+      const result = row.original;
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => onOpenSheet(result.id)}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              View Details
+            </DropdownMenuItem>
+            {result.run.reportPath && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() =>
+                    openReportUrl(result.run.id, result.test.playwrightTestId)
+                  }
+                >
+                  <PlaywrightIcon className="mr-2 h-4 w-4" />
+                  View in Report
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    },
     size: 50,
     enableSorting: false,
   },
