@@ -126,6 +126,10 @@ function getAnnotationBadgeVariant(type: string): string {
   return ANNOTATION_BADGE_VARIANTS[type] || "bg-gray-500/10 text-gray-600";
 }
 
+function stripAnsi(str: string): string {
+  return str.replace(/\x1B\[[0-9;]*m/g, '');
+}
+
 export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
   const [data, setData] = useState<ResultDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -216,9 +220,8 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
 
                 {data.result.errorMessage && (
                   <div className="mt-3 rounded-md bg-red-500/10 p-3">
-                    <p className="text-xs font-medium text-red-600">Error</p>
-                    <p className="mt-1 text-xs text-red-600/80 whitespace-pre-wrap">
-                      {data.result.errorMessage}
+                    <p className="text-xs text-red-600/80 whitespace-pre-wrap">
+                      {stripAnsi(data.result.errorMessage)}
                     </p>
                   </div>
                 )}
