@@ -21,6 +21,7 @@ export interface TestVerdict {
   llmUsed: boolean;
   errorMessage?: string;
   errorStack?: string;
+  userFeedback?: "up" | "down" | null;
 }
 
 export interface PipelineVerdict {

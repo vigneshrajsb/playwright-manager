@@ -1,10 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeFlakiness, type PipelineVerdict } from "@/lib/flakiness-analyzer";
+import { db } from "@/lib/db";
+import { verdictFeedback } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 // Simple in-memory cache for verdicts (per pipeline)
 const verdictCache = new Map<string, { verdict: PipelineVerdict; timestamp: number }>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Fetch existing feedback for tests in a pipeline and merge into verdict
+ */
+async function mergeUserFeedback(pipelineId: string, verdict: PipelineVerdict): Promise<PipelineVerdict> {
+  if (verdict.failedTests.length === 0) return verdict;
+
+  const feedbackRecords = await db
+    .select({
+      testId: verdictFeedback.testId,
+      feedback: verdictFeedback.feedback,
+    })
+    .from(verdictFeedback)
+    .where(eq(verdictFeedback.testRunId, pipelineId));
+
+  const feedbackMap = new Map(feedbackRecords.map(f => [f.testId, f.feedback as "up" | "down"]));
+
+  return {
+    ...verdict,
+    failedTests: verdict.failedTests.map(test => ({
+      ...test,
+      userFeedback: feedbackMap.get(test.testId) ?? null,
+    })),
+  };
+}
 
 /**
  * @swagger
@@ -83,7 +111,9 @@ export async function GET(
     if (!forceRefresh) {
       const cached = verdictCache.get(id);
       if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return NextResponse.json(cached.verdict);
+        // Always fetch fresh feedback even for cached verdicts
+        const verdictWithFeedback = await mergeUserFeedback(id, cached.verdict);
+        return NextResponse.json(verdictWithFeedback);
       }
     }
 
@@ -93,7 +123,9 @@ export async function GET(
     // Cache result
     verdictCache.set(id, { verdict, timestamp: Date.now() });
 
-    return NextResponse.json(verdict);
+    // Merge user feedback
+    const verdictWithFeedback = await mergeUserFeedback(id, verdict);
+    return NextResponse.json(verdictWithFeedback);
   } catch (error) {
     logger.error({ err: error, pipelineId: id }, "Failed to analyze flakiness");
     return NextResponse.json(
