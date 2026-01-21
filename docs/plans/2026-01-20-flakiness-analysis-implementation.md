@@ -186,6 +186,7 @@ export interface TestVerdict {
   llmUsed: boolean;
   errorMessage?: string;
   errorStack?: string;
+  userFeedback?: "up" | "down" | null; // Persisted user feedback
 }
 
 export interface PipelineVerdict {
@@ -986,12 +987,40 @@ git commit -m "feat: track error signatures in reports API for flakiness analysi
 
 ```typescript
 import { NextRequest, NextResponse } from "next/server";
-import { analyzeFlakiness } from "@/lib/flakiness-analyzer";
+import { analyzeFlakiness, type PipelineVerdict } from "@/lib/flakiness-analyzer";
+import { db } from "@/lib/db";
+import { verdictFeedback } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 // Simple in-memory cache for verdicts (per pipeline)
-const verdictCache = new Map<string, { verdict: any; timestamp: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const verdictCache = new Map<string, { verdict: PipelineVerdict; timestamp: number }>();
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Fetch existing feedback for tests in a pipeline and merge into verdict
+ */
+async function mergeUserFeedback(pipelineId: string, verdict: PipelineVerdict): Promise<PipelineVerdict> {
+  if (verdict.failedTests.length === 0) return verdict;
+
+  const feedbackRecords = await db
+    .select({
+      testId: verdictFeedback.testId,
+      feedback: verdictFeedback.feedback,
+    })
+    .from(verdictFeedback)
+    .where(eq(verdictFeedback.testRunId, pipelineId));
+
+  const feedbackMap = new Map(feedbackRecords.map(f => [f.testId, f.feedback as "up" | "down"]));
+
+  return {
+    ...verdict,
+    failedTests: verdict.failedTests.map(test => ({
+      ...test,
+      userFeedback: feedbackMap.get(test.testId) ?? null,
+    })),
+  };
+}
 
 /**
  * @swagger
@@ -1000,7 +1029,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  *     tags:
  *       - Pipelines
  *     summary: Get flakiness analysis verdict
- *     description: Returns analysis of whether failures in this pipeline are flaky or real bugs
+ *     description: Returns analysis of whether failures in this pipeline are flaky or real bugs. Use refresh=true to bypass cache.
  *     parameters:
  *       - in: path
  *         name: id
@@ -1008,6 +1037,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  *         schema:
  *           type: string
  *         description: Pipeline ID (UUID)
+ *       - in: query
+ *         name: refresh
+ *         schema:
+ *           type: boolean
+ *         description: Set to true to bypass cache and force re-analysis
  *     responses:
  *       200:
  *         description: Verdict retrieved successfully
@@ -1019,12 +1053,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const forceRefresh = searchParams.get("refresh") === "true";
 
   try {
-    // Check cache
-    const cached = verdictCache.get(id);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      return NextResponse.json(cached.verdict);
+    // Check cache (skip if refresh requested)
+    if (!forceRefresh) {
+      const cached = verdictCache.get(id);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        // Always fetch fresh feedback even for cached verdicts
+        const verdictWithFeedback = await mergeUserFeedback(id, cached.verdict);
+        return NextResponse.json(verdictWithFeedback);
+      }
     }
 
     // Analyze flakiness
@@ -1033,7 +1073,9 @@ export async function GET(
     // Cache result
     verdictCache.set(id, { verdict, timestamp: Date.now() });
 
-    return NextResponse.json(verdict);
+    // Merge user feedback
+    const verdictWithFeedback = await mergeUserFeedback(id, verdict);
+    return NextResponse.json(verdictWithFeedback);
   } catch (error) {
     logger.error({ err: error, pipelineId: id }, "Failed to analyze flakiness");
     return NextResponse.json(
@@ -1260,7 +1302,7 @@ git commit -m "feat: add useVerdict and useVerdictFeedback hooks"
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -1274,9 +1316,11 @@ import type { PipelineVerdict } from "@/lib/flakiness-analyzer/types";
 interface VerdictBannerProps {
   verdict: PipelineVerdict;
   pipelineId: string;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
-export function VerdictBanner({ verdict, pipelineId }: VerdictBannerProps) {
+export function VerdictBanner({ verdict, pipelineId, onRefresh, isRefreshing }: VerdictBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   const isFlaky = verdict.verdict === "flaky";
@@ -1297,8 +1341,19 @@ export function VerdictBanner({ verdict, pipelineId }: VerdictBannerProps) {
               <div className="flex items-center gap-2">
                 <span className="font-medium">{title}</span>
                 <Badge variant="outline" className="text-xs">
-                  {verdict.confidence}% confidence
+                  {isFlaky ? `${verdict.confidence}% flaky` : `${100 - verdict.confidence}% real failure`}
                 </Badge>
+                {onRefresh && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={onRefresh}
+                    disabled={isRefreshing}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                  </Button>
+                )}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {verdict.summary}
@@ -1350,7 +1405,7 @@ git commit -m "feat: add VerdictBanner component"
 ```typescript
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThumbsUp, ThumbsDown, Bot, Calculator, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1366,6 +1421,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useVerdictFeedback } from "@/hooks/queries";
+import { stripAnsi } from "@/lib/utils/format";
 import type { TestVerdict } from "@/lib/flakiness-analyzer/types";
 
 interface VerdictDetailsProps {
@@ -1399,15 +1455,22 @@ interface TestVerdictCardProps {
 }
 
 function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
-  const [feedbackGiven, setFeedbackGiven] = useState<"up" | "down" | null>(null);
+  const [feedbackGiven, setFeedbackGiven] = useState<"up" | "down" | null>(test.userFeedback ?? null);
   const [expanded, setExpanded] = useState(false);
   const feedbackMutation = useVerdictFeedback();
 
+  // Sync state when prop changes (e.g., after data fetch)
+  useEffect(() => {
+    if (test.userFeedback) {
+      setFeedbackGiven(test.userFeedback);
+    }
+  }, [test.userFeedback]);
+
   const isFlaky = test.verdict === "flaky";
   const verdictBadge = isFlaky ? (
-    <Badge className="bg-green-500/10 text-green-600">Flaky</Badge>
+    <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20">Flaky</Badge>
   ) : (
-    <Badge className="bg-red-500/10 text-red-600">Likely Real</Badge>
+    <Badge className="bg-red-500/10 text-red-600 hover:bg-red-500/20">Likely Real</Badge>
   );
 
   const handleFeedback = (feedback: "up" | "down") => {
@@ -1426,23 +1489,24 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
 
   return (
     <Card className="p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm truncate">{test.testTitle}</span>
+      {/* Compact vertical layout with 2px gaps */}
+      <div className="flex flex-col gap-0.5">
+        <div className="font-medium text-sm">{test.testTitle}</div>
+        <div className="text-xs text-muted-foreground truncate">{test.filePath}</div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             {verdictBadge}
             <Badge variant="outline" className="text-xs">
-              {test.confidence}%
+              {isFlaky ? `${test.confidence}% flaky` : `${100 - test.confidence}% real failure`}
             </Badge>
-            {test.llmUsed && (
+            {test.llmUsed ? (
               <Tooltip>
                 <TooltipTrigger>
                   <Bot className="h-3.5 w-3.5 text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>Analyzed with AI</TooltipContent>
               </Tooltip>
-            )}
-            {!test.llmUsed && (
+            ) : (
               <Tooltip>
                 <TooltipTrigger>
                   <Calculator className="h-3.5 w-3.5 text-muted-foreground" />
@@ -1451,45 +1515,43 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
               </Tooltip>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            {test.filePath}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-7 w-7 p-0 ${feedbackGiven === "up" ? "bg-green-100 text-green-600" : ""}`}
-                onClick={() => handleFeedback("up")}
-                disabled={!!feedbackGiven}
-              >
-                <ThumbsUp className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Helpful</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-7 w-7 p-0 ${feedbackGiven === "down" ? "bg-red-100 text-red-600" : ""}`}
-                onClick={() => handleFeedback("down")}
-                disabled={!!feedbackGiven}
-              >
-                <ThumbsDown className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Not helpful</TooltipContent>
-          </Tooltip>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 w-7 p-0 ${feedbackGiven === "up" ? "bg-green-100 text-green-600" : ""}`}
+                  onClick={() => handleFeedback("up")}
+                  disabled={!!feedbackGiven}
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Helpful</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 w-7 p-0 ${feedbackGiven === "down" ? "bg-red-100 text-red-600" : ""}`}
+                  onClick={() => handleFeedback("down")}
+                  disabled={!!feedbackGiven}
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Not helpful</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
-      {/* Reasoning */}
-      <p className="text-sm text-muted-foreground mt-2">{test.reasoning}</p>
+      {/* Reasoning - only render if content exists (LLM provides reasoning, heuristics may not) */}
+      {test.reasoning && (
+        <p className="text-sm text-muted-foreground mt-2">{test.reasoning}</p>
+      )}
 
       {/* Expandable details */}
       <Collapsible open={expanded} onOpenChange={setExpanded}>
@@ -1555,12 +1617,12 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
               </div>
             </div>
 
-            {/* Error preview */}
+            {/* Error preview - strip ANSI codes from Playwright output */}
             {test.errorMessage && (
               <div className="mt-2">
                 <span className="text-xs text-muted-foreground">Error:</span>
                 <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto max-h-20">
-                  {test.errorMessage.slice(0, 200)}
+                  {stripAnsi(test.errorMessage).slice(0, 200)}
                   {test.errorMessage.length > 200 && "..."}
                 </pre>
               </div>

@@ -94,9 +94,12 @@ export const verdictFeedback = pgTable("verdict_feedback", {
 
 ## API Changes
 
-### New Endpoint: `POST /api/pipelines/[id]/verdict`
+### Endpoint: `GET /api/pipelines/[id]/verdict`
 
 Returns flakiness analysis for a pipeline's failed tests.
+
+**Query Parameters**:
+- `refresh=true` - Bypass cache and force re-analysis
 
 **Response**:
 ```typescript
@@ -119,13 +122,14 @@ Returns flakiness analysis for a pipeline's failed tests.
         healthScore: number,
       },
       llmUsed: boolean,
+      userFeedback?: "up" | "down" | null, // Persisted user feedback
     }
   ],
   summary: string,
 }
 ```
 
-**Caching**: Verdict computed once per pipeline, cached until new results arrive.
+**Caching**: Verdict cached for 24 hours. Use `?refresh=true` to bypass cache. User feedback is always fetched fresh and merged into cached verdicts.
 
 ### New Endpoint: `POST /api/verdicts/feedback`
 
@@ -144,35 +148,46 @@ Records user feedback on verdict accuracy.
 
 Appears below quick actions when pipeline has failures.
 
-**Safe to proceed**:
+**Safe to proceed** (flaky verdict):
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ ✓ Safe to proceed                           87% conf   │
-│   2 of 3 failures are known flaky tests                │
+│ ✓ Safe to proceed                         87% flaky    │
+│   2 of 3 failures are known flaky tests    [Refresh]   │
 │                                          [View Details]│
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Investigate**:
+**Investigate** (likely real failure):
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ ⚠ Investigate failures                      72% conf   │
-│   1 failure appears to be a real bug                   │
+│ ⚠ Investigate failures               72% real failure  │
+│   1 failure appears to be a real bug       [Refresh]   │
 │                                          [View Details]│
 └─────────────────────────────────────────────────────────┘
 ```
+
+**Confidence Display**: Shows single value based on verdict type:
+- Flaky verdict: "X% flaky"
+- Real failure verdict: "X% real failure"
 
 ### Expanded Details Panel
 
-For each failed test:
+For each failed test card (compact vertical layout with 2px gaps):
 
-- **Header**: Test name + verdict badge + confidence + thumbs up/down buttons
-- **Stats row**: Flakiness rate, health score, consecutive failures
-- **Timeline**: Visual dots showing last 10 outcomes (green = pass, red = fail, yellow = flaky)
-- **Reasoning**: Explanation of why this verdict was reached
-- **Error preview**: Truncated error message with expand option
+1. **Test title** (font-medium)
+2. **File path** (truncated, muted text)
+3. **Analysis row**: verdict badge + confidence badge + AI/heuristics icon + thumbs up/down
+4. **Reasoning** (only shown if available - LLM provides reasoning, heuristics may not)
+5. **Expandable stats section**:
+   - Flakiness rate, health score, consecutive failures
+   - Timeline: Visual dots showing last 10 outcomes (green = pass, red = fail, yellow = flaky)
+   - Error preview: ANSI-stripped, truncated error message (200 chars)
+
+**Feedback Persistence**: Thumbs up/down state persists across page refreshes via `userFeedback` field.
 
 **Components**: Uses shadcn `Collapsible`, `Badge`, `Card`, `Tooltip`, `Button`
+
+**Utilities**: `stripAnsi()` from `@/lib/utils/format` for cleaning error messages
 
 ---
 
