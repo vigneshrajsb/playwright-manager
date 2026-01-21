@@ -75,12 +75,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const { searchParams } = new URL(request.url);
+  const forceRefresh = searchParams.get("refresh") === "true";
 
   try {
-    // Check cache
-    const cached = verdictCache.get(id);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      return NextResponse.json(cached.verdict);
+    // Check cache (skip if refresh requested)
+    if (!forceRefresh) {
+      const cached = verdictCache.get(id);
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return NextResponse.json(cached.verdict);
+      }
     }
 
     // Analyze flakiness

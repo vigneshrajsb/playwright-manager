@@ -135,7 +135,9 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
       </div>
 
       {/* Reasoning */}
-      <p className="text-sm text-muted-foreground mt-2">{test.reasoning}</p>
+      {test.reasoning && (
+        <p className="text-sm text-muted-foreground mt-2">{test.reasoning}</p>
+      )}
 
       {/* Expandable details */}
       <Collapsible open={expanded} onOpenChange={setExpanded}>
