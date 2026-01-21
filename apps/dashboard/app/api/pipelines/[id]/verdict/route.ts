@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 
 // Simple in-memory cache for verdicts (per pipeline)
 const verdictCache = new Map<string, { verdict: PipelineVerdict; timestamp: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * @swagger
@@ -13,7 +13,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  *     tags:
  *       - Pipelines
  *     summary: Analyze pipeline flakiness
- *     description: Analyzes test failures in a pipeline to determine if they are flaky or likely real failures. Results are cached for 5 minutes.
+ *     description: Analyzes test failures in a pipeline to determine if they are flaky or likely real failures. Results are cached for 24 hours. Use refresh=true to force re-analysis.
  *     parameters:
  *       - in: path
  *         name: id
@@ -21,6 +21,11 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
  *         schema:
  *           type: string
  *         description: Pipeline ID (UUID)
+ *       - in: query
+ *         name: refresh
+ *         schema:
+ *           type: boolean
+ *         description: Set to true to bypass cache and force re-analysis
  *     responses:
  *       200:
  *         description: Flakiness analysis verdict

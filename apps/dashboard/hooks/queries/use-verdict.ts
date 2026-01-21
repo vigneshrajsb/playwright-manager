@@ -15,7 +15,29 @@ export function useVerdict(pipelineId: string | null) {
     queryFn: () =>
       apiFetch<PipelineVerdict>(`/api/pipelines/${pipelineId}/verdict`),
     enabled: !!pipelineId,
-    staleTime: 5 * 60 * 1000, // 5 minutes (matches API cache)
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours (matches API cache)
+  });
+}
+
+/**
+ * Refresh verdict analysis (bypass cache)
+ */
+export function useRefreshVerdict() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (pipelineId: string) =>
+      apiFetch<PipelineVerdict>(`/api/pipelines/${pipelineId}/verdict?refresh=true`),
+    onSuccess: (data, pipelineId) => {
+      // Update the cache with fresh data
+      queryClient.setQueryData(queryKeys.verdict.detail(pipelineId), data);
+      toast.success("Analysis refreshed");
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to refresh analysis"
+      );
+    },
   });
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle, ChevronDown, ChevronUp, Loader2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +9,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { VerdictDetails } from "./verdict-details";
+import { useRefreshVerdict } from "@/hooks/queries";
 import type { PipelineVerdict } from "@/lib/flakiness-analyzer/types";
 
 interface VerdictBannerProps {
@@ -21,6 +27,7 @@ interface VerdictBannerProps {
 
 export function VerdictBanner({ verdict, pipelineId, isLoading, error }: VerdictBannerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const refreshMutation = useRefreshVerdict();
 
   if (isLoading) {
     return (
@@ -76,16 +83,32 @@ export function VerdictBanner({ verdict, pipelineId, isLoading, error }: Verdict
               </p>
             </div>
           </div>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm">
-              {isOpen ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-              <span className="ml-1">Details</span>
-            </Button>
-          </CollapsibleTrigger>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => refreshMutation.mutate(pipelineId)}
+                  disabled={refreshMutation.isPending}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshMutation.isPending ? "animate-spin" : ""}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Re-analyze</TooltipContent>
+            </Tooltip>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm">
+                {isOpen ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+                <span className="ml-1">Details</span>
+              </Button>
+            </CollapsibleTrigger>
+          </div>
         </div>
 
         <CollapsibleContent>
