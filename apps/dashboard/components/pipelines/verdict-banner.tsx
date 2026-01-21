@@ -75,7 +75,7 @@ export function VerdictBanner({ verdict, pipelineId, isLoading, error }: Verdict
               <div className="flex items-center gap-2">
                 <span className="font-medium">{title}</span>
                 <Badge variant="outline" className="text-xs">
-                  {verdict.confidence}% flaky / {100 - verdict.confidence}% real bug
+                  {isFlaky ? `${verdict.confidence}% flaky` : `${100 - verdict.confidence}% real failure`}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">

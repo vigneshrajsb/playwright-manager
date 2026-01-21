@@ -82,7 +82,7 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
             <span className="font-medium text-sm truncate">{test.testTitle}</span>
             {verdictBadge}
             <Badge variant="outline" className="text-xs">
-              {test.confidence}% flaky / {100 - test.confidence}% real bug
+              {isFlaky ? `${test.confidence}% flaky` : `${100 - test.confidence}% real failure`}
             </Badge>
             {test.llmUsed ? (
               <Tooltip>
