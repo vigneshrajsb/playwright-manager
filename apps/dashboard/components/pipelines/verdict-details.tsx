@@ -76,10 +76,11 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
 
   return (
     <Card className="p-3">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-sm truncate">{test.testTitle}</span>
+      <div className="flex flex-col gap-0.5">
+        <div className="font-medium text-sm">{test.testTitle}</div>
+        <div className="text-xs text-muted-foreground truncate">{test.filePath}</div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
             {verdictBadge}
             <Badge variant="outline" className="text-xs">
               {isFlaky ? `${test.confidence}% flaky` : `${100 - test.confidence}% real failure`}
@@ -100,40 +101,36 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
               </Tooltip>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-1 truncate">
-            {test.filePath}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-7 w-7 p-0 ${feedbackGiven === "up" ? "bg-green-100 text-green-600" : ""}`}
-                onClick={() => handleFeedback("up")}
-                disabled={!!feedbackGiven}
-              >
-                <ThumbsUp className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Helpful</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-7 w-7 p-0 ${feedbackGiven === "down" ? "bg-red-100 text-red-600" : ""}`}
-                onClick={() => handleFeedback("down")}
-                disabled={!!feedbackGiven}
-              >
-                <ThumbsDown className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Not helpful</TooltipContent>
-          </Tooltip>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 w-7 p-0 ${feedbackGiven === "up" ? "bg-green-100 text-green-600" : ""}`}
+                  onClick={() => handleFeedback("up")}
+                  disabled={!!feedbackGiven}
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Helpful</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 w-7 p-0 ${feedbackGiven === "down" ? "bg-red-100 text-red-600" : ""}`}
+                  onClick={() => handleFeedback("down")}
+                  disabled={!!feedbackGiven}
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Not helpful</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
