@@ -94,3 +94,11 @@ export function formatCommitSha(sha: string | null | undefined): string {
   if (!sha) return "";
   return sha.slice(0, 7);
 }
+
+/**
+ * Strip ANSI escape codes from a string
+ * Useful for cleaning Playwright error output
+ */
+export function stripAnsi(str: string): string {
+  return str.replace(/\x1B\[[0-9;]*m/g, "");
+}

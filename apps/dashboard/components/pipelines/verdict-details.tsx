@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useVerdictFeedback } from "@/hooks/queries";
+import { stripAnsi } from "@/lib/utils/format";
 import type { TestVerdict } from "@/lib/flakiness-analyzer/types";
 
 interface VerdictDetailsProps {
@@ -208,7 +209,7 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
               <div className="mt-2">
                 <span className="text-xs text-muted-foreground">Error:</span>
                 <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto max-h-20">
-                  {test.errorMessage.slice(0, 200)}
+                  {stripAnsi(test.errorMessage).slice(0, 200)}
                   {test.errorMessage.length > 200 && "..."}
                 </pre>
               </div>
