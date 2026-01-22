@@ -18,7 +18,6 @@ import {
   DataTable,
   DataTableColumnToggle,
   DataTableFacetedFilter,
-  DataTableResetFilter,
 } from "@/components/data-table";
 import { TimeRangePicker } from "@/components/time-range-picker";
 import { PipelineSheet } from "@/components/pipelines/pipeline-sheet";
@@ -117,7 +116,7 @@ export default function PipelinesPage() {
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-hidden">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pipelines</h1>
           <p className="text-muted-foreground">
@@ -152,8 +151,8 @@ export default function PipelinesPage() {
           highlightedRowId={selectedPipelineId || undefined}
           // Toolbar
           toolbar={(table) => (
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 overflow-x-auto pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
                 <div className="relative min-w-[200px] max-w-sm shrink-0">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -218,11 +217,6 @@ export default function PipelinesPage() {
                 endDate={filterEndDate}
                 onTimeRangeChange={handleTimeRangeChange}
                 onDateRangeChange={handleDateRangeChange}
-              />
-              <DataTableResetFilter
-                filterKeys={["search", "repository", "branch", "status", "timeRange", "startDate", "endDate"]}
-                searchParams={searchParams}
-                updateUrl={updateUrl}
               />
               <DataTableColumnToggle table={table} />
             </div>

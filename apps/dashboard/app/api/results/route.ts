@@ -196,6 +196,8 @@ export async function GET(request: NextRequest) {
   const outcome = searchParams.get("outcome"); // expected, unexpected, flaky, skipped
   const testRunId = searchParams.get("testRunId");
   const testId = searchParams.get("testId");
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
   const sortBy = searchParams.get("sortBy") || "startedAt";
   const sortOrder = searchParams.get("sortOrder") || "desc";
 
@@ -231,6 +233,8 @@ export async function GET(request: NextRequest) {
       outcome,
       testRunId,
       testId,
+      startDate,
+      endDate,
     });
 
     const whereClause = combineConditions(conditions);

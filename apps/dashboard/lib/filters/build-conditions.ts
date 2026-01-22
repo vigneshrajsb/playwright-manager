@@ -130,6 +130,8 @@ export interface ResultFilterParams {
   outcome?: string | null;
   testRunId?: string | null;
   testId?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export function buildResultConditions(params: ResultFilterParams): SQL[] {
@@ -185,6 +187,14 @@ export function buildResultConditions(params: ResultFilterParams): SQL[] {
 
   if (params.testId) {
     conditions.push(eq(testResults.testId, params.testId));
+  }
+
+  if (params.startDate) {
+    conditions.push(gte(testResults.startedAt, new Date(params.startDate)));
+  }
+
+  if (params.endDate) {
+    conditions.push(lte(testResults.startedAt, new Date(params.endDate)));
   }
 
   return conditions;

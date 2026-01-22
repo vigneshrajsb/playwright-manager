@@ -20,7 +20,7 @@ export default function DashboardLayout({
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <div className="flex flex-1 flex-col p-6">
+        <div className="flex flex-1 flex-col p-6 min-w-0 overflow-hidden">
           <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
         </div>
       </SidebarInset>
