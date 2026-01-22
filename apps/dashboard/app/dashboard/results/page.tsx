@@ -22,8 +22,10 @@ import {
 } from "@/components/data-table";
 import { ResultSheet } from "@/components/results/result-sheet";
 import { TagFilterPopover } from "@/components/filters";
+import { TimeRangePicker } from "@/components/time-range-picker";
 import { resultColumns } from "./columns";
 import { useDataTableUrlState } from "@/hooks";
+import { DEFAULT_TIME_RANGE } from "@/lib/utils/time-range";
 import { useResults } from "@/hooks/queries";
 import type { ResultFilters } from "@/hooks/queries";
 
@@ -56,6 +58,9 @@ export default function ResultsPage() {
   const testRunId = searchParams.get("testRunId") || "";
   const testId = searchParams.get("testId") || "";
   const selectedResultId = searchParams.get("resultId") || null;
+  const timeRange = searchParams.get("timeRange") || "";
+  const filterStartDate = searchParams.get("startDate") || "";
+  const filterEndDate = searchParams.get("endDate") || "";
 
   const filters: ResultFilters = {
     search: search || undefined,
@@ -66,6 +71,9 @@ export default function ResultsPage() {
     outcome: outcome || undefined,
     testRunId: testRunId || undefined,
     testId: testId || undefined,
+    timeRange: timeRange || DEFAULT_TIME_RANGE,
+    startDate: filterStartDate || undefined,
+    endDate: filterEndDate || undefined,
     sortBy,
     sortOrder,
     page: pageIndex + 1,
@@ -93,6 +101,28 @@ export default function ResultsPage() {
 
   const closeResultSheet = useCallback(
     () => updateUrl({ resultId: undefined }),
+    [updateUrl]
+  );
+
+  const handleTimeRangeChange = useCallback(
+    (newTimeRange: string) => {
+      updateUrl({
+        timeRange: newTimeRange,
+        startDate: undefined,
+        endDate: undefined,
+      });
+    },
+    [updateUrl]
+  );
+
+  const handleDateRangeChange = useCallback(
+    (newStartDate: string, newEndDate: string) => {
+      updateUrl({
+        timeRange: undefined,
+        startDate: newStartDate,
+        endDate: newEndDate,
+      });
+    },
     [updateUrl]
   );
 
@@ -287,8 +317,15 @@ export default function ResultsPage() {
                 />
               </div>
 
+              <TimeRangePicker
+                timeRange={timeRange || DEFAULT_TIME_RANGE}
+                startDate={filterStartDate}
+                endDate={filterEndDate}
+                onTimeRangeChange={handleTimeRangeChange}
+                onDateRangeChange={handleDateRangeChange}
+              />
               <DataTableResetFilter
-                filterKeys={["search", "repository", "project", "tags", "status", "outcome"]}
+                filterKeys={["search", "repository", "project", "tags", "status", "outcome", "timeRange", "startDate", "endDate"]}
                 searchParams={searchParams}
                 updateUrl={updateUrl}
               />
