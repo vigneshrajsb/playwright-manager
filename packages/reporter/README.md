@@ -44,19 +44,21 @@ export default defineConfig({
 
 ## Configuration Options
 
-| Option          | Type      | Required | Default       | Description                                  |
-| --------------- | --------- | -------- | ------------- | -------------------------------------------- |
-| `apiUrl`        | `string`  | Yes      | -             | URL of your Playwright Manager Dashboard     |
-| `repository`    | `string`  | Yes      | -             | Repository identifier in `org/repo` format   |
-| `disabled`      | `boolean` | No       | `false`       | Disable the reporter without removing config |
-| `branch`        | `string`  | No       | auto-detect   | Override the git branch name                 |
-| `commitSha`     | `string`  | No       | auto-detect   | Override the commit SHA                      |
-| `ciJobUrl`      | `string`  | No       | auto-detect   | Override the CI job URL                      |
-| `batchSize`     | `number`  | No       | `50`          | Number of results to batch before sending    |
-| `flushInterval` | `number`  | No       | `5000`        | Interval (ms) to flush results               |
-| `failSilently`  | `boolean` | No       | `true`        | Suppress errors if dashboard is unreachable  |
-| `runId`         | `string`  | No       | auto-generate | Custom identifier for the test run           |
-| `debug`         | `boolean` | No       | `false`       | Enable debug logging                         |
+| Option              | Type      | Required | Default       | Description                                       |
+| ------------------- | --------- | -------- | ------------- | ------------------------------------------------- |
+| `apiUrl`            | `string`  | Yes      | -             | URL of your Playwright Manager Dashboard          |
+| `repository`        | `string`  | Yes      | -             | Repository identifier in `org/repo` format        |
+| `disabled`          | `boolean` | No       | `false`       | Disable the reporter without removing config      |
+| `branch`            | `string`  | No       | auto-detect   | Override the git branch name                      |
+| `commitSha`         | `string`  | No       | auto-detect   | Override the commit SHA                           |
+| `ciJobUrl`          | `string`  | No       | auto-detect   | Override the CI job URL                           |
+| `batchSize`         | `number`  | No       | `50`          | Number of results to batch before sending         |
+| `flushInterval`     | `number`  | No       | `5000`        | Interval (ms) to flush results                    |
+| `failSilently`      | `boolean` | No       | `true`        | Suppress errors if dashboard is unreachable       |
+| `runId`             | `string`  | No       | auto-generate | Custom identifier for the test run                |
+| `debug`             | `boolean` | No       | `false`       | Enable debug logging                              |
+| `autoPassFlaky`     | `boolean` | No       | `false`       | Exit 0 if all failures are detected as flaky      |
+| `autoPassThreshold` | `number`  | No       | `90`          | Minimum confidence % to auto-pass flaky failures  |
 
 ## Examples
 
@@ -182,6 +184,61 @@ export default defineConfig({
   ],
 });
 ```
+
+## Auto-Pass Flaky Failures
+
+The reporter can automatically exit with code 0 when all test failures are detected as flaky by the dashboard's flakiness analyzer. This prevents CI pipelines from failing due to known flaky tests.
+
+### How It Works
+
+1. After test run completes, if `autoPassFlaky` is enabled and there are failures
+2. Reporter calls the dashboard's verdict API to analyze the failures
+3. If all failures are classified as "flaky" with confidence >= `autoPassThreshold`
+4. Reporter prints a summary and exits with code 0 instead of failing
+
+### Configuration
+
+```typescript
+export default defineConfig({
+  reporter: [
+    [
+      "@playwright-manager/reporter",
+      {
+        apiUrl: "https://dashboard.example.com",
+        repository: "my-org/my-app",
+        autoPassFlaky: true,        // Enable auto-pass
+        autoPassThreshold: 90,      // Require 90%+ confidence (default)
+      },
+    ],
+  ],
+});
+```
+
+### Console Output
+
+When auto-pass triggers, you'll see output like:
+
+```
+[Playwright Manager] Flakiness Analysis
+  ✓ 2 failures are known flaky:
+    • "Login test" - High flakiness rate (42.5%)
+    • "Cart test" - Passed 3 of last 5 runs on this branch
+
+[Playwright Manager] Exiting with code 0 - all failures are known flaky
+```
+
+### Requirements
+
+- Dashboard must have historical test data to analyze flakiness patterns
+- For best results, configure `OPENAI_API_KEY` on the dashboard for AI-assisted analysis
+- The verdict API uses both heuristic scoring and optional LLM analysis
+
+### When Auto-Pass Won't Trigger
+
+- Any failure is classified as "likely real failure"
+- Confidence is below the threshold
+- Dashboard is unreachable (fails silently, CI exit code preserved)
+- No historical data available for the failing tests
 
 ## Tag Support
 

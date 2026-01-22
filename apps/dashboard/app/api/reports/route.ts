@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tests, testRuns, testResults, testHealth, TestResult as DbTestResult } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { tests, testRuns, testResults, testHealth, errorSignatures, TestResult as DbTestResult } from "@/lib/db/schema";
+import { hashErrorSignature } from "@/lib/flakiness-analyzer";
+import { eq, and, sql } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -306,6 +307,44 @@ export async function POST(request: NextRequest) {
           baseUrl: testResult.baseUrl || body.metadata?.baseUrl,
           startedAt: new Date(testResult.startTime),
         });
+
+        // Track error signature for flakiness analysis
+        if (testResult.error?.message && testResult.outcome === "unexpected") {
+          const signatureHash = hashErrorSignature(testResult.error.message);
+
+          const existingSig = await tx.query.errorSignatures.findFirst({
+            where: and(
+              eq(errorSignatures.testId, test.id),
+              eq(errorSignatures.signatureHash, signatureHash)
+            ),
+          });
+
+          if (existingSig) {
+            await tx
+              .update(errorSignatures)
+              .set({
+                lastSeenAt: new Date(),
+                occurrenceCount: existingSig.occurrenceCount + 1,
+              })
+              .where(eq(errorSignatures.id, existingSig.id));
+          } else {
+            await tx.insert(errorSignatures).values({
+              testId: test.id,
+              signatureHash,
+              errorMessage: testResult.error.message,
+            });
+          }
+        }
+
+        // Update passedAfterCount for previous error signatures when test passes
+        if (testResult.outcome === "expected") {
+          await tx
+            .update(errorSignatures)
+            .set({
+              passedAfterCount: sql`${errorSignatures.passedAfterCount} + 1`,
+            })
+            .where(eq(errorSignatures.testId, test.id));
+        }
 
         // Update counts - only count final attempts for accurate totals
         const isFinal = testResult.isFinalAttempt ?? true;

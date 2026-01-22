@@ -17,11 +17,13 @@ import type {
 import { uploadReportDirectory } from "./s3-uploader";
 
 // Options type with most fields required but branch/commitSha/ciJobUrl/s3 optional
-type ResolvedOptions = Required<Omit<TestManagerReporterOptions, 'branch' | 'commitSha' | 'ciJobUrl' | 's3'>> & {
+type ResolvedOptions = Required<Omit<TestManagerReporterOptions, 'branch' | 'commitSha' | 'ciJobUrl' | 's3' | 'autoPassFlaky' | 'autoPassThreshold'>> & {
   branch?: string;
   commitSha?: string;
   ciJobUrl?: string;
   s3?: S3ReportConfig;
+  autoPassFlaky: boolean;
+  autoPassThreshold: number;
 };
 
 export class TestManagerReporter implements Reporter {
@@ -62,6 +64,8 @@ export class TestManagerReporter implements Reporter {
       runId: options.runId ?? "",
       debug: options.debug ?? false,
       s3: options.s3,
+      autoPassFlaky: options.autoPassFlaky ?? false,
+      autoPassThreshold: options.autoPassThreshold ?? 90,
     };
 
     this.ciEnv = this.detectCIEnvironment();
@@ -483,6 +487,11 @@ export class TestManagerReporter implements Reporter {
       if (response.runId) {
         this.printSummary(response.runId, reportPath);
       }
+
+      // Check for auto-pass if enabled and run failed
+      if (this.options.autoPassFlaky && result.status === "failed" && response.runId) {
+        await this.checkAutoPass(response.runId);
+      }
     } catch (error) {
       if (!this.options.failSilently) {
         throw error;
@@ -526,5 +535,80 @@ export class TestManagerReporter implements Reporter {
     }
     console.log(`  Dashboard:  ${dashboardUrl}`);
     console.log("");
+  }
+
+  private async checkAutoPass(pipelineId: string): Promise<void> {
+    try {
+      this.log("Checking flakiness verdict for auto-pass...");
+
+      const response = await fetch(
+        `${this.options.apiUrl}/api/pipelines/${pipelineId}/verdict`
+      );
+
+      if (!response.ok) {
+        this.log("Failed to fetch verdict, not auto-passing");
+        return;
+      }
+
+      const verdict = await response.json() as {
+        canAutoPass?: boolean;
+        verdict?: string;
+        confidence?: number;
+        failedTests?: Array<{
+          testTitle: string;
+          verdict: string;
+          reasoning: string;
+        }>;
+      };
+
+      if (verdict.canAutoPass) {
+        this.printVerdictSummary(verdict);
+        console.log("");
+        console.log("[Playwright Manager] Exiting with code 0 - all failures are known flaky");
+        console.log("");
+        process.exit(0);
+      } else {
+        this.log("Verdict does not allow auto-pass", {
+          verdict: verdict.verdict,
+          confidence: verdict.confidence,
+          threshold: this.options.autoPassThreshold,
+        });
+
+        // Still print the verdict for information
+        if (verdict.failedTests?.length) {
+          this.printVerdictSummary(verdict);
+        }
+      }
+    } catch (error) {
+      this.log("Error checking auto-pass verdict", error);
+    }
+  }
+
+  private printVerdictSummary(verdict: {
+    failedTests?: Array<{
+      testTitle: string;
+      verdict: string;
+      reasoning: string;
+    }>;
+  }): void {
+    console.log("");
+    console.log("[Playwright Manager] Flakiness Analysis");
+
+    const flakyTests = verdict.failedTests?.filter((t) => t.verdict === "flaky") || [];
+    const realTests = verdict.failedTests?.filter((t) => t.verdict === "likely_real_failure") || [];
+
+    if (flakyTests.length > 0) {
+      console.log(`  ✓ ${flakyTests.length} failure${flakyTests.length > 1 ? "s are" : " is"} known flaky:`);
+      for (const test of flakyTests) {
+        console.log(`    • "${test.testTitle}" - ${test.reasoning}`);
+      }
+    }
+
+    if (realTests.length > 0) {
+      console.log(`  ✗ ${realTests.length} failure${realTests.length > 1 ? "s need" : " needs"} investigation:`);
+      for (const test of realTests) {
+        console.log(`    • "${test.testTitle}" - ${test.reasoning}`);
+      }
+    }
   }
 }

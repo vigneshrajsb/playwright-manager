@@ -77,4 +77,8 @@ export const queryKeys = {
     list: (filters: QuarantinedFilters) =>
       ["quarantined", "list", filters] as const,
   },
+  verdict: {
+    all: ["verdict"] as const,
+    detail: (pipelineId: string | null) => ["verdict", pipelineId] as const,
+  },
 } as const;

@@ -1,0 +1,797 @@
+---
+title: Playwright Manager
+description: Self-hosted test management for Playwright - track health, manage flaky tests, host reports, and control test execution via quarantine rules
+tags:
+  - playwright
+  - testing
+  - e2e
+  - flaky-tests
+  - test-management
+  - ci-cd
+  - reporter
+  - fixture
+  - eslint
+  - s3
+  - postgres
+  - health-tracking
+  - quarantine
+---
+
+# Playwright Manager
+
+Self-hosted test management for Playwright. Track test health, detect and manage flaky tests, host HTML reports, and remotely quarantine problematic tests.
+
+## Key Features
+
+- **Test Health Tracking** - Monitor pass rates, flakiness, and health scores (0-100)
+- **HTML Report Hosting** - Upload Playwright reports to S3-compatible storage
+- **Flakiness Analysis** - Hybrid heuristic + AI analysis to identify flaky failures
+- **Test Quarantine** - Remotely skip tests via branch/environment patterns
+- **Auto-Pass Flaky** - Exit CI with code 0 when all failures are known flaky
+- **CI Integration** - Auto-detects GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps, Codefresh
+
+## Packages
+
+| Package | Purpose |
+|---------|---------|
+| `@playwright-manager/fixture` | Skip quarantined tests automatically |
+| `@playwright-manager/reporter` | Report test results to dashboard |
+| `@playwright-manager/eslint-plugin` | Enforce fixture imports over @playwright/test |
+
+---
+
+# Information to Gather from User
+
+BEFORE implementing, ask the user these questions progressively:
+
+## Required (Always Ask)
+
+### 1. Dashboard URL
+**Ask:** "What is the URL where your Playwright Manager dashboard is hosted?"
+**Example:** `https://playwright-manager.example.com` or `http://localhost:3031`
+**Why needed:** The `apiUrl` config option for both reporter and fixture packages.
+
+### 2. Repository
+**Ask:** "What is your repository in org/repo format?"
+**Example:** `acme/web-app` or `mycompany/frontend`
+**Why needed:** Identifies which tests belong to which repository in the dashboard.
+
+## Optional - HTML Report Hosting
+
+Ask ONLY if user wants to host Playwright HTML reports on S3:
+
+### 3. S3 Bucket Name
+**Ask:** "What S3 bucket name should store your Playwright reports?"
+**Example:** `playwright-reports`
+**Why needed:** The `s3.bucket` config option.
+
+### 4. S3 Region
+**Ask:** "What AWS region is your bucket in? (Use 'auto' for Cloudflare R2)"
+**Example:** `us-east-1`, `eu-west-1`, `auto`
+**Why needed:** The `s3.region` config option.
+
+### 5. S3 Endpoint (Optional)
+**Ask:** "Do you have a custom S3 endpoint? Leave blank for AWS S3, or provide URL for MinIO/R2/etc."
+**Example:** `http://localhost:9000` (MinIO), `https://abc123.r2.cloudflarestorage.com` (R2)
+**Why needed:** The `s3.endpoint` config option for non-AWS storage.
+
+### 6. S3 Credentials
+**Ask:** "How will you provide S3 credentials? Via environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) or explicitly in config?"
+**Why needed:** Determines whether to include accessKeyId/secretAccessKey in config.
+
+## Optional - AI-Assisted Flakiness Analysis
+
+### 7. OpenAI API Key
+**Ask:** "Do you have OPENAI_API_KEY configured on your dashboard for AI-assisted flakiness analysis?"
+**Why needed:** Enables LLM-based analysis for ambiguous test failures.
+
+---
+
+# Package Installation
+
+```bash
+npm install @playwright-manager/fixture @playwright-manager/reporter @playwright-manager/eslint-plugin
+# or
+pnpm add @playwright-manager/fixture @playwright-manager/reporter @playwright-manager/eslint-plugin
+# or
+yarn add @playwright-manager/fixture @playwright-manager/reporter @playwright-manager/eslint-plugin
+```
+
+---
+
+# Fixture Package
+
+The fixture package automatically skips tests that are quarantined in the dashboard.
+
+## Quick Start
+
+```typescript
+// tests/example.spec.ts
+import { test, expect } from '@playwright-manager/fixture';
+
+test.use({
+  testManager: {
+    apiUrl: '{{DASHBOARD_URL}}',
+    repository: '{{REPOSITORY}}',
+  },
+});
+
+test('my test', async ({ page }) => {
+  // This test will be skipped if quarantined in dashboard
+  await page.goto('/');
+  await expect(page).toHaveTitle(/Home/);
+});
+```
+
+## Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiUrl` | string | Required | Dashboard URL |
+| `repository` | string | Required | Repository in org/repo format |
+| `disabled` | boolean | `false` | Skip the disabled tests check entirely |
+| `cacheTtl` | number | `60000` | Cache TTL in milliseconds (per worker) |
+| `failSilently` | boolean | `true` | Suppress API errors; tests continue |
+| `debug` | boolean | `false` | Enable debug logging |
+| `timeout` | number | `5000` | API request timeout in milliseconds |
+| `branch` | string | Auto-detect | Override git branch detection |
+
+## Full Configuration Example
+
+```typescript
+import { test, expect } from '@playwright-manager/fixture';
+
+test.use({
+  testManager: {
+    apiUrl: '{{DASHBOARD_URL}}',
+    repository: '{{REPOSITORY}}',
+    disabled: false,
+    cacheTtl: 60000,
+    failSilently: true,
+    debug: false,
+    timeout: 5000,
+  },
+});
+```
+
+## How It Works
+
+1. Before each test, fixture calls `POST /api/tests/check` with repository and project info
+2. Dashboard returns list of quarantined tests matching branch/environment patterns
+3. Results are cached per worker (default 60s TTL)
+4. Quarantined tests are skipped with reason from dashboard
+5. If dashboard is unreachable and `failSilently: true`, tests run normally
+
+---
+
+# Reporter Package
+
+The reporter sends test results to the dashboard for tracking and analysis.
+
+## Quick Start
+
+```typescript
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  reporter: [
+    ['html'],
+    ['@playwright-manager/reporter', {
+      apiUrl: '{{DASHBOARD_URL}}',
+      repository: '{{REPOSITORY}}',
+    }],
+  ],
+});
+```
+
+## Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiUrl` | string | Required | Dashboard URL |
+| `repository` | string | Required | Repository in org/repo format |
+| `disabled` | boolean | `false` | Disable reporter without removing config |
+| `branch` | string | Auto-detect | Override git branch |
+| `commitSha` | string | Auto-detect | Override commit SHA |
+| `ciJobUrl` | string | Auto-detect | Override CI job URL |
+| `batchSize` | number | `50` | Results to batch before sending |
+| `flushInterval` | number | `5000` | Flush interval in milliseconds |
+| `failSilently` | boolean | `true` | Suppress errors if dashboard unreachable |
+| `runId` | string | Auto-generate | Custom run identifier |
+| `debug` | boolean | `false` | Enable debug logging |
+| `autoPassFlaky` | boolean | `false` | Exit 0 if all failures are flaky |
+| `autoPassThreshold` | number | `90` | Min confidence % to auto-pass |
+| `s3` | object | - | S3 config for HTML report hosting |
+
+## S3 Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `s3.bucket` | string | Required | S3 bucket name |
+| `s3.region` | string | Required | AWS region or 'auto' for R2 |
+| `s3.endpoint` | string | - | Custom endpoint for MinIO/R2/etc |
+| `s3.accessKeyId` | string | - | Access key (or use AWS_ACCESS_KEY_ID env) |
+| `s3.secretAccessKey` | string | - | Secret key (or use AWS_SECRET_ACCESS_KEY env) |
+| `s3.pathPrefix` | string | `"reports"` | Path prefix in bucket |
+| `s3.reportDir` | string | `"playwright-report"` | Local report directory |
+
+## Full Configuration Example
+
+```typescript
+// playwright.config.ts
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  reporter: [
+    ['html'],
+    ['@playwright-manager/reporter', {
+      apiUrl: '{{DASHBOARD_URL}}',
+      repository: '{{REPOSITORY}}',
+
+      // Optional overrides
+      branch: process.env.CUSTOM_BRANCH,
+      commitSha: process.env.CUSTOM_COMMIT,
+      ciJobUrl: process.env.CUSTOM_BUILD_URL,
+
+      // Performance tuning
+      batchSize: 50,
+      flushInterval: 5000,
+
+      // Behavior
+      failSilently: true,
+      debug: false,
+
+      // Auto-pass flaky failures
+      autoPassFlaky: true,
+      autoPassThreshold: 90,
+
+      // S3 HTML report hosting
+      s3: {
+        bucket: '{{S3_BUCKET}}',
+        region: '{{S3_REGION}}',
+        endpoint: '{{S3_ENDPOINT}}', // Remove for AWS S3
+        // Credentials from AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars
+      },
+    }],
+  ],
+});
+```
+
+---
+
+# ESLint Plugin (Required)
+
+The ESLint plugin prevents accidental imports from `@playwright/test` which would bypass the fixture's quarantine functionality.
+
+## Setup (ESLint 9+ Flat Config)
+
+```javascript
+// eslint.config.js
+import playwright from '@playwright-manager/eslint-plugin';
+
+export default [
+  playwright.configs.recommended,
+  // ... your other configs
+];
+```
+
+## Setup (ESLint 8 Legacy Config)
+
+```javascript
+// .eslintrc.js
+module.exports = {
+  plugins: ['@playwright-manager'],
+  extends: ['plugin:@playwright-manager/recommended'],
+};
+```
+
+## What It Enforces
+
+- **Flags:** `import { test, expect } from '@playwright/test'`
+- **Requires:** `import { test, expect } from '@playwright-manager/fixture'`
+- **Auto-fixes:** Rewrites imports automatically
+
+## Allowed Patterns
+
+These patterns are allowed and won't be flagged:
+
+```typescript
+// Namespace imports - OK
+import * as pw from '@playwright/test';
+
+// Type imports - OK
+import type { Page, Browser } from '@playwright/test';
+
+// Utility types - OK
+import { Page, Browser, Locator } from '@playwright/test';
+```
+
+---
+
+# Complete Playwright Config Example
+
+```typescript
+// playwright.config.ts
+import { defineConfig, devices } from '@playwright/test';
+
+// Dashboard URL - the only required manual config
+const DASHBOARD_URL = process.env.PLAYWRIGHT_MANAGER_URL || '{{DASHBOARD_URL}}';
+
+export default defineConfig({
+  testDir: './tests',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+
+  reporter: [
+    ['html'],
+    ['@playwright-manager/reporter', {
+      apiUrl: DASHBOARD_URL,
+      // Repository auto-detected in CI (GITHUB_REPOSITORY, CI_PROJECT_PATH, etc.)
+      // Fallback for local development:
+      repository: process.env.GITHUB_REPOSITORY || process.env.CI_PROJECT_PATH || 'your-org/your-repo',
+
+      // Auto-pass when all failures are known flaky (CI only)
+      autoPassFlaky: !!process.env.CI,
+      autoPassThreshold: 90,
+
+      // S3 report hosting (optional - only if S3_BUCKET is set)
+      s3: process.env.S3_BUCKET ? {
+        bucket: process.env.S3_BUCKET,
+        region: process.env.S3_REGION || 'us-east-1',
+        endpoint: process.env.S3_ENDPOINT, // For MinIO/R2, omit for AWS S3
+      } : undefined,
+    }],
+  ],
+
+  use: {
+    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    trace: 'on-first-retry',
+  },
+
+  projects: [
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        testManager: {
+          apiUrl: DASHBOARD_URL,
+          // Same repository fallback pattern
+          repository: process.env.GITHUB_REPOSITORY || process.env.CI_PROJECT_PATH || 'your-org/your-repo',
+        },
+      },
+    },
+  ],
+});
+```
+
+**Note:** In CI environments (GitHub Actions, GitLab CI, CircleCI, etc.), the repository, branch, commit SHA, and CI job URL are all auto-detected. You only need to set `PLAYWRIGHT_MANAGER_URL` as a CI secret.
+
+---
+
+# S3 Storage Setup
+
+## AWS S3
+
+```typescript
+s3: {
+  bucket: 'playwright-reports',
+  region: 'us-east-1',
+  // Credentials via AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env vars
+  // Or IAM role when running in AWS
+}
+```
+
+**IAM Policy (minimum permissions):**
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["s3:PutObject"],
+    "Resource": "arn:aws:s3:::playwright-reports/reports/*"
+  }]
+}
+```
+
+## MinIO (Self-Hosted)
+
+```typescript
+s3: {
+  bucket: 'playwright-reports',
+  region: 'us-east-1',
+  endpoint: 'http://localhost:9000',
+  accessKeyId: 'minioadmin',
+  secretAccessKey: 'minioadmin',
+}
+```
+
+**Docker Compose:**
+
+```yaml
+services:
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+```
+
+---
+
+# GitHub Actions CI Example
+
+```yaml
+# .github/workflows/test.yml
+name: Playwright Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        env:
+          # Required - your dashboard URL
+          PLAYWRIGHT_MANAGER_URL: ${{ secrets.PLAYWRIGHT_MANAGER_URL }}
+
+          # Auto-detected from GitHub Actions (DO NOT SET):
+          # - GITHUB_REPOSITORY (org/repo)
+          # - GITHUB_REF_NAME (branch)
+          # - GITHUB_SHA (commit)
+
+          # Optional - only for S3 report hosting:
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: npx playwright test
+```
+
+**Secrets:**
+
+| Secret | Required | Description |
+|--------|----------|-------------|
+| `PLAYWRIGHT_MANAGER_URL` | **Yes** | Your dashboard URL |
+| `S3_BUCKET` | No | S3 bucket for report hosting |
+| `S3_REGION` | No | S3 region (default: us-east-1) |
+| `AWS_ACCESS_KEY_ID` | No | S3 credentials |
+| `AWS_SECRET_ACCESS_KEY` | No | S3 credentials |
+
+**Auto-detected (do not set as secrets):** `GITHUB_REPOSITORY`, `GITHUB_REF_NAME`, `GITHUB_SHA`
+
+---
+
+# Test Quarantine (Skip Rules)
+
+Quarantine tests directly from the dashboard without code changes.
+
+## How It Works
+
+1. Navigate to test in dashboard
+2. Click "Add Skip Rule"
+3. Configure matching patterns:
+   - **Branch Pattern:** Glob pattern (e.g., `main`, `release/*`, `*`)
+   - **Environment Pattern:** baseURL pattern (e.g., `*staging*`, `https://prod.example.com`)
+4. Add reason for quarantine
+5. Tests matching patterns are automatically skipped
+
+## Pattern Examples
+
+| Branch Pattern | Matches |
+|----------------|---------|
+| `main` | Only main branch |
+| `release/*` | release/1.0, release/2.0, etc |
+| `*` | All branches |
+| (empty) | All branches |
+
+| Environment Pattern | Matches |
+|---------------------|---------|
+| `*staging*` | Any URL containing "staging" |
+| `https://prod.example.com` | Exact production URL |
+| (empty) | All environments |
+
+## API for Programmatic Access
+
+```bash
+# Get skip rules for a test
+GET /api/tests/{testId}/rules
+
+# Delete a skip rule
+DELETE /api/tests/{testId}/rules/{ruleId}
+```
+
+---
+
+# Auto-Pass Flaky Failures
+
+Automatically exit CI with code 0 when all test failures are known flaky.
+
+## Configuration
+
+```typescript
+reporter: [
+  ['@playwright-manager/reporter', {
+    apiUrl: '{{DASHBOARD_URL}}',
+    repository: '{{REPOSITORY}}',
+    autoPassFlaky: true,
+    autoPassThreshold: 90, // Require 90%+ confidence
+  }],
+],
+```
+
+## How It Works
+
+1. Test run completes with failures
+2. Reporter calls verdict API to analyze failures
+3. Dashboard uses heuristics + optional AI to classify each failure
+4. If ALL failures are "flaky" with confidence >= threshold:
+   - Prints summary to console
+   - Exits with code 0
+5. If ANY failure is "likely real":
+   - Prints summary (informational)
+   - Lets normal exit code flow through
+
+## Flakiness Signals
+
+The analyzer considers:
+- Recent flakiness rate (>20% = likely flaky)
+- Recent pass history (passed 3 of last 5 = likely flaky)
+- Error signature matching (same error seen before, test later passed)
+- Consecutive failures (<3 with passing history = likely flaky)
+- Test health score (<50 = known problematic test)
+
+## AI-Assisted Analysis
+
+When `OPENAI_API_KEY` is configured on dashboard:
+- Ambiguous cases (confidence <75%) are sent to GPT-4o-mini
+- AI analyzes error message, stack trace, and history
+- Adjusts confidence based on error patterns
+
+---
+
+# API Reference
+
+## POST /api/tests/check
+
+Check which tests are quarantined. Used by fixture package.
+
+**Request:**
+
+```typescript
+{
+  repository: string;      // Required: "org/repo"
+  testIds?: string[];      // Optional: Filter specific tests
+  projectName?: string;    // Optional: Playwright project name
+  branch?: string;         // Optional: Current git branch
+  baseURL?: string;        // Optional: Current Playwright baseURL
+}
+```
+
+**Response:**
+
+```typescript
+{
+  disabledTests: {
+    [testId: string]: {
+      reason: string;
+      ruleId: string;
+      matchedBranch?: boolean;
+      matchedEnv?: boolean;
+    }
+  };
+  timestamp: number;
+}
+```
+
+## POST /api/reports
+
+Submit test results. Used by reporter package.
+
+**Request:**
+
+```typescript
+{
+  runId: string;
+  metadata?: {
+    repository: string;
+    branch?: string;
+    commitSha?: string;
+    commitMessage?: string;
+    ciJobUrl?: string;
+    baseUrl?: string;
+    playwrightVersion?: string;
+    workers?: number;
+    shardCurrent?: number;
+    shardTotal?: number;
+    reportPath?: string;
+  };
+  startTime: string;       // ISO 8601
+  endTime?: string;        // ISO 8601
+  status?: "running" | "passed" | "failed" | "interrupted";
+  results: TestResultPayload[];
+}
+```
+
+**TestResultPayload:**
+
+```typescript
+{
+  testId: string;
+  filePath: string;
+  title: string;
+  titlePath: string[];
+  projectName: string;
+  tags?: string[];
+  location: { file: string; line: number; column: number };
+  status: "passed" | "failed" | "timedOut" | "skipped" | "interrupted";
+  expectedStatus: "passed" | "failed" | "timedOut" | "skipped" | "interrupted";
+  duration: number;
+  retry: number;
+  isFinalAttempt?: boolean;
+  workerIndex: number;
+  parallelIndex: number;
+  outcome: "expected" | "unexpected" | "skipped" | "flaky";
+  error?: { message?: string; stack?: string };
+  startTime: string;
+}
+```
+
+**Response:**
+
+```typescript
+{
+  success: boolean;
+  runId: string;
+}
+```
+
+## GET /api/pipelines/{id}/verdict
+
+Get flakiness analysis for a test run.
+
+**Query Parameters:**
+- `refresh=true` - Bypass 24-hour cache
+
+**Response:**
+
+```typescript
+{
+  verdict: "flaky" | "likely_real_failure";
+  confidence: number;
+  canAutoPass: boolean;
+  failedTests: Array<{
+    testId: string;
+    testTitle: string;
+    filePath: string;
+    verdict: "flaky" | "likely_real_failure";
+    confidence: number;
+    reasoning: string;
+    llmUsed: boolean;
+    userFeedback?: "up" | "down" | null;
+  }>;
+  summary: string;
+}
+```
+
+## POST /api/verdicts/feedback
+
+Submit feedback on verdict accuracy.
+
+**Request:**
+
+```typescript
+{
+  testRunId: string;
+  testId: string;
+  verdict: string;
+  confidence: number;
+  llmUsed: boolean;
+  feedback: "up" | "down";
+}
+```
+
+## GET /api/tests/{id}/rules
+
+Get skip rules for a test.
+
+**Response:**
+
+```typescript
+{
+  rules: Array<{
+    id: string;
+    testId: string;
+    branchPattern?: string;
+    envPattern?: string;
+    reason: string;
+    createdAt: string;
+  }>;
+}
+```
+
+## DELETE /api/tests/{id}/rules/{ruleId}
+
+Delete a skip rule (soft delete).
+
+---
+
+# Dashboard Prerequisites
+
+To deploy the dashboard:
+
+## Required
+
+- **PostgreSQL** database
+- **Node.js** 18+
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `OPENAI_API_KEY` | No | Enables AI-assisted flakiness analysis |
+
+## S3 Variables (for report viewing)
+
+| Variable | Description |
+|----------|-------------|
+| `S3_BUCKET` | Bucket name |
+| `S3_REGION` | AWS region |
+| `S3_ENDPOINT` | Custom endpoint (MinIO/R2) |
+| `S3_PUBLIC_ENDPOINT` | External URL for browser access |
+| `S3_ACCESS_KEY_ID` | Access key |
+| `S3_SECRET_ACCESS_KEY` | Secret key |
+
+---
+
+# Test Status Values
+
+| Status | Description |
+|--------|-------------|
+| `passed` | Test passed |
+| `failed` | Test failed |
+| `timedOut` | Test timed out |
+| `skipped` | Test was skipped |
+| `interrupted` | Test run interrupted |
+
+# Test Outcome Values
+
+| Outcome | Description |
+|---------|-------------|
+| `expected` | Result matched expectation |
+| `unexpected` | Result did not match expectation |
+| `skipped` | Test explicitly skipped |
+| `flaky` | Passed after retries |
+
+# Health Score
+
+Tests are scored 0-100 based on:
+- Weighted pass rate: (recent × 0.6) + (overall × 0.4)
+- Flakiness penalty: score = max(0, passRate - flakinessRate × 2)
+- Recent window: last 10 runs
+- Overall window: last 50 runs

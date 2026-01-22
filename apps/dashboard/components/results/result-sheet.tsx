@@ -18,7 +18,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatDuration, formatDate, formatRelativeTime } from "@/lib/utils/format";
+import { formatDuration, formatDate, formatRelativeTime, stripAnsi } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
 import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 
@@ -124,10 +124,6 @@ function getOutcomeBadge(outcome: string) {
 
 function getAnnotationBadgeVariant(type: string): string {
   return ANNOTATION_BADGE_VARIANTS[type] || "bg-gray-500/10 text-gray-600";
-}
-
-function stripAnsi(str: string): string {
-  return str.replace(/\x1B\[[0-9;]*m/g, '');
 }
 
 export function ResultSheet({ resultId, onClose }: ResultSheetProps) {

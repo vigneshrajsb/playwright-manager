@@ -5,3 +5,4 @@ export * from "./use-pipelines";
 export * from "./use-results";
 export * from "./use-skip-rules";
 export * from "./use-quarantined";
+export * from "./use-verdict";

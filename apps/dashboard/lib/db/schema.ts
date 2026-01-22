@@ -198,6 +198,7 @@ export const testsRelations = relations(tests, ({ many, one }) => ({
     references: [testHealth.testId],
   }),
   skipRules: many(skipRules),
+  errorSignatures: many(errorSignatures),
 }));
 
 export const testRunsRelations = relations(testRuns, ({ many }) => ({
@@ -251,6 +252,78 @@ export const skipRulesRelations = relations(skipRules, ({ one }) => ({
 }));
 
 // ============================================================================
+// Error Signatures Table - Track recurring error patterns
+// ============================================================================
+export const errorSignatures = pgTable(
+  "error_signatures",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    testId: uuid("test_id")
+      .notNull()
+      .references(() => tests.id, { onDelete: "cascade" }),
+    signatureHash: varchar("signature_hash", { length: 64 }).notNull(),
+    errorMessage: text("error_message").notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    occurrenceCount: integer("occurrence_count").default(1).notNull(),
+    passedAfterCount: integer("passed_after_count").default(0).notNull(),
+  },
+  (table) => [
+    index("idx_error_sig_test_id").on(table.testId),
+    uniqueIndex("idx_error_sig_unique").on(table.testId, table.signatureHash),
+  ]
+);
+
+export const errorSignaturesRelations = relations(errorSignatures, ({ one }) => ({
+  test: one(tests, {
+    fields: [errorSignatures.testId],
+    references: [tests.id],
+  }),
+}));
+
+// ============================================================================
+// Verdict Feedback Table - Track user feedback on flakiness verdicts
+// ============================================================================
+export const verdictFeedback = pgTable(
+  "verdict_feedback",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    testRunId: uuid("test_run_id")
+      .notNull()
+      .references(() => testRuns.id, { onDelete: "cascade" }),
+    testId: uuid("test_id")
+      .notNull()
+      .references(() => tests.id, { onDelete: "cascade" }),
+    verdict: varchar("verdict", { length: 20 }).notNull(),
+    confidence: integer("confidence").notNull(),
+    llmUsed: boolean("llm_used").default(false).notNull(),
+    feedback: varchar("feedback", { length: 10 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("idx_verdict_feedback_test_run").on(table.testRunId),
+    index("idx_verdict_feedback_test").on(table.testId),
+  ]
+);
+
+export const verdictFeedbackRelations = relations(verdictFeedback, ({ one }) => ({
+  testRun: one(testRuns, {
+    fields: [verdictFeedback.testRunId],
+    references: [testRuns.id],
+  }),
+  test: one(tests, {
+    fields: [verdictFeedback.testId],
+    references: [tests.id],
+  }),
+}));
+
+// ============================================================================
 // Types
 // ============================================================================
 export type Test = typeof tests.$inferSelect;
@@ -263,3 +336,7 @@ export type TestHealth = typeof testHealth.$inferSelect;
 export type NewTestHealth = typeof testHealth.$inferInsert;
 export type SkipRule = typeof skipRules.$inferSelect;
 export type NewSkipRule = typeof skipRules.$inferInsert;
+export type ErrorSignature = typeof errorSignatures.$inferSelect;
+export type NewErrorSignature = typeof errorSignatures.$inferInsert;
+export type VerdictFeedback = typeof verdictFeedback.$inferSelect;
+export type NewVerdictFeedback = typeof verdictFeedback.$inferInsert;
