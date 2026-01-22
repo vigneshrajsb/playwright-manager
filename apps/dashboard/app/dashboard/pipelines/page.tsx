@@ -20,11 +20,13 @@ import {
   DataTableFacetedFilter,
   DataTableResetFilter,
 } from "@/components/data-table";
+import { TimeRangePicker } from "@/components/time-range-picker";
 import { PipelineSheet } from "@/components/pipelines/pipeline-sheet";
 import { pipelineColumns } from "./columns";
 import { useDataTableUrlState } from "@/hooks";
 import { usePipelines } from "@/hooks/queries";
 import type { PipelineFilters } from "@/hooks/queries";
+import { DEFAULT_TIME_RANGE } from "@/lib/utils/time-range";
 
 export default function PipelinesPage() {
   const {
@@ -49,6 +51,9 @@ export default function PipelinesPage() {
   const repository = searchParams.get("repository") || "";
   const branch = searchParams.get("branch") || "";
   const status = searchParams.get("status") || "";
+  const timeRange = searchParams.get("timeRange") || "";
+  const filterStartDate = searchParams.get("startDate") || "";
+  const filterEndDate = searchParams.get("endDate") || "";
   const selectedPipelineId = searchParams.get("pipelineId") || null;
 
   const openPipelineSheet = useCallback(
@@ -61,11 +66,36 @@ export default function PipelinesPage() {
     [updateUrl]
   );
 
+  const handleTimeRangeChange = useCallback(
+    (newTimeRange: string) => {
+      updateUrl({
+        timeRange: newTimeRange,
+        startDate: undefined,
+        endDate: undefined,
+      });
+    },
+    [updateUrl]
+  );
+
+  const handleDateRangeChange = useCallback(
+    (newStartDate: string, newEndDate: string) => {
+      updateUrl({
+        timeRange: undefined,
+        startDate: newStartDate,
+        endDate: newEndDate,
+      });
+    },
+    [updateUrl]
+  );
+
   const filters: PipelineFilters = {
     search: search || undefined,
     repository: repository || undefined,
     branch: branch || undefined,
     status: status || undefined,
+    timeRange: timeRange || DEFAULT_TIME_RANGE,
+    startDate: filterStartDate || undefined,
+    endDate: filterEndDate || undefined,
     sortBy,
     sortOrder,
     page: pageIndex + 1,
@@ -182,8 +212,15 @@ export default function PipelinesPage() {
                 />
               </div>
 
+              <TimeRangePicker
+                timeRange={timeRange || DEFAULT_TIME_RANGE}
+                startDate={filterStartDate}
+                endDate={filterEndDate}
+                onTimeRangeChange={handleTimeRangeChange}
+                onDateRangeChange={handleDateRangeChange}
+              />
               <DataTableResetFilter
-                filterKeys={["search", "repository", "branch", "status"]}
+                filterKeys={["search", "repository", "branch", "status", "timeRange", "startDate", "endDate"]}
                 searchParams={searchParams}
                 updateUrl={updateUrl}
               />
