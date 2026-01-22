@@ -21,6 +21,9 @@ export interface PipelineFilters {
   repository?: string;
   branch?: string;
   status?: string;
+  timeRange?: string;
+  startDate?: string;
+  endDate?: string;
   sortBy?: string;
   sortOrder?: string;
   page?: number;
@@ -35,6 +38,9 @@ export interface ResultFilters {
   outcome?: string;
   testRunId?: string;
   testId?: string;
+  timeRange?: string;
+  startDate?: string;
+  endDate?: string;
   sortBy?: string;
   sortOrder?: string;
   page?: number;
