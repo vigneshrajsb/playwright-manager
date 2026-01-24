@@ -151,9 +151,9 @@ export default function PipelinesPage() {
           highlightedRowId={selectedPipelineId || undefined}
           // Toolbar
           toolbar={(table) => (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-0">
-                <div className="relative min-w-[200px] max-w-sm shrink-0">
+            <div className="flex items-center justify-between gap-3 overflow-hidden">
+              <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto">
+                <div className="relative min-w-[160px] max-w-sm shrink-0">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search by branch, commit, URL..."
@@ -169,7 +169,7 @@ export default function PipelinesPage() {
                     updateUrl({ repository: v === "all" ? undefined : v })
                   }
                 >
-                  <SelectTrigger className="w-[180px] shrink-0">
+                  <SelectTrigger className="w-[150px] shrink-0">
                     <SelectValue placeholder="Repository" />
                   </SelectTrigger>
                   <SelectContent>
@@ -188,7 +188,7 @@ export default function PipelinesPage() {
                     updateUrl({ branch: v === "all" ? undefined : v })
                   }
                 >
-                  <SelectTrigger className="w-[150px] shrink-0">
+                  <SelectTrigger className="w-[130px] shrink-0">
                     <SelectValue placeholder="Branch" />
                   </SelectTrigger>
                   <SelectContent>
@@ -211,14 +211,16 @@ export default function PipelinesPage() {
                 />
               </div>
 
-              <TimeRangePicker
-                timeRange={timeRange || DEFAULT_TIME_RANGE}
-                startDate={filterStartDate}
-                endDate={filterEndDate}
-                onTimeRangeChange={handleTimeRangeChange}
-                onDateRangeChange={handleDateRangeChange}
-              />
-              <DataTableColumnToggle table={table} />
+              <div className="flex items-center gap-3 shrink-0">
+                <TimeRangePicker
+                  timeRange={timeRange || DEFAULT_TIME_RANGE}
+                  startDate={filterStartDate}
+                  endDate={filterEndDate}
+                  onTimeRangeChange={handleTimeRangeChange}
+                  onDateRangeChange={handleDateRangeChange}
+                />
+                <DataTableColumnToggle table={table} />
+              </div>
             </div>
           )}
         />
