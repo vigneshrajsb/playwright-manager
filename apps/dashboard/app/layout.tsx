@@ -36,7 +36,7 @@ export default function RootLayout({
           <ThemeProvider>
             <div className="flex min-h-screen flex-col">
               <Navbar />
-              <main className="flex-1 p-6">{children}</main>
+              <main className="flex-1 p-6 overflow-x-hidden">{children}</main>
             </div>
             <Toaster />
           </ThemeProvider>

@@ -45,7 +45,7 @@ export function TagFilterPopover({
   onTagsChange,
   placeholder = "Tags",
   align = "start",
-  buttonClassName = "w-[150px]",
+  buttonClassName = "w-[130px]",
 }: TagFilterPopoverProps) {
   const [open, setOpen] = useState(false);
 

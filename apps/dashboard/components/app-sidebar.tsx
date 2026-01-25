@@ -23,6 +23,7 @@ import {
   Workflow,
   ListChecks,
   ShieldBan,
+  Settings,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -58,6 +59,12 @@ const reportItems = [
     icon: ListChecks,
   },
 ];
+
+const settingsItem = {
+  title: "Settings",
+  path: "/dashboard/settings",
+  icon: Settings,
+};
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -165,6 +172,30 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <div className="flex-1" />
+
+        <Separator className="mx-2" />
+
+        {/* Settings */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === settingsItem.path}
+                  tooltip={settingsItem.title}
+                >
+                  <Link href={settingsItem.path}>
+                    <settingsItem.icon />
+                    <span>{settingsItem.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

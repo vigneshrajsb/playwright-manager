@@ -2,8 +2,8 @@ apiVersion: v2
 name: playwright-manager
 description: Self-hosted test management for Playwright - track health, manage flaky tests, and control test execution remotely via quarantine rules
 type: application
-version: 0.2.2
-appVersion: "0.2.2"
+version: 0.4.1
+appVersion: "0.4.1"
 home: https://github.com/vigneshrajsb/playwright-manager
 sources:
   - https://github.com/vigneshrajsb/playwright-manager
@@ -19,7 +19,9 @@ keywords:
 annotations:
   artifacthub.io/license: MIT
   artifacthub.io/changes: |
-    - Fix static assets and public folder paths for monorepo standalone output
+    - Add configurable flakiness analysis prompt settings page
+    - Add Settings navigation with tabbed interface
+    - Add prompt version history with restore functionality
 dependencies:
   - name: postgresql
     version: "~16.4.0"

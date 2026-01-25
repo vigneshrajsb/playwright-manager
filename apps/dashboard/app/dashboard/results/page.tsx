@@ -18,12 +18,13 @@ import {
   DataTable,
   DataTableColumnToggle,
   DataTableFacetedFilter,
-  DataTableResetFilter,
 } from "@/components/data-table";
 import { ResultSheet } from "@/components/results/result-sheet";
 import { TagFilterPopover } from "@/components/filters";
+import { TimeRangePicker } from "@/components/time-range-picker";
 import { resultColumns } from "./columns";
 import { useDataTableUrlState } from "@/hooks";
+import { DEFAULT_TIME_RANGE } from "@/lib/utils/time-range";
 import { useResults } from "@/hooks/queries";
 import type { ResultFilters } from "@/hooks/queries";
 
@@ -56,6 +57,9 @@ export default function ResultsPage() {
   const testRunId = searchParams.get("testRunId") || "";
   const testId = searchParams.get("testId") || "";
   const selectedResultId = searchParams.get("resultId") || null;
+  const timeRange = searchParams.get("timeRange") || "";
+  const filterStartDate = searchParams.get("startDate") || "";
+  const filterEndDate = searchParams.get("endDate") || "";
 
   const filters: ResultFilters = {
     search: search || undefined,
@@ -66,6 +70,9 @@ export default function ResultsPage() {
     outcome: outcome || undefined,
     testRunId: testRunId || undefined,
     testId: testId || undefined,
+    timeRange: timeRange || DEFAULT_TIME_RANGE,
+    startDate: filterStartDate || undefined,
+    endDate: filterEndDate || undefined,
     sortBy,
     sortOrder,
     page: pageIndex + 1,
@@ -96,6 +103,28 @@ export default function ResultsPage() {
     [updateUrl]
   );
 
+  const handleTimeRangeChange = useCallback(
+    (newTimeRange: string) => {
+      updateUrl({
+        timeRange: newTimeRange,
+        startDate: undefined,
+        endDate: undefined,
+      });
+    },
+    [updateUrl]
+  );
+
+  const handleDateRangeChange = useCallback(
+    (newStartDate: string, newEndDate: string) => {
+      updateUrl({
+        timeRange: undefined,
+        startDate: newStartDate,
+        endDate: newEndDate,
+      });
+    },
+    [updateUrl]
+  );
+
   // Build faceted filter options
   const statusFilterOptions = useMemo(
     () =>
@@ -120,7 +149,7 @@ export default function ResultsPage() {
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-hidden">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Test Results</h1>
           <p className="text-muted-foreground">
@@ -210,9 +239,9 @@ export default function ResultsPage() {
           highlightedRowId={selectedResultId || undefined}
           // Toolbar
           toolbar={(table) => (
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 overflow-x-auto pb-2">
-                <div className="relative min-w-[200px] max-w-sm shrink-0">
+            <div className="flex items-center justify-between gap-3 overflow-hidden">
+              <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto">
+                <div className="relative min-w-[160px] max-w-sm shrink-0">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search by test, path, URL..."
@@ -228,7 +257,7 @@ export default function ResultsPage() {
                     updateUrl({ repository: v === "all" ? undefined : v })
                   }
                 >
-                  <SelectTrigger className="w-[180px] shrink-0">
+                  <SelectTrigger className="w-[150px] shrink-0">
                     <SelectValue placeholder="Repository" />
                   </SelectTrigger>
                   <SelectContent>
@@ -247,7 +276,7 @@ export default function ResultsPage() {
                     updateUrl({ project: v === "all" ? undefined : v })
                   }
                 >
-                  <SelectTrigger className="w-[150px] shrink-0">
+                  <SelectTrigger className="w-[130px] shrink-0">
                     <SelectValue placeholder="Project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -287,12 +316,16 @@ export default function ResultsPage() {
                 />
               </div>
 
-              <DataTableResetFilter
-                filterKeys={["search", "repository", "project", "tags", "status", "outcome"]}
-                searchParams={searchParams}
-                updateUrl={updateUrl}
-              />
-              <DataTableColumnToggle table={table} />
+              <div className="flex items-center gap-3 shrink-0">
+                <TimeRangePicker
+                  timeRange={timeRange || DEFAULT_TIME_RANGE}
+                  startDate={filterStartDate}
+                  endDate={filterEndDate}
+                  onTimeRangeChange={handleTimeRangeChange}
+                  onDateRangeChange={handleDateRangeChange}
+                />
+                <DataTableColumnToggle table={table} />
+              </div>
             </div>
           )}
         />

@@ -18,13 +18,14 @@ import {
   DataTable,
   DataTableColumnToggle,
   DataTableFacetedFilter,
-  DataTableResetFilter,
 } from "@/components/data-table";
+import { TimeRangePicker } from "@/components/time-range-picker";
 import { PipelineSheet } from "@/components/pipelines/pipeline-sheet";
 import { pipelineColumns } from "./columns";
 import { useDataTableUrlState } from "@/hooks";
 import { usePipelines } from "@/hooks/queries";
 import type { PipelineFilters } from "@/hooks/queries";
+import { DEFAULT_TIME_RANGE } from "@/lib/utils/time-range";
 
 export default function PipelinesPage() {
   const {
@@ -49,6 +50,9 @@ export default function PipelinesPage() {
   const repository = searchParams.get("repository") || "";
   const branch = searchParams.get("branch") || "";
   const status = searchParams.get("status") || "";
+  const timeRange = searchParams.get("timeRange") || "";
+  const filterStartDate = searchParams.get("startDate") || "";
+  const filterEndDate = searchParams.get("endDate") || "";
   const selectedPipelineId = searchParams.get("pipelineId") || null;
 
   const openPipelineSheet = useCallback(
@@ -61,11 +65,36 @@ export default function PipelinesPage() {
     [updateUrl]
   );
 
+  const handleTimeRangeChange = useCallback(
+    (newTimeRange: string) => {
+      updateUrl({
+        timeRange: newTimeRange,
+        startDate: undefined,
+        endDate: undefined,
+      });
+    },
+    [updateUrl]
+  );
+
+  const handleDateRangeChange = useCallback(
+    (newStartDate: string, newEndDate: string) => {
+      updateUrl({
+        timeRange: undefined,
+        startDate: newStartDate,
+        endDate: newEndDate,
+      });
+    },
+    [updateUrl]
+  );
+
   const filters: PipelineFilters = {
     search: search || undefined,
     repository: repository || undefined,
     branch: branch || undefined,
     status: status || undefined,
+    timeRange: timeRange || DEFAULT_TIME_RANGE,
+    startDate: filterStartDate || undefined,
+    endDate: filterEndDate || undefined,
     sortBy,
     sortOrder,
     page: pageIndex + 1,
@@ -87,7 +116,7 @@ export default function PipelinesPage() {
 
   return (
     <TooltipProvider>
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-hidden">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pipelines</h1>
           <p className="text-muted-foreground">
@@ -122,9 +151,9 @@ export default function PipelinesPage() {
           highlightedRowId={selectedPipelineId || undefined}
           // Toolbar
           toolbar={(table) => (
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 overflow-x-auto pb-2">
-                <div className="relative min-w-[200px] max-w-sm shrink-0">
+            <div className="flex items-center justify-between gap-3 overflow-hidden">
+              <div className="flex items-center gap-3 flex-1 min-w-0 overflow-x-auto">
+                <div className="relative min-w-[160px] max-w-sm shrink-0">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search by branch, commit, URL..."
@@ -140,7 +169,7 @@ export default function PipelinesPage() {
                     updateUrl({ repository: v === "all" ? undefined : v })
                   }
                 >
-                  <SelectTrigger className="w-[180px] shrink-0">
+                  <SelectTrigger className="w-[150px] shrink-0">
                     <SelectValue placeholder="Repository" />
                   </SelectTrigger>
                   <SelectContent>
@@ -159,7 +188,7 @@ export default function PipelinesPage() {
                     updateUrl({ branch: v === "all" ? undefined : v })
                   }
                 >
-                  <SelectTrigger className="w-[150px] shrink-0">
+                  <SelectTrigger className="w-[130px] shrink-0">
                     <SelectValue placeholder="Branch" />
                   </SelectTrigger>
                   <SelectContent>
@@ -182,12 +211,16 @@ export default function PipelinesPage() {
                 />
               </div>
 
-              <DataTableResetFilter
-                filterKeys={["search", "repository", "branch", "status"]}
-                searchParams={searchParams}
-                updateUrl={updateUrl}
-              />
-              <DataTableColumnToggle table={table} />
+              <div className="flex items-center gap-3 shrink-0">
+                <TimeRangePicker
+                  timeRange={timeRange || DEFAULT_TIME_RANGE}
+                  startDate={filterStartDate}
+                  endDate={filterEndDate}
+                  onTimeRangeChange={handleTimeRangeChange}
+                  onDateRangeChange={handleDateRangeChange}
+                />
+                <DataTableColumnToggle table={table} />
+              </div>
             </div>
           )}
         />
