@@ -87,4 +87,8 @@ export const queryKeys = {
     all: ["verdict"] as const,
     detail: (pipelineId: string | null) => ["verdict", pipelineId] as const,
   },
+  promptSettings: {
+    all: ["promptSettings"] as const,
+    detail: () => ["promptSettings", "detail"] as const,
+  },
 } as const;

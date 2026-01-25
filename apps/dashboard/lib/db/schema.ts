@@ -324,6 +324,27 @@ export const verdictFeedbackRelations = relations(verdictFeedback, ({ one }) => 
 }));
 
 // ============================================================================
+// Prompt Settings Table - Versioned prompt templates
+// ============================================================================
+export const promptSettings = pgTable(
+  "prompt_settings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    content: text("content").notNull(),
+    version: integer("version").notNull(),
+    isActive: boolean("is_active").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdBy: text("created_by"), // "system" for default, or future user id
+  },
+  (table) => [
+    index("idx_prompt_settings_is_active").on(table.isActive),
+    index("idx_prompt_settings_version").on(table.version),
+  ]
+);
+
+// ============================================================================
 // Types
 // ============================================================================
 export type Test = typeof tests.$inferSelect;
@@ -340,3 +361,5 @@ export type ErrorSignature = typeof errorSignatures.$inferSelect;
 export type NewErrorSignature = typeof errorSignatures.$inferInsert;
 export type VerdictFeedback = typeof verdictFeedback.$inferSelect;
 export type NewVerdictFeedback = typeof verdictFeedback.$inferInsert;
+export type PromptSetting = typeof promptSettings.$inferSelect;
+export type NewPromptSetting = typeof promptSettings.$inferInsert;

@@ -1,3 +1,7 @@
+import { db } from "@/lib/db";
+import { promptSettings } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
 export const FLAKINESS_ANALYSIS_PROMPT = `You are analyzing a test failure to determine if it's flaky (intermittent) or a real bug.
 
 TEST: {{testTitle}}
@@ -36,17 +40,66 @@ export interface PromptVariables {
   heuristicReasoning: string;
 }
 
-export function renderPrompt(variables: PromptVariables): string {
-  let prompt = FLAKINESS_ANALYSIS_PROMPT;
+// In-memory cache for the active prompt
+let cachedPrompt: string | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 
-  prompt = prompt.replace("{{testTitle}}", variables.testTitle);
-  prompt = prompt.replace("{{filePath}}", variables.filePath);
-  prompt = prompt.replace("{{errorMessage}}", variables.errorMessage || "No error message");
-  prompt = prompt.replace("{{stackTrace}}", truncateStackTrace(variables.stackTrace));
-  prompt = prompt.replace("{{recentHistory}}", variables.recentHistory || "No history available");
-  prompt = prompt.replace("{{similarErrors}}", variables.similarErrors || "No similar errors found");
-  prompt = prompt.replace("{{heuristicScore}}", String(variables.heuristicScore));
-  prompt = prompt.replace("{{heuristicReasoning}}", variables.heuristicReasoning);
+/**
+ * Fetches the active prompt from the database with caching.
+ * Falls back to the default prompt if no custom prompt is configured.
+ */
+async function getActivePrompt(): Promise<string> {
+  const now = Date.now();
+
+  // Return cached value if still valid
+  if (cachedPrompt !== null && now - cacheTimestamp < CACHE_TTL_MS) {
+    return cachedPrompt;
+  }
+
+  try {
+    const [activePrompt] = await db
+      .select({ content: promptSettings.content })
+      .from(promptSettings)
+      .where(eq(promptSettings.isActive, true))
+      .limit(1);
+
+    if (activePrompt?.content) {
+      cachedPrompt = activePrompt.content;
+      cacheTimestamp = now;
+      return cachedPrompt;
+    }
+  } catch {
+    // Database error - fall back to default
+  }
+
+  // No custom prompt or error - use default
+  cachedPrompt = FLAKINESS_ANALYSIS_PROMPT;
+  cacheTimestamp = now;
+  return cachedPrompt;
+}
+
+/**
+ * Invalidates the cached prompt. Call this when a new prompt is saved.
+ */
+export function invalidatePromptCache(): void {
+  cachedPrompt = null;
+  cacheTimestamp = 0;
+}
+
+export async function renderPrompt(variables: PromptVariables): Promise<string> {
+  const template = await getActivePrompt();
+
+  let prompt = template;
+
+  prompt = prompt.replace(/\{\{testTitle\}\}/g, variables.testTitle);
+  prompt = prompt.replace(/\{\{filePath\}\}/g, variables.filePath);
+  prompt = prompt.replace(/\{\{errorMessage\}\}/g, variables.errorMessage || "No error message");
+  prompt = prompt.replace(/\{\{stackTrace\}\}/g, truncateStackTrace(variables.stackTrace));
+  prompt = prompt.replace(/\{\{recentHistory\}\}/g, variables.recentHistory || "No history available");
+  prompt = prompt.replace(/\{\{similarErrors\}\}/g, variables.similarErrors || "No similar errors found");
+  prompt = prompt.replace(/\{\{heuristicScore\}\}/g, String(variables.heuristicScore));
+  prompt = prompt.replace(/\{\{heuristicReasoning\}\}/g, variables.heuristicReasoning);
 
   return prompt;
 }

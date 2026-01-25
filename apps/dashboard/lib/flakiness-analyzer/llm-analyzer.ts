@@ -19,7 +19,7 @@ export async function analyzewithLLM(
     return null;
   }
 
-  const prompt = renderPrompt(variables);
+  const prompt = await renderPrompt(variables);
 
   try {
     const response = await fetch(OPENAI_API_URL, {
