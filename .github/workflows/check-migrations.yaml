@@ -1,0 +1,43 @@
+name: Check Database Migrations
+
+on:
+  pull_request:
+    paths:
+      - 'apps/dashboard/lib/db/schema.ts'
+      - 'apps/dashboard/drizzle/**'
+
+jobs:
+  check-migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate migrations
+        working-directory: apps/dashboard
+        run: pnpm db:generate
+
+      - name: Check for uncommitted migrations
+        run: |
+          if [[ -n $(git status --porcelain apps/dashboard/drizzle/) ]]; then
+            echo "❌ Schema changes detected without corresponding migrations!"
+            echo ""
+            echo "Uncommitted migration files:"
+            git status --porcelain apps/dashboard/drizzle/
+            echo ""
+            echo "Please run 'pnpm db:generate' and commit the generated migration files."
+            exit 1
+          else
+            echo "✅ All schema changes have corresponding migrations"
+          fi
