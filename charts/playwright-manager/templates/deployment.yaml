@@ -36,7 +36,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: {{ include "playwright-manager.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["node", "scripts/migrate.mjs"]
+          command: ["node", "apps/dashboard/scripts/migrate.mjs"]
           envFrom:
             {{- if .Values.secrets.enabled }}
             - secretRef:
