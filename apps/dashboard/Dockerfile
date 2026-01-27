@@ -59,11 +59,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/standalone .
 COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
 COPY --from=builder /app/apps/dashboard/public ./apps/dashboard/public
 
-# Copy drizzle for migrations
+# Copy drizzle migrations
 COPY --from=builder /app/apps/dashboard/drizzle ./drizzle
 COPY --from=builder /app/apps/dashboard/scripts/migrate.mjs ./scripts/migrate.mjs
-COPY --from=builder /app/apps/dashboard/node_modules ./node_modules
-COPY --from=builder /app/apps/dashboard/package.json ./package.json
 
 USER nextjs
 
