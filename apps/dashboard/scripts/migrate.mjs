@@ -9,6 +9,12 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const migrationsFolder = join(__dirname, "..", "drizzle");
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -26,7 +32,7 @@ async function runMigrations() {
 
   try {
     // Run migrations from the drizzle folder
-    await migrate(db, { migrationsFolder: "./drizzle" });
+    await migrate(db, { migrationsFolder });
     console.log("Migrations completed successfully");
   } catch (error) {
     console.error("Migration failed:", error);
