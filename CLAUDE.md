@@ -74,6 +74,16 @@ Core tables in `apps/dashboard/lib/db/schema.ts`:
 - `testHealth` - Aggregated metrics (pass rate, flakiness, health score 0-100)
 - `skipRules` - Conditional skip rules (branch/env patterns)
 
+### Schema Changes
+
+**IMPORTANT**: When modifying `apps/dashboard/lib/db/schema.ts`, always run:
+
+```bash
+pnpm db:generate
+```
+
+This generates migration files in `apps/dashboard/drizzle/`. Commit these with your schema changes. CI will fail if migrations are missing.
+
 ### Key API Endpoints
 
 - `POST /api/tests/check` - Fixture checks which tests to skip
