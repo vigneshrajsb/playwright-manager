@@ -2,8 +2,8 @@ apiVersion: v2
 name: playwright-manager
 description: Self-hosted test management for Playwright - track health, manage flaky tests, and control test execution remotely via quarantine rules
 type: application
-version: 0.4.5
-appVersion: "0.4.5"
+version: 0.4.6
+appVersion: "0.4.6"
 home: https://github.com/vigneshrajsb/playwright-manager
 sources:
   - https://github.com/vigneshrajsb/playwright-manager
@@ -19,7 +19,7 @@ keywords:
 annotations:
   artifacthub.io/license: MIT
   artifacthub.io/changes: |
-    - Fix duplicate migration causing init container crash
+    - Add missing migrations for prompt_settings, error_signatures, verdict_feedback tables
 dependencies:
   - name: postgresql
     version: "~16.4.0"
