@@ -3,6 +3,38 @@ entries:
   playwright-manager:
   - annotations:
       artifacthub.io/changes: |
+        - Add automatic database migrations via init container
+        - Add PostgreSQL nodeSelector, tolerations, and affinity support
+      artifacthub.io/license: MIT
+    apiVersion: v2
+    appVersion: 0.4.2
+    created: "2026-01-27T01:42:59.835388834Z"
+    dependencies:
+    - name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: ~16.4.0
+    description: Self-hosted test management for Playwright - track health, manage
+      flaky tests, and control test execution remotely via quarantine rules
+    digest: c7d450fb48f896bd2510ee150ae0e901611bf9e498e87574c8f0bb1a36ae1142
+    home: https://github.com/vigneshrajsb/playwright-manager
+    keywords:
+    - playwright
+    - testing
+    - test-management
+    - dashboard
+    - flaky-tests
+    - quarantine
+    maintainers:
+    - name: vigneshrajsb
+    name: playwright-manager
+    sources:
+    - https://github.com/vigneshrajsb/playwright-manager
+    type: application
+    urls:
+    - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.4.2/playwright-manager-0.4.2.tgz
+    version: 0.4.2
+  - annotations:
+      artifacthub.io/changes: |
         - Add configurable flakiness analysis prompt settings page
         - Add Settings navigation with tabbed interface
         - Add prompt version history with restore functionality
@@ -127,4 +159,4 @@ entries:
     urls:
     - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.0/playwright-manager-0.2.0.tgz
     version: 0.2.0
-generated: "2026-01-25T17:16:54.608683721Z"
+generated: "2026-01-27T01:42:59.835413727Z"
