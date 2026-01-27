@@ -3,6 +3,37 @@ entries:
   playwright-manager:
   - annotations:
       artifacthub.io/changes: |
+        - Fix duplicate migration causing init container crash
+      artifacthub.io/license: MIT
+    apiVersion: v2
+    appVersion: 0.4.5
+    created: "2026-01-27T06:31:27.561248369Z"
+    dependencies:
+    - name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: ~16.4.0
+    description: Self-hosted test management for Playwright - track health, manage
+      flaky tests, and control test execution remotely via quarantine rules
+    digest: c06bb2ad267a8b604744873fef07393f3ade5a0d2d37196d1147568100909e4f
+    home: https://github.com/vigneshrajsb/playwright-manager
+    keywords:
+    - playwright
+    - testing
+    - test-management
+    - dashboard
+    - flaky-tests
+    - quarantine
+    maintainers:
+    - name: vigneshrajsb
+    name: playwright-manager
+    sources:
+    - https://github.com/vigneshrajsb/playwright-manager
+    type: application
+    urls:
+    - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.4.5/playwright-manager-0.4.5.tgz
+    version: 0.4.5
+  - annotations:
+      artifacthub.io/changes: |
         - Fix init container migration crash (include drizzle-orm in standalone output)
       artifacthub.io/license: MIT
     apiVersion: v2
@@ -222,4 +253,4 @@ entries:
     urls:
     - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.0/playwright-manager-0.2.0.tgz
     version: 0.2.0
-generated: "2026-01-27T05:46:03.162195794Z"
+generated: "2026-01-27T06:31:27.56127018Z"
