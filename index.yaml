@@ -3,6 +3,37 @@ entries:
   playwright-manager:
   - annotations:
       artifacthub.io/changes: |
+        - Add missing migrations for prompt_settings, error_signatures, verdict_feedback tables
+      artifacthub.io/license: MIT
+    apiVersion: v2
+    appVersion: 0.4.6
+    created: "2026-01-27T20:12:17.008533318Z"
+    dependencies:
+    - name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: ~16.4.0
+    description: Self-hosted test management for Playwright - track health, manage
+      flaky tests, and control test execution remotely via quarantine rules
+    digest: a0feb3cfbbd1794f2d9b86c19afd14389fce920114de476c4b41bb1fb2d5d636
+    home: https://github.com/vigneshrajsb/playwright-manager
+    keywords:
+    - playwright
+    - testing
+    - test-management
+    - dashboard
+    - flaky-tests
+    - quarantine
+    maintainers:
+    - name: vigneshrajsb
+    name: playwright-manager
+    sources:
+    - https://github.com/vigneshrajsb/playwright-manager
+    type: application
+    urls:
+    - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.4.6/playwright-manager-0.4.6.tgz
+    version: 0.4.6
+  - annotations:
+      artifacthub.io/changes: |
         - Fix duplicate migration causing init container crash
       artifacthub.io/license: MIT
     apiVersion: v2
@@ -253,4 +284,4 @@ entries:
     urls:
     - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.0/playwright-manager-0.2.0.tgz
     version: 0.2.0
-generated: "2026-01-27T06:31:27.56127018Z"
+generated: "2026-01-27T20:12:17.008556571Z"
