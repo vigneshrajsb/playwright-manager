@@ -2,6 +2,16 @@ nameOverride: ""
 fullnameOverride: ""
 extraLabels: {}
 
+migrations:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
 image:
   repository: vigneshrajsb/playwright-manager
   tag: ""
