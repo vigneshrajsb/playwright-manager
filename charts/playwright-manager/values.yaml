@@ -2,6 +2,16 @@ nameOverride: ""
 fullnameOverride: ""
 extraLabels: {}
 
+migrations:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
 image:
   repository: vigneshrajsb/playwright-manager
   tag: ""
@@ -162,6 +172,34 @@ postgresql:
       enabled: true
       size: 8Gi
       # storageClass: ""
+
+    nodeSelector: {}
+    # kubernetes.io/arch: amd64
+    # node-type: database
+
+    tolerations: []
+    # - key: "database"
+    #   operator: "Equal"
+    #   value: "postgres"
+    #   effect: "NoSchedule"
+
+    affinity: {}
+    # nodeAffinity:
+    #   requiredDuringSchedulingIgnoredDuringExecution:
+    #     nodeSelectorTerms:
+    #       - matchExpressions:
+    #           - key: node-type
+    #             operator: In
+    #             values:
+    #               - database
+    # podAntiAffinity:
+    #   preferredDuringSchedulingIgnoredDuringExecution:
+    #     - weight: 100
+    #       podAffinityTerm:
+    #         labelSelector:
+    #           matchLabels:
+    #             app.kubernetes.io/name: postgresql
+    #         topologyKey: kubernetes.io/hostname
 
     # resources:
     #   requests:

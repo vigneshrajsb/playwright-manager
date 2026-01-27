@@ -61,8 +61,7 @@ COPY --from=builder /app/apps/dashboard/public ./apps/dashboard/public
 
 # Copy drizzle for migrations
 COPY --from=builder /app/apps/dashboard/drizzle ./drizzle
-COPY --from=builder /app/apps/dashboard/lib/db ./lib/db
-COPY --from=builder /app/apps/dashboard/drizzle.config.ts ./drizzle.config.ts
+COPY --from=builder /app/apps/dashboard/scripts/migrate.mjs ./scripts/migrate.mjs
 COPY --from=builder /app/apps/dashboard/node_modules ./node_modules
 COPY --from=builder /app/apps/dashboard/package.json ./package.json
 
