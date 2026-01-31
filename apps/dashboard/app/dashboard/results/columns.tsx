@@ -10,7 +10,12 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Clock, GitBranch, MoreHorizontal, ExternalLink } from "lucide-react";
+import { Clock, GitBranch, MoreHorizontal, ExternalLink, RotateCw } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PlaywrightIcon } from "@/components/icons/playwright-icon";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { StatusBadgeWithTooltip } from "@/components/badges";
@@ -67,14 +72,32 @@ export const resultColumns = (
     accessorKey: "status",
     id: "status",
     header: "Status",
-    cell: ({ row }) => (
-      <StatusBadgeWithTooltip
-        status={row.original.status}
-        expectedStatus={row.original.expectedStatus}
-        outcome={row.original.outcome}
-      />
-    ),
-    size: 80,
+    cell: ({ row }) => {
+      const retryCount = row.original.retryCount;
+      return (
+        <div className="flex items-center gap-1.5">
+          <StatusBadgeWithTooltip
+            status={row.original.status}
+            expectedStatus={row.original.expectedStatus}
+            outcome={row.original.outcome}
+          />
+          {retryCount > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="outline" className="text-xs px-1.5 py-0 cursor-help text-muted-foreground border-muted-foreground/30">
+                  <RotateCw className="h-3 w-3 mr-1" />
+                  {retryCount}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                {retryCount === 1 ? "1 retry attempt" : `${retryCount} retry attempts`}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      );
+    },
+    size: 120,
     enableSorting: false,
   },
   {

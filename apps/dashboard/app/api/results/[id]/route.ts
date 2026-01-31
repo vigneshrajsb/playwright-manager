@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testResults, tests, testRuns, testHealth } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, asc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 /**
@@ -147,7 +147,7 @@ export async function GET(
 
     const health = healthData[0] || null;
 
-    // Get recent history - last 5 runs of this test
+    // Get recent history - last 5 runs of this test (final attempts only)
     const recentHistory = await db
       .select({
         id: testResults.id,
@@ -164,15 +164,42 @@ export async function GET(
       })
       .from(testResults)
       .innerJoin(testRuns, eq(testResults.testRunId, testRuns.id))
-      .where(eq(testResults.testId, test.id))
+      .where(
+        and(
+          eq(testResults.testId, test.id),
+          eq(testResults.isFinalAttempt, true)
+        )
+      )
       .orderBy(desc(testResults.startedAt))
       .limit(5);
+
+    // Get all retry attempts for this specific test in this run
+    const retryHistory = await db
+      .select({
+        id: testResults.id,
+        status: testResults.status,
+        outcome: testResults.outcome,
+        durationMs: testResults.durationMs,
+        retryCount: testResults.retryCount,
+        isFinalAttempt: testResults.isFinalAttempt,
+        errorMessage: testResults.errorMessage,
+        startedAt: testResults.startedAt,
+      })
+      .from(testResults)
+      .where(
+        and(
+          eq(testResults.testId, test.id),
+          eq(testResults.testRunId, run.id)
+        )
+      )
+      .orderBy(asc(testResults.retryCount));
 
     return NextResponse.json({
       result,
       test,
       health,
       recentHistory,
+      retryHistory,
       run: {
         id: run.id,
         runId: run.runId,

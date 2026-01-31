@@ -137,6 +137,9 @@ export interface ResultFilterParams {
 export function buildResultConditions(params: ResultFilterParams): SQL[] {
   const conditions: SQL[] = [];
 
+  // Only show final attempts in results table
+  conditions.push(eq(testResults.isFinalAttempt, true));
+
   if (params.search) {
     conditions.push(
       or(
