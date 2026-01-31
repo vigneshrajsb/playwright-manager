@@ -4,6 +4,37 @@
 
 Self-hosted test management for Playwright - track health, manage flaky tests, and control test execution remotely via quarantine rules.
 
+## Development Workflow
+
+### Planning New Features or Fixes
+
+**IMPORTANT**: When asked to implement a feature, fix a bug, or make any non-trivial change, you MUST follow this workflow:
+
+1. **Interview First** - Use `AskUserQuestion` tool to gather ALL requirements before planning or implementing
+   - Ask about user intent and expected behavior
+   - Clarify edge cases and constraints
+   - Understand UX preferences (layout, styling, interactions)
+   - Identify what data to show and how to display it
+   - Determine filtering, sorting, pagination needs
+
+2. **Interview Until Complete** - Keep asking questions until you have:
+   - Clear understanding of what to build
+   - Specific UI/UX decisions made
+   - All edge cases identified
+   - User preferences on implementation approach
+
+3. **Then Plan** - Only after the interview is complete, create an implementation plan
+
+4. **Finally Implement** - Execute the plan with all context gathered
+
+**Example Interview Questions:**
+- "How should X be displayed to the user?" (with specific options)
+- "Should we filter/group/sort by Y?"
+- "What happens when Z edge case occurs?"
+- "Which approach do you prefer: A, B, or C?"
+
+**Never assume** - If there are multiple valid approaches, always ask the user to choose rather than making the decision yourself.
+
 ## Project Structure
 
 - `apps/dashboard` - Next.js 16 full-stack app (UI + API routes)
