@@ -28,6 +28,7 @@ import Link from "next/link";
 import { formatDuration, formatRelativeTime } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
 import { useVerdict } from "@/hooks/queries";
+import { useTimeRangeUrl } from "@/hooks";
 import { VerdictBanner } from "./verdict-banner";
 
 interface PipelineDetail {
@@ -112,6 +113,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
   const { data: verdict, isLoading: verdictLoading } = useVerdict(
     data?.pipeline?.status === "failed" ? pipelineId : null
   );
+  const { buildUrl } = useTimeRangeUrl();
 
   useEffect(() => {
     if (pipelineId) {
@@ -196,7 +198,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
               {/* Quick Actions */}
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href={`/dashboard/results?testRunId=${pipeline.id}`}
+                  href={buildUrl("/dashboard/results", { testRunId: pipeline.id })}
                   title="View all test results for this pipeline"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border bg-background hover:bg-muted transition-colors"
                 >
@@ -427,7 +429,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link
-                                  href={`/dashboard/results?testRunId=${run.id}`}
+                                  href={buildUrl("/dashboard/results", { testRunId: run.id })}
                                   className="p-1 hover:bg-muted rounded"
                                 >
                                   <ListChecks className="h-3.5 w-3.5" />

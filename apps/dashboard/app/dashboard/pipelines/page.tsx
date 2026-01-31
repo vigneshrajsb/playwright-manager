@@ -22,7 +22,7 @@ import {
 import { TimeRangePicker } from "@/components/time-range-picker";
 import { PipelineSheet } from "@/components/pipelines/pipeline-sheet";
 import { pipelineColumns } from "./columns";
-import { useDataTableUrlState } from "@/hooks";
+import { useDataTableUrlState, useTimeRangeUrl } from "@/hooks";
 import { usePipelines } from "@/hooks/queries";
 import type { PipelineFilters } from "@/hooks/queries";
 import { DEFAULT_TIME_RANGE } from "@/lib/utils/time-range";
@@ -101,6 +101,7 @@ export default function PipelinesPage() {
   };
 
   const { data, isLoading } = usePipelines(filters);
+  const { buildUrl } = useTimeRangeUrl();
   const pipelines = data?.pipelines ?? [];
   const pagination = data?.pagination ?? null;
   const filterOptions = data?.filters ?? null;
@@ -112,7 +113,7 @@ export default function PipelinesPage() {
   }));
 
   // Memoize columns with the callback
-  const columns = useMemo(() => pipelineColumns(openPipelineSheet), [openPipelineSheet]);
+  const columns = useMemo(() => pipelineColumns(openPipelineSheet, buildUrl), [openPipelineSheet, buildUrl]);
 
   return (
     <TooltipProvider>

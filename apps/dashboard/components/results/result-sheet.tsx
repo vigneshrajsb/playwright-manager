@@ -26,6 +26,7 @@ import {
 import { formatDuration, formatDate, formatRelativeTime, stripAnsi } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
 import { PlaywrightIcon } from "@/components/icons/playwright-icon";
+import { useTimeRangeUrl } from "@/hooks";
 
 interface ResultDetail {
   result: {
@@ -144,6 +145,7 @@ function getAnnotationBadgeVariant(type: string): string {
 export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
   const [data, setData] = useState<ResultDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const { buildUrl } = useTimeRangeUrl();
 
   useEffect(() => {
     if (resultId) {
@@ -460,7 +462,7 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link
-                                  href={`/dashboard/results?testRunId=${run.testRunId}`}
+                                  href={buildUrl("/dashboard/results", { testRunId: run.testRunId })}
                                   className="p-1 hover:bg-muted rounded"
                                 >
                                   <ListChecks className="h-3.5 w-3.5" />

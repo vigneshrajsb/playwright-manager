@@ -23,7 +23,7 @@ import {
 import { ConfirmationDialog } from "@/components/dialogs";
 import { EditRuleSheet } from "@/components/quarantined/edit-rule-sheet";
 import { quarantinedColumns, type QuarantinedTableMeta } from "./columns";
-import { useDataTableUrlState } from "@/hooks";
+import { useDataTableUrlState, useTimeRangeUrl } from "@/hooks";
 import {
   useQuarantinedRules,
   useDeleteQuarantinedRule,
@@ -71,6 +71,7 @@ export default function QuarantinedPage() {
   };
 
   const { data, isLoading } = useQuarantinedRules(filters);
+  const { buildUrl } = useTimeRangeUrl();
   const deleteMutation = useDeleteQuarantinedRule();
   const bulkDeleteMutation = useBulkDeleteQuarantined();
 
@@ -103,6 +104,7 @@ export default function QuarantinedPage() {
   const tableMeta: QuarantinedTableMeta = {
     onEdit: (rule) => setEditRule(rule),
     onDelete: (rule) => setDeleteRule(rule),
+    buildUrl,
   };
 
   // Build faceted filter options for rule type

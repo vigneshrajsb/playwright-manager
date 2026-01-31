@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
+import { useTimeRangeUrl } from "@/hooks";
 
 const overviewItem = {
   title: "Overview",
@@ -66,9 +68,10 @@ const settingsItem = {
   icon: Settings,
 };
 
-export function AppSidebar() {
+function AppSidebarContent() {
   const pathname = usePathname();
   const { toggleSidebar, open } = useSidebar();
+  const { buildUrl } = useTimeRangeUrl();
 
   return (
     <Sidebar collapsible="icon">
@@ -116,7 +119,7 @@ export function AppSidebar() {
                   isActive={pathname === overviewItem.path}
                   tooltip={overviewItem.title}
                 >
-                  <Link href={overviewItem.path}>
+                  <Link href={buildUrl(overviewItem.path)}>
                     <overviewItem.icon />
                     <span>{overviewItem.title}</span>
                   </Link>
@@ -140,7 +143,7 @@ export function AppSidebar() {
                     isActive={pathname === item.path}
                     tooltip={item.title}
                   >
-                    <Link href={item.path}>
+                    <Link href={buildUrl(item.path)}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
@@ -165,7 +168,7 @@ export function AppSidebar() {
                     isActive={pathname === item.path}
                     tooltip={item.title}
                   >
-                    <Link href={item.path}>
+                    <Link href={buildUrl(item.path)}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>
@@ -190,7 +193,7 @@ export function AppSidebar() {
                   isActive={pathname === settingsItem.path}
                   tooltip={settingsItem.title}
                 >
-                  <Link href={settingsItem.path}>
+                  <Link href={buildUrl(settingsItem.path)}>
                     <settingsItem.icon />
                     <span>{settingsItem.title}</span>
                   </Link>
@@ -207,5 +210,13 @@ export function AppSidebar() {
         </div>
       </SidebarFooter>
     </Sidebar>
+  );
+}
+
+export function AppSidebar() {
+  return (
+    <Suspense fallback={null}>
+      <AppSidebarContent />
+    </Suspense>
   );
 }
