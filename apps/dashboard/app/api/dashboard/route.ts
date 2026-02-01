@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tests, testRuns, testHealth, testResults, skipRules } from "@/lib/db/schema";
-import { eq, and, desc, sql, gte, lt, SQL } from "drizzle-orm";
+import {
+  tests,
+  testRuns,
+  testHealth,
+  skipRules,
+} from "@/lib/db/schema";
+import { eq, and, desc, sql, gte, lt, isNull, SQL } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { getFilterOptions } from "@/lib/db/filter-cache";
 
 /**
  * @swagger
@@ -146,7 +152,7 @@ export async function GET(request: NextRequest) {
     since.setDate(since.getDate() - days);
 
     // Build test filter conditions
-    const testConditions: SQL<unknown>[] = [];
+    const testConditions: SQL<unknown>[] = [eq(tests.isDeleted, false)];
     if (repository) {
       testConditions.push(eq(tests.repository, repository));
     }
@@ -161,33 +167,26 @@ export async function GET(request: NextRequest) {
         testConditions.push(sql`${tests.tags} && ${tagArray}`);
       }
     }
-    const testWhereClause =
-      testConditions.length > 0 ? and(...testConditions) : undefined;
+    const testWhereClause = and(...testConditions);
+    const hasFilters = repository || project || tags;
 
-    // Overall test stats (filtered)
-    // Enabled = no active skip rules, Disabled = has active skip rules (not soft-deleted)
-    const testStatsQuery =
-      testConditions.length > 0
-        ? db
-            .select({
-              totalTests: sql<number>`count(*)`,
-              enabledTests: sql<number>`count(*) filter (where NOT EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
-              disabledTests: sql<number>`count(*) filter (where EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
-            })
-            .from(tests)
-            .where(testWhereClause)
-        : db
-            .select({
-              totalTests: sql<number>`count(*)`,
-              enabledTests: sql<number>`count(*) filter (where NOT EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
-              disabledTests: sql<number>`count(*) filter (where EXISTS (SELECT 1 FROM skip_rules WHERE skip_rules.test_id = ${tests.id} AND skip_rules.deleted_at IS NULL))`,
-            })
-            .from(tests);
-
-    const testStats = await testStatsQuery;
+    // OPTIMIZED: Overall test stats using LEFT JOIN instead of subqueries
+    // This replaces the slow EXISTS/NOT EXISTS pattern
+    const testStats = await db
+      .select({
+        totalTests: sql<number>`count(DISTINCT ${tests.id})`,
+        enabledTests: sql<number>`count(DISTINCT ${tests.id}) FILTER (WHERE ${skipRules.id} IS NULL)`,
+        disabledTests: sql<number>`count(DISTINCT ${tests.id}) FILTER (WHERE ${skipRules.id} IS NOT NULL)`,
+      })
+      .from(tests)
+      .leftJoin(
+        skipRules,
+        and(eq(skipRules.testId, tests.id), isNull(skipRules.deletedAt))
+      )
+      .where(testWhereClause);
 
     // Health distribution (filtered)
-    const healthDistributionQuery = db
+    const healthDistribution = await db
       .select({
         bucket: sql<string>`
           case
@@ -200,15 +199,12 @@ export async function GET(request: NextRequest) {
       })
       .from(testHealth)
       .innerJoin(tests, eq(testHealth.testId, tests.id))
-      .$dynamic();
-
-    const healthDistribution = await healthDistributionQuery
       .where(testWhereClause)
       .groupBy(sql`1`);
 
-    // Get test IDs that match the filter for run filtering
-    let filteredTestIds: string[] = [];
-    if (testConditions.length > 0) {
+    // Get filtered test IDs for run filtering (now integers, not UUIDs)
+    let filteredTestIds: number[] = [];
+    if (hasFilters) {
       const filteredTests = await db
         .select({ id: tests.id })
         .from(tests)
@@ -216,36 +212,37 @@ export async function GET(request: NextRequest) {
       filteredTestIds = filteredTests.map((t) => t.id);
     }
 
-    // Get run IDs that have results from filtered tests
-    let filteredRunIds: string[] = [];
-    if (filteredTestIds.length > 0) {
-      const idParams = filteredTestIds.map((id) => sql`${id}`);
-      const runsWithFilteredTests = await db
-        .selectDistinct({ runId: testResults.testRunId })
-        .from(testResults)
-        .where(
-          sql`${testResults.testId} = ANY(ARRAY[${sql.join(idParams, sql`, `)}]::uuid[])`,
-        );
-      filteredRunIds = runsWithFilteredTests.map((r) => r.runId);
-    }
+    // OPTIMIZED: Recent runs with SQL-side filtering using EXISTS
+    // This replaces the slow in-memory filtering pattern
+    const recentRuns =
+      filteredTestIds.length > 0
+        ? await db
+            .select()
+            .from(testRuns)
+            .where(
+              and(
+                gte(testRuns.startedAt, since),
+                sql`EXISTS (
+                  SELECT 1 FROM test_results tr
+                  WHERE tr.test_run_id = ${testRuns.id}
+                  AND tr.test_id = ANY(ARRAY[${sql.join(
+                    filteredTestIds.map((id) => sql`${id}`),
+                    sql`, `
+                  )}]::integer[])
+                )`
+              )
+            )
+            .orderBy(desc(testRuns.startedAt))
+            .limit(10)
+        : await db
+            .select()
+            .from(testRuns)
+            .where(gte(testRuns.startedAt, since))
+            .orderBy(desc(testRuns.startedAt))
+            .limit(10);
 
-    // Recent runs (filtered by related tests if filters applied)
-    const recentRunsQuery = db
-      .select()
-      .from(testRuns)
-      .where(gte(testRuns.startedAt, since))
-      .orderBy(desc(testRuns.startedAt))
-      .limit(10);
-
-    let recentRuns = await recentRunsQuery;
-
-    // Filter runs in memory if we have test filters
-    if (filteredRunIds.length > 0) {
-      recentRuns = recentRuns.filter((run) => filteredRunIds.includes(run.id));
-    }
-
-    // Pass rate over time (filtered)
-    const passRateTimelineQuery = db
+    // Pass rate over time
+    const passRateTimeline = await db
       .select({
         date: sql<string>`date_trunc('day', ${testRuns.startedAt})::date::text`,
         passRate: sql<number>`
@@ -263,34 +260,29 @@ export async function GET(request: NextRequest) {
       .groupBy(sql`1`)
       .orderBy(sql`1`);
 
-    const passRateTimeline = await passRateTimelineQuery;
-
-    // Top flaky tests (filtered) - healthScore 50-80, consistent with tests page filter
-    const flakyConditionsForList: SQL[] = [
-      gte(testHealth.healthScore, 50),
-      lt(testHealth.healthScore, 80),
-    ];
-    if (testConditions.length > 0) {
-      flakyConditionsForList.push(...testConditions);
-    }
-
-    const flakyTests = await db
+    // OPTIMIZED: Top flaky tests with window function to get count in same query
+    // This replaces the duplicate flaky count query pattern
+    const flakyTestsWithCount = await db
       .select({
         test: tests,
         health: testHealth,
+        totalFlaky: sql<number>`count(*) OVER()`.as("total_flaky"),
       })
       .from(tests)
       .innerJoin(testHealth, eq(tests.id, testHealth.testId))
-      .where(and(...flakyConditionsForList))
+      .where(
+        and(
+          ...testConditions,
+          gte(testHealth.healthScore, 50),
+          lt(testHealth.healthScore, 80)
+        )
+      )
       .orderBy(testHealth.healthScore) // ASC - lower score = more flaky
       .limit(5);
 
-    // Top failing tests (filtered) - only show tests with healthScore < 50 (critical)
-    const failingConditionsForList = [sql`${testHealth.healthScore} < 50`];
-    if (testConditions.length > 0) {
-      failingConditionsForList.push(...testConditions);
-    }
+    const flakyCount = flakyTestsWithCount[0]?.totalFlaky ?? 0;
 
+    // Top failing tests (healthScore < 50)
     const failingTests = await db
       .select({
         test: tests,
@@ -298,69 +290,35 @@ export async function GET(request: NextRequest) {
       })
       .from(tests)
       .innerJoin(testHealth, eq(tests.id, testHealth.testId))
-      .where(and(...failingConditionsForList))
+      .where(and(...testConditions, lt(testHealth.healthScore, 50)))
       .orderBy(testHealth.healthScore)
       .limit(5);
 
     // Calculate overall health score (filtered)
-    const avgHealthQuery = db
+    const avgHealthResult = await db
       .select({
         avgHealth: sql<number>`round(avg(${testHealth.healthScore}))`,
       })
       .from(testHealth)
       .innerJoin(tests, eq(testHealth.testId, tests.id))
-      .$dynamic();
+      .where(testWhereClause);
 
-    const avgHealthResult = await avgHealthQuery.where(testWhereClause);
-
-    // Calculate overall pass rate
+    // Calculate overall pass rate from recent runs
     const totalPassed = recentRuns.reduce(
       (acc, run) => acc + run.passedCount,
-      0,
+      0
     );
-    const totalTests = recentRuns.reduce((acc, run) => acc + run.totalTests, 0);
+    const totalTestsInRuns = recentRuns.reduce(
+      (acc, run) => acc + run.totalTests,
+      0
+    );
     const overallPassRate =
-      totalTests > 0 ? Math.round((totalPassed / totalTests) * 100) : 0;
+      totalTestsInRuns > 0
+        ? Math.round((totalPassed / totalTestsInRuns) * 100)
+        : 0;
 
-    // Count flaky tests (healthScore 50-80, consistent with tests page filter)
-    const flakyConditions: SQL[] = [
-      gte(testHealth.healthScore, 50),
-      lt(testHealth.healthScore, 80),
-    ];
-    if (testConditions.length > 0) {
-      flakyConditions.push(...testConditions);
-    }
-
-    const flakyCountResult = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(testHealth)
-      .innerJoin(tests, eq(testHealth.testId, tests.id))
-      .where(and(...flakyConditions));
-
-    // Get filter options
-    const repositories = await db
-      .selectDistinct({ repository: tests.repository })
-      .from(tests);
-
-    const projects = await db
-      .selectDistinct({ projectName: tests.projectName })
-      .from(tests);
-
-    const tagsResult = await db
-      .select({ tags: tests.tags })
-      .from(tests)
-      .where(
-        sql`${tests.tags} IS NOT NULL AND array_length(${tests.tags}, 1) > 0`,
-      );
-
-    const allTags = new Set<string>();
-    for (const row of tagsResult) {
-      if (row.tags) {
-        for (const t of row.tags) {
-          allTags.add(t);
-        }
-      }
-    }
+    // OPTIMIZED: Get filter options from cache
+    const filterOptions = await getFilterOptions();
 
     return NextResponse.json({
       overview: {
@@ -369,9 +327,9 @@ export async function GET(request: NextRequest) {
         disabledTests: Number(testStats[0].disabledTests),
         avgHealthScore: Number(avgHealthResult[0].avgHealth) || 0,
         overallPassRate,
-        flakyCount: Number(flakyCountResult[0].count),
+        flakyCount: Number(flakyCount),
         healthDistribution: Object.fromEntries(
-          healthDistribution.map((h) => [h.bucket, Number(h.count)]),
+          healthDistribution.map((h) => [h.bucket, Number(h.count)])
         ),
       },
       recentRuns: recentRuns.map((run) => ({
@@ -387,7 +345,7 @@ export async function GET(request: NextRequest) {
         totalTests: Number(p.totalTests),
         totalRuns: Number(p.totalRuns),
       })),
-      flakyTests: flakyTests.map((t) => ({
+      flakyTests: flakyTestsWithCount.map((t) => ({
         ...t.test,
         health: t.health,
       })),
@@ -395,17 +353,13 @@ export async function GET(request: NextRequest) {
         ...t.test,
         health: t.health,
       })),
-      filters: {
-        repositories: repositories.map((r) => r.repository),
-        projects: projects.map((p) => p.projectName),
-        tags: Array.from(allTags).sort(),
-      },
+      filters: filterOptions,
     });
   } catch (error) {
     logger.error({ err: error }, "Failed to fetch dashboard data");
     return NextResponse.json(
       { error: "Failed to fetch dashboard data" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

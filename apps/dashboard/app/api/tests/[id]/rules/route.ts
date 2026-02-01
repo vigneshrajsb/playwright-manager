@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { tests, skipRules } from "@/lib/db/schema";
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { isValidUUID } from "@/lib/validation/uuid";
+import { parseId } from "@/lib/validation/id";
 
 /**
  * @swagger
@@ -18,8 +18,8 @@ import { isValidUUID } from "@/lib/validation/uuid";
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Test ID (UUID)
+ *           type: integer
+ *         description: Test ID
  *     responses:
  *       200:
  *         description: Skip rules retrieved successfully
@@ -34,9 +34,9 @@ import { isValidUUID } from "@/lib/validation/uuid";
  *                     type: object
  *                     properties:
  *                       id:
- *                         type: string
+ *                         type: integer
  *                       testId:
- *                         type: string
+ *                         type: integer
  *                       branchPattern:
  *                         type: string
  *                         nullable: true
@@ -59,9 +59,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseId(idStr);
 
-    if (!isValidUUID(id)) {
+    if (id === null) {
       return NextResponse.json(
         { error: "Invalid test ID format" },
         { status: 400 }

@@ -1,9 +1,9 @@
 import {
   pgTable,
-  uuid,
+  serial,
+  integer,
   varchar,
   boolean,
-  integer,
   timestamp,
   text,
   jsonb,
@@ -11,7 +11,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 // ============================================================================
 // Tests Table - Unique test definitions
@@ -19,7 +19,7 @@ import { relations } from "drizzle-orm";
 export const tests = pgTable(
   "tests",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: serial("id").primaryKey(),
     playwrightTestId: varchar("playwright_test_id", { length: 255 }).notNull(),
     repository: varchar("repository", { length: 255 }).notNull(), // e.g., "org/repo"
     filePath: varchar("file_path", { length: 1024 }).notNull(),
@@ -55,6 +55,10 @@ export const tests = pgTable(
     index("idx_tests_deleted").on(table.isDeleted),
     index("idx_tests_project").on(table.projectName),
     index("idx_tests_repository").on(table.repository),
+    // Composite index for common filter combination
+    index("idx_tests_repo_project").on(table.repository, table.projectName),
+    // GIN index for array containment on tags
+    index("idx_tests_tags").using("gin", table.tags),
   ]
 );
 
@@ -64,7 +68,7 @@ export const tests = pgTable(
 export const testRuns = pgTable(
   "test_runs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
+    id: serial("id").primaryKey(),
     runId: varchar("run_id", { length: 255 }).unique().notNull(),
     branch: varchar("branch", { length: 255 }),
     commitSha: varchar("commit_sha", { length: 40 }),
@@ -102,11 +106,11 @@ export const testRuns = pgTable(
 export const testResults = pgTable(
   "test_results",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    testId: uuid("test_id")
+    id: serial("id").primaryKey(),
+    testId: integer("test_id")
       .notNull()
       .references(() => tests.id, { onDelete: "cascade" }),
-    testRunId: uuid("test_run_id")
+    testRunId: integer("test_run_id")
       .notNull()
       .references(() => testRuns.id, { onDelete: "cascade" }),
     status: varchar("status", { length: 50 }).notNull(),
@@ -135,6 +139,14 @@ export const testResults = pgTable(
     index("idx_test_results_status").on(table.status),
     index("idx_test_results_outcome").on(table.outcome),
     index("idx_test_results_started_at").on(table.startedAt),
+    // Composite index for health calculation queries
+    index("idx_test_results_health").on(
+      table.testId,
+      table.isFinalAttempt,
+      table.startedAt
+    ),
+    // Composite index for run details page
+    index("idx_test_results_run_details").on(table.testRunId, table.startedAt),
   ]
 );
 
@@ -144,8 +156,8 @@ export const testResults = pgTable(
 export const testHealth = pgTable(
   "test_health",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    testId: uuid("test_id")
+    id: serial("id").primaryKey(),
+    testId: integer("test_id")
       .notNull()
       .references(() => tests.id, { onDelete: "cascade" })
       .unique(),
@@ -185,8 +197,126 @@ export const testHealth = pgTable(
   (table) => [
     index("idx_test_health_health_score").on(table.healthScore),
     index("idx_test_health_pass_rate").on(table.passRate),
+    // Partial index for flaky/failing tests (most common filter)
+    index("idx_test_health_problematic")
+      .on(table.healthScore)
+      .where(sql`health_score < 80`),
   ]
 );
+
+// ============================================================================
+// Skip Rules Table - Conditional skip rules per test
+// ============================================================================
+export const skipRules = pgTable(
+  "skip_rules",
+  {
+    id: serial("id").primaryKey(),
+    testId: integer("test_id")
+      .notNull()
+      .references(() => tests.id, { onDelete: "cascade" }),
+    branchPattern: varchar("branch_pattern", { length: 255 }), // null = all branches
+    envPattern: varchar("env_pattern", { length: 1024 }), // null = all envs
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }), // null = active, set = soft deleted
+  },
+  (table) => [
+    index("idx_skip_rules_test_id").on(table.testId),
+    // Partial index for active rules only
+    index("idx_skip_rules_active")
+      .on(table.testId)
+      .where(sql`deleted_at IS NULL`),
+  ]
+);
+
+// ============================================================================
+// Error Signatures Table - Track recurring error patterns
+// ============================================================================
+export const errorSignatures = pgTable(
+  "error_signatures",
+  {
+    id: serial("id").primaryKey(),
+    testId: integer("test_id")
+      .notNull()
+      .references(() => tests.id, { onDelete: "cascade" }),
+    signatureHash: varchar("signature_hash", { length: 64 }).notNull(),
+    errorMessage: text("error_message").notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    occurrenceCount: integer("occurrence_count").default(1).notNull(),
+    passedAfterCount: integer("passed_after_count").default(0).notNull(),
+  },
+  (table) => [
+    index("idx_error_sig_test_id").on(table.testId),
+    uniqueIndex("idx_error_sig_unique").on(table.testId, table.signatureHash),
+  ]
+);
+
+// ============================================================================
+// Verdict Feedback Table - Track user feedback on flakiness verdicts
+// ============================================================================
+export const verdictFeedback = pgTable(
+  "verdict_feedback",
+  {
+    id: serial("id").primaryKey(),
+    testRunId: integer("test_run_id")
+      .notNull()
+      .references(() => testRuns.id, { onDelete: "cascade" }),
+    testId: integer("test_id")
+      .notNull()
+      .references(() => tests.id, { onDelete: "cascade" }),
+    verdict: varchar("verdict", { length: 20 }).notNull(),
+    confidence: integer("confidence").notNull(),
+    llmUsed: boolean("llm_used").default(false).notNull(),
+    feedback: varchar("feedback", { length: 10 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("idx_verdict_feedback_test_run").on(table.testRunId),
+    index("idx_verdict_feedback_test").on(table.testId),
+  ]
+);
+
+// ============================================================================
+// Prompt Settings Table - Versioned prompt templates
+// ============================================================================
+export const promptSettings = pgTable(
+  "prompt_settings",
+  {
+    id: serial("id").primaryKey(),
+    content: text("content").notNull(),
+    version: integer("version").notNull(),
+    isActive: boolean("is_active").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    createdBy: text("created_by"), // "system" for default, or future user id
+  },
+  (table) => [
+    index("idx_prompt_settings_is_active").on(table.isActive),
+    index("idx_prompt_settings_version").on(table.version),
+  ]
+);
+
+// ============================================================================
+// Filter Cache Table - Cache for filter dropdown options
+// ============================================================================
+export const filterCache = pgTable("filter_cache", {
+  id: serial("id").primaryKey(),
+  cacheKey: varchar("cache_key", { length: 50 }).notNull().unique(),
+  cacheValue: jsonb("cache_value").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
 
 // ============================================================================
 // Relations
@@ -223,27 +353,6 @@ export const testHealthRelations = relations(testHealth, ({ one }) => ({
   }),
 }));
 
-// ============================================================================
-// Skip Rules Table - Conditional skip rules per test
-// ============================================================================
-export const skipRules = pgTable(
-  "skip_rules",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    testId: uuid("test_id")
-      .notNull()
-      .references(() => tests.id, { onDelete: "cascade" }),
-    branchPattern: varchar("branch_pattern", { length: 255 }), // null = all branches
-    envPattern: varchar("env_pattern", { length: 1024 }), // null = all envs
-    reason: text("reason").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }), // null = active, set = soft deleted
-  },
-  (table) => [index("idx_skip_rules_test_id").on(table.testId)]
-);
-
 export const skipRulesRelations = relations(skipRules, ({ one }) => ({
   test: one(tests, {
     fields: [skipRules.testId],
@@ -251,66 +360,12 @@ export const skipRulesRelations = relations(skipRules, ({ one }) => ({
   }),
 }));
 
-// ============================================================================
-// Error Signatures Table - Track recurring error patterns
-// ============================================================================
-export const errorSignatures = pgTable(
-  "error_signatures",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    testId: uuid("test_id")
-      .notNull()
-      .references(() => tests.id, { onDelete: "cascade" }),
-    signatureHash: varchar("signature_hash", { length: 64 }).notNull(),
-    errorMessage: text("error_message").notNull(),
-    firstSeenAt: timestamp("first_seen_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    occurrenceCount: integer("occurrence_count").default(1).notNull(),
-    passedAfterCount: integer("passed_after_count").default(0).notNull(),
-  },
-  (table) => [
-    index("idx_error_sig_test_id").on(table.testId),
-    uniqueIndex("idx_error_sig_unique").on(table.testId, table.signatureHash),
-  ]
-);
-
 export const errorSignaturesRelations = relations(errorSignatures, ({ one }) => ({
   test: one(tests, {
     fields: [errorSignatures.testId],
     references: [tests.id],
   }),
 }));
-
-// ============================================================================
-// Verdict Feedback Table - Track user feedback on flakiness verdicts
-// ============================================================================
-export const verdictFeedback = pgTable(
-  "verdict_feedback",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    testRunId: uuid("test_run_id")
-      .notNull()
-      .references(() => testRuns.id, { onDelete: "cascade" }),
-    testId: uuid("test_id")
-      .notNull()
-      .references(() => tests.id, { onDelete: "cascade" }),
-    verdict: varchar("verdict", { length: 20 }).notNull(),
-    confidence: integer("confidence").notNull(),
-    llmUsed: boolean("llm_used").default(false).notNull(),
-    feedback: varchar("feedback", { length: 10 }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-  },
-  (table) => [
-    index("idx_verdict_feedback_test_run").on(table.testRunId),
-    index("idx_verdict_feedback_test").on(table.testId),
-  ]
-);
 
 export const verdictFeedbackRelations = relations(verdictFeedback, ({ one }) => ({
   testRun: one(testRuns, {
@@ -322,27 +377,6 @@ export const verdictFeedbackRelations = relations(verdictFeedback, ({ one }) => 
     references: [tests.id],
   }),
 }));
-
-// ============================================================================
-// Prompt Settings Table - Versioned prompt templates
-// ============================================================================
-export const promptSettings = pgTable(
-  "prompt_settings",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    content: text("content").notNull(),
-    version: integer("version").notNull(),
-    isActive: boolean("is_active").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    createdBy: text("created_by"), // "system" for default, or future user id
-  },
-  (table) => [
-    index("idx_prompt_settings_is_active").on(table.isActive),
-    index("idx_prompt_settings_version").on(table.version),
-  ]
-);
 
 // ============================================================================
 // Types
@@ -363,3 +397,5 @@ export type VerdictFeedback = typeof verdictFeedback.$inferSelect;
 export type NewVerdictFeedback = typeof verdictFeedback.$inferInsert;
 export type PromptSetting = typeof promptSettings.$inferSelect;
 export type NewPromptSetting = typeof promptSettings.$inferInsert;
+export type FilterCache = typeof filterCache.$inferSelect;
+export type NewFilterCache = typeof filterCache.$inferInsert;

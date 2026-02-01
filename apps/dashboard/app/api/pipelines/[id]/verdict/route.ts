@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { analyzeFlakiness, type PipelineVerdict } from "@/lib/flakiness-analyzer";
 import { db } from "@/lib/db";
 import { verdictFeedback } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { parseId } from "@/lib/validation/id";
 
 // Simple in-memory cache for verdicts (per pipeline)
-const verdictCache = new Map<string, { verdict: PipelineVerdict; timestamp: number }>();
+const verdictCache = new Map<number, { verdict: PipelineVerdict; timestamp: number }>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
  * Fetch existing feedback for tests in a pipeline and merge into verdict
  */
-async function mergeUserFeedback(pipelineId: string, verdict: PipelineVerdict): Promise<PipelineVerdict> {
+async function mergeUserFeedback(pipelineId: number, verdict: PipelineVerdict): Promise<PipelineVerdict> {
   if (verdict.failedTests.length === 0) return verdict;
 
   const feedbackRecords = await db
@@ -47,8 +48,8 @@ async function mergeUserFeedback(pipelineId: string, verdict: PipelineVerdict): 
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Pipeline ID (UUID)
+ *           type: integer
+ *         description: Pipeline ID
  *       - in: query
  *         name: refresh
  *         schema:
@@ -78,7 +79,7 @@ async function mergeUserFeedback(pipelineId: string, verdict: PipelineVerdict): 
  *                     type: object
  *                     properties:
  *                       testId:
- *                         type: string
+ *                         type: integer
  *                       testTitle:
  *                         type: string
  *                       filePath:
@@ -102,7 +103,16 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: idStr } = await params;
+  const id = parseId(idStr);
+
+  if (id === null) {
+    return NextResponse.json(
+      { error: "Invalid pipeline ID format" },
+      { status: 400 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const forceRefresh = searchParams.get("refresh") === "true";
 
@@ -136,6 +146,6 @@ export async function GET(
 }
 
 // Export cache invalidation function for use by reports API
-export function invalidateVerdictCache(pipelineId: string) {
+export function invalidateVerdictCache(pipelineId: number) {
   verdictCache.delete(pipelineId);
 }

@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verdictFeedback } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
-import { isValidUUID } from "@/lib/validation/uuid";
 
 interface FeedbackPayload {
-  testRunId: string;
-  testId: string;
+  testRunId: number;
+  testId: number;
   verdict: string;
   confidence: number;
   llmUsed: boolean;
@@ -35,12 +34,10 @@ interface FeedbackPayload {
  *               - feedback
  *             properties:
  *               testRunId:
- *                 type: string
- *                 format: uuid
+ *                 type: integer
  *                 description: The ID of the test run
  *               testId:
- *                 type: string
- *                 format: uuid
+ *                 type: integer
  *                 description: The ID of the test
  *               verdict:
  *                 type: string
@@ -89,17 +86,31 @@ export async function POST(request: NextRequest) {
     const body: FeedbackPayload = await request.json();
 
     // Validate required fields
-    if (!body.testRunId || !body.testId || !body.verdict || body.confidence === undefined || !body.feedback) {
+    if (
+      !body.testRunId ||
+      !body.testId ||
+      !body.verdict ||
+      body.confidence === undefined ||
+      !body.feedback
+    ) {
       return NextResponse.json(
-        { error: "testRunId, testId, verdict, confidence, and feedback are required" },
+        {
+          error:
+            "testRunId, testId, verdict, confidence, and feedback are required",
+        },
         { status: 400 }
       );
     }
 
-    // Validate UUID formats
-    if (!isValidUUID(body.testRunId) || !isValidUUID(body.testId)) {
+    // Validate ID formats (must be positive integers)
+    if (
+      typeof body.testRunId !== "number" ||
+      body.testRunId <= 0 ||
+      typeof body.testId !== "number" ||
+      body.testId <= 0
+    ) {
       return NextResponse.json(
-        { error: "testRunId and testId must be valid UUIDs" },
+        { error: "testRunId and testId must be valid positive integers" },
         { status: 400 }
       );
     }

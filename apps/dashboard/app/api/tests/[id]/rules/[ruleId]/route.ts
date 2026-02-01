@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { skipRules } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { isValidUUID } from "@/lib/validation/uuid";
+import { parseId } from "@/lib/validation/id";
 
 /**
  * @swagger
@@ -18,14 +18,14 @@ import { isValidUUID } from "@/lib/validation/uuid";
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Test ID (UUID)
+ *           type: integer
+ *         description: Test ID
  *       - in: path
  *         name: ruleId
  *         required: true
  *         schema:
- *           type: string
- *         description: Skip rule ID (UUID)
+ *           type: integer
+ *         description: Skip rule ID
  *     responses:
  *       200:
  *         description: Skip rule deleted successfully
@@ -47,15 +47,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; ruleId: string }> }
 ) {
   try {
-    const { id, ruleId } = await params;
+    const { id: idStr, ruleId: ruleIdStr } = await params;
+    const id = parseId(idStr);
+    const ruleId = parseId(ruleIdStr);
 
-    if (!isValidUUID(id)) {
+    if (id === null) {
       return NextResponse.json(
         { error: "Invalid test ID format" },
         { status: 400 }
       );
     }
-    if (!isValidUUID(ruleId)) {
+    if (ruleId === null) {
       return NextResponse.json(
         { error: "Invalid rule ID format" },
         { status: 400 }

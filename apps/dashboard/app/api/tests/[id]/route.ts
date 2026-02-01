@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tests, testHealth, testResults, testRuns } from "@/lib/db/schema";
+import { tests, testResults, testRuns } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { parseId } from "@/lib/validation/id";
 
 /**
  * @swagger
@@ -58,7 +59,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseId(idStr);
+
+    if (id === null) {
+      return NextResponse.json(
+        { error: "Invalid test ID format" },
+        { status: 400 }
+      );
+    }
 
     // Get test with health
     const test = await db.query.tests.findFirst({
@@ -148,7 +157,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseId(idStr);
+
+    if (id === null) {
+      return NextResponse.json(
+        { error: "Invalid test ID format" },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { reason } = body;
 

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { testResults, tests, testRuns, testHealth } from "@/lib/db/schema";
 import { eq, desc, and, asc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { parseId } from "@/lib/validation/id";
 
 /**
  * @swagger
@@ -17,8 +18,8 @@ import { logger } from "@/lib/logger";
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Result ID (UUID)
+ *           type: integer
+ *         description: Result ID
  *     responses:
  *       200:
  *         description: Result details retrieved successfully
@@ -31,7 +32,7 @@ import { logger } from "@/lib/logger";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     status:
  *                       type: string
  *                     outcome:
@@ -55,7 +56,7 @@ import { logger } from "@/lib/logger";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     testTitle:
  *                       type: string
  *                     filePath:
@@ -85,7 +86,7 @@ import { logger } from "@/lib/logger";
  *                     type: object
  *                     properties:
  *                       id:
- *                         type: string
+ *                         type: integer
  *                       status:
  *                         type: string
  *                       outcome:
@@ -96,7 +97,7 @@ import { logger } from "@/lib/logger";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     branch:
  *                       type: string
  *                     commitSha:
@@ -113,7 +114,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: idStr } = await params;
+  const id = parseId(idStr);
+
+  if (id === null) {
+    return NextResponse.json(
+      { error: "Invalid result ID format" },
+      { status: 400 }
+    );
+  }
 
   try {
     // Get the result with test and run data

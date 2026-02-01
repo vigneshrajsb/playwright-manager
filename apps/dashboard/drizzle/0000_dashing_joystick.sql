@@ -1,6 +1,44 @@
+CREATE TABLE "error_signatures" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"test_id" integer NOT NULL,
+	"signature_hash" varchar(64) NOT NULL,
+	"error_message" text NOT NULL,
+	"first_seen_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"last_seen_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"occurrence_count" integer DEFAULT 1 NOT NULL,
+	"passed_after_count" integer DEFAULT 0 NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "filter_cache" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"cache_key" varchar(50) NOT NULL,
+	"cache_value" jsonb NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "filter_cache_cache_key_unique" UNIQUE("cache_key")
+);
+--> statement-breakpoint
+CREATE TABLE "prompt_settings" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"content" text NOT NULL,
+	"version" integer NOT NULL,
+	"is_active" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"created_by" text
+);
+--> statement-breakpoint
+CREATE TABLE "skip_rules" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"test_id" integer NOT NULL,
+	"branch_pattern" varchar(255),
+	"env_pattern" varchar(1024),
+	"reason" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"deleted_at" timestamp with time zone
+);
+--> statement-breakpoint
 CREATE TABLE "test_health" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"test_id" uuid NOT NULL,
+	"id" serial PRIMARY KEY NOT NULL,
+	"test_id" integer NOT NULL,
 	"total_runs" integer DEFAULT 0 NOT NULL,
 	"passed_count" integer DEFAULT 0 NOT NULL,
 	"failed_count" integer DEFAULT 0 NOT NULL,
@@ -8,6 +46,9 @@ CREATE TABLE "test_health" (
 	"flaky_count" integer DEFAULT 0 NOT NULL,
 	"pass_rate" numeric(5, 2) DEFAULT '0' NOT NULL,
 	"flakiness_rate" numeric(5, 2) DEFAULT '0' NOT NULL,
+	"recent_pass_rate" numeric(5, 2) DEFAULT '0' NOT NULL,
+	"recent_flakiness_rate" numeric(5, 2) DEFAULT '0' NOT NULL,
+	"health_divergence" numeric(5, 2) DEFAULT '0' NOT NULL,
 	"avg_duration_ms" integer DEFAULT 0 NOT NULL,
 	"health_score" integer DEFAULT 100 NOT NULL,
 	"trend" varchar(20) DEFAULT 'stable' NOT NULL,
@@ -22,13 +63,14 @@ CREATE TABLE "test_health" (
 );
 --> statement-breakpoint
 CREATE TABLE "test_results" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"test_id" uuid NOT NULL,
-	"test_run_id" uuid NOT NULL,
+	"id" serial PRIMARY KEY NOT NULL,
+	"test_id" integer NOT NULL,
+	"test_run_id" integer NOT NULL,
 	"status" varchar(50) NOT NULL,
 	"expected_status" varchar(50) NOT NULL,
 	"duration_ms" integer NOT NULL,
 	"retry_count" integer DEFAULT 0 NOT NULL,
+	"is_final_attempt" boolean DEFAULT true NOT NULL,
 	"worker_index" integer,
 	"parallel_index" integer,
 	"error_message" text,
@@ -44,13 +86,14 @@ CREATE TABLE "test_results" (
 );
 --> statement-breakpoint
 CREATE TABLE "test_runs" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" serial PRIMARY KEY NOT NULL,
 	"run_id" varchar(255) NOT NULL,
 	"branch" varchar(255),
 	"commit_sha" varchar(40),
 	"commit_message" text,
 	"ci_job_url" varchar(1024),
 	"base_url" varchar(1024),
+	"report_path" varchar(1024),
 	"playwright_version" varchar(50),
 	"total_workers" integer,
 	"shard_current" integer,
@@ -69,7 +112,7 @@ CREATE TABLE "test_runs" (
 );
 --> statement-breakpoint
 CREATE TABLE "tests" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"id" serial PRIMARY KEY NOT NULL,
 	"playwright_test_id" varchar(255) NOT NULL,
 	"repository" varchar(255) NOT NULL,
 	"file_path" varchar(1024) NOT NULL,
@@ -78,9 +121,6 @@ CREATE TABLE "tests" (
 	"tags" text[] DEFAULT '{}',
 	"location_line" integer,
 	"location_column" integer,
-	"is_enabled" boolean DEFAULT true NOT NULL,
-	"disabled_at" timestamp with time zone,
-	"disabled_reason" text,
 	"is_deleted" boolean DEFAULT false NOT NULL,
 	"deleted_at" timestamp with time zone,
 	"deleted_reason" text,
@@ -90,22 +130,49 @@ CREATE TABLE "tests" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "verdict_feedback" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"test_run_id" integer NOT NULL,
+	"test_id" integer NOT NULL,
+	"verdict" varchar(20) NOT NULL,
+	"confidence" integer NOT NULL,
+	"llm_used" boolean DEFAULT false NOT NULL,
+	"feedback" varchar(10) NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "error_signatures" ADD CONSTRAINT "error_signatures_test_id_tests_id_fk" FOREIGN KEY ("test_id") REFERENCES "public"."tests"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "skip_rules" ADD CONSTRAINT "skip_rules_test_id_tests_id_fk" FOREIGN KEY ("test_id") REFERENCES "public"."tests"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "test_health" ADD CONSTRAINT "test_health_test_id_tests_id_fk" FOREIGN KEY ("test_id") REFERENCES "public"."tests"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "test_results" ADD CONSTRAINT "test_results_test_id_tests_id_fk" FOREIGN KEY ("test_id") REFERENCES "public"."tests"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "test_results" ADD CONSTRAINT "test_results_test_run_id_test_runs_id_fk" FOREIGN KEY ("test_run_id") REFERENCES "public"."test_runs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "verdict_feedback" ADD CONSTRAINT "verdict_feedback_test_run_id_test_runs_id_fk" FOREIGN KEY ("test_run_id") REFERENCES "public"."test_runs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "verdict_feedback" ADD CONSTRAINT "verdict_feedback_test_id_tests_id_fk" FOREIGN KEY ("test_id") REFERENCES "public"."tests"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_error_sig_test_id" ON "error_signatures" USING btree ("test_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_error_sig_unique" ON "error_signatures" USING btree ("test_id","signature_hash");--> statement-breakpoint
+CREATE INDEX "idx_prompt_settings_is_active" ON "prompt_settings" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX "idx_prompt_settings_version" ON "prompt_settings" USING btree ("version");--> statement-breakpoint
+CREATE INDEX "idx_skip_rules_test_id" ON "skip_rules" USING btree ("test_id");--> statement-breakpoint
+CREATE INDEX "idx_skip_rules_active" ON "skip_rules" USING btree ("test_id") WHERE deleted_at IS NULL;--> statement-breakpoint
 CREATE INDEX "idx_test_health_health_score" ON "test_health" USING btree ("health_score");--> statement-breakpoint
 CREATE INDEX "idx_test_health_pass_rate" ON "test_health" USING btree ("pass_rate");--> statement-breakpoint
+CREATE INDEX "idx_test_health_problematic" ON "test_health" USING btree ("health_score") WHERE health_score < 80;--> statement-breakpoint
 CREATE INDEX "idx_test_results_test_id" ON "test_results" USING btree ("test_id");--> statement-breakpoint
 CREATE INDEX "idx_test_results_test_run_id" ON "test_results" USING btree ("test_run_id");--> statement-breakpoint
 CREATE INDEX "idx_test_results_status" ON "test_results" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_test_results_outcome" ON "test_results" USING btree ("outcome");--> statement-breakpoint
 CREATE INDEX "idx_test_results_started_at" ON "test_results" USING btree ("started_at");--> statement-breakpoint
+CREATE INDEX "idx_test_results_health" ON "test_results" USING btree ("test_id","is_final_attempt","started_at");--> statement-breakpoint
+CREATE INDEX "idx_test_results_run_details" ON "test_results" USING btree ("test_run_id","started_at");--> statement-breakpoint
 CREATE INDEX "idx_test_runs_started_at" ON "test_runs" USING btree ("started_at");--> statement-breakpoint
 CREATE INDEX "idx_test_runs_status" ON "test_runs" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "idx_test_runs_branch" ON "test_runs" USING btree ("branch");--> statement-breakpoint
 CREATE UNIQUE INDEX "unique_test" ON "tests" USING btree ("repository","file_path","test_title","project_name");--> statement-breakpoint
 CREATE INDEX "idx_tests_playwright_id" ON "tests" USING btree ("playwright_test_id");--> statement-breakpoint
-CREATE INDEX "idx_tests_enabled" ON "tests" USING btree ("is_enabled");--> statement-breakpoint
 CREATE INDEX "idx_tests_deleted" ON "tests" USING btree ("is_deleted");--> statement-breakpoint
 CREATE INDEX "idx_tests_project" ON "tests" USING btree ("project_name");--> statement-breakpoint
-CREATE INDEX "idx_tests_repository" ON "tests" USING btree ("repository");
+CREATE INDEX "idx_tests_repository" ON "tests" USING btree ("repository");--> statement-breakpoint
+CREATE INDEX "idx_tests_repo_project" ON "tests" USING btree ("repository","project_name");--> statement-breakpoint
+CREATE INDEX "idx_tests_tags" ON "tests" USING gin ("tags");--> statement-breakpoint
+CREATE INDEX "idx_verdict_feedback_test_run" ON "verdict_feedback" USING btree ("test_run_id");--> statement-breakpoint
+CREATE INDEX "idx_verdict_feedback_test" ON "verdict_feedback" USING btree ("test_id");

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { testRuns, testResults, tests } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { parseId } from "@/lib/validation/id";
 
 /**
  * @swagger
@@ -17,8 +18,8 @@ import { logger } from "@/lib/logger";
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Run ID (UUID)
+ *           type: integer
+ *         description: Run ID
  *     responses:
  *       200:
  *         description: Run details retrieved successfully
@@ -31,7 +32,7 @@ import { logger } from "@/lib/logger";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     runId:
  *                       type: string
  *                     branch:
@@ -73,7 +74,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseId(idStr);
+
+    if (id === null) {
+      return NextResponse.json(
+        { error: "Invalid run ID format" },
+        { status: 400 }
+      );
+    }
 
     // Get run
     const run = await db.query.testRuns.findFirst({
