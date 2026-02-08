@@ -7,6 +7,7 @@ export type {
 
 export { useIsMobile } from "./use-mobile";
 export { useDataTableUrlState } from "./use-data-table";
+export { useTimeRangeUrl } from "./use-time-range-url";
 
 // Query hooks
 export * from "./queries";

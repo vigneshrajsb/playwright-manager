@@ -50,7 +50,8 @@ const getStatusIcon = (status: string) => {
 };
 
 export const pipelineColumns = (
-  onOpenSheet: (id: string) => void
+  onOpenSheet: (id: string) => void,
+  buildUrl?: (path: string, params?: Record<string, string | undefined>) => string
 ): ColumnDef<Pipeline>[] => [
   {
     accessorKey: "status",
@@ -199,6 +200,8 @@ export const pipelineColumns = (
     id: "actions",
     cell: ({ row }) => {
       const pipeline = row.original;
+      const resultsUrl = buildUrl?.("/dashboard/results", { testRunId: pipeline.id })
+        ?? `/dashboard/results?testRunId=${pipeline.id}`;
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -213,7 +216,7 @@ export const pipelineColumns = (
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href={`/dashboard/results?testRunId=${pipeline.id}`}>
+              <Link href={resultsUrl}>
                 <ListChecks className="mr-2 h-4 w-4" />
                 View Results
               </Link>

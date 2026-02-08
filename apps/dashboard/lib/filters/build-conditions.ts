@@ -1,4 +1,4 @@
-import { eq, ilike, and, or, sql, gte, lt, gt, lte, SQL } from "drizzle-orm";
+import { eq, ilike, and, or, sql, gte, lt, lte, SQL } from "drizzle-orm";
 import { tests, testHealth, testResults, testRuns } from "@/lib/db/schema";
 
 /**
@@ -128,14 +128,17 @@ export interface ResultFilterParams {
   tags?: string | null;
   status?: string | null;
   outcome?: string | null;
-  testRunId?: string | null;
-  testId?: string | null;
+  testRunId?: number | string | null;
+  testId?: number | string | null;
   startDate?: string | null;
   endDate?: string | null;
 }
 
 export function buildResultConditions(params: ResultFilterParams): SQL[] {
   const conditions: SQL[] = [];
+
+  // Only show final attempts in results table
+  conditions.push(eq(testResults.isFinalAttempt, true));
 
   if (params.search) {
     conditions.push(
@@ -182,11 +185,17 @@ export function buildResultConditions(params: ResultFilterParams): SQL[] {
   }
 
   if (params.testRunId) {
-    conditions.push(eq(testResults.testRunId, params.testRunId));
+    const runId = typeof params.testRunId === "string" ? Number(params.testRunId) : params.testRunId;
+    if (!isNaN(runId)) {
+      conditions.push(eq(testResults.testRunId, runId));
+    }
   }
 
   if (params.testId) {
-    conditions.push(eq(testResults.testId, params.testId));
+    const tid = typeof params.testId === "string" ? Number(params.testId) : params.testId;
+    if (!isNaN(tid)) {
+      conditions.push(eq(testResults.testId, tid));
+    }
   }
 
   if (params.startDate) {

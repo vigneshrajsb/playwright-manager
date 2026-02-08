@@ -25,7 +25,7 @@ import { ConfirmationDialog } from "@/components/dialogs";
 import { DisableTestDialog } from "@/components/dialogs/disable-test-dialog";
 import { RulesSheet } from "@/components/tests/rules-sheet";
 import { testColumns, type TestTableMeta } from "./columns";
-import { useDataTableUrlState } from "@/hooks";
+import { useDataTableUrlState, useTimeRangeUrl } from "@/hooks";
 import { useTests, useTestFilters, useToggleTests, useDeleteTests } from "@/hooks/queries";
 import type { TestFilters } from "@/hooks/queries";
 import type { DialogState } from "@/types/dialog";
@@ -82,6 +82,7 @@ export default function TestsPage() {
 
   const toggleMutation = useToggleTests();
   const deleteMutation = useDeleteTests();
+  const { buildUrl } = useTimeRangeUrl();
 
   // Get selected IDs from row selection
   const selectedIds = useMemo(() => {
@@ -104,6 +105,7 @@ export default function TestsPage() {
 
   const tableMeta: TestTableMeta = {
     onViewRules: (test) => setRulesSheetTest(test),
+    buildUrl,
   };
 
   // Build faceted filter options

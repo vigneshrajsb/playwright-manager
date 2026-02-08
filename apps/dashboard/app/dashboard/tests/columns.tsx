@@ -21,6 +21,7 @@ import type { Test } from "@/types";
 
 export interface TestTableMeta {
   onViewRules?: (test: Test) => void;
+  buildUrl?: (path: string, params?: Record<string, string | undefined>) => string;
 }
 
 export const testColumns: ColumnDef<Test>[] = [
@@ -154,6 +155,8 @@ export const testColumns: ColumnDef<Test>[] = [
       const test = row.original;
       const meta = table.options.meta as TestTableMeta | undefined;
       const hasSkipRules = test.skipRules && test.skipRules.length > 0;
+      const resultsUrl = meta?.buildUrl?.("/dashboard/results", { testId: test.id })
+        ?? `/dashboard/results?testId=${test.id}`;
 
       return (
         <DropdownMenu>
@@ -164,7 +167,7 @@ export const testColumns: ColumnDef<Test>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
-              <Link href={`/dashboard/results?testId=${test.id}`}>
+              <Link href={resultsUrl}>
                 <ListChecks className="mr-2 h-4 w-4" />
                 View Results
               </Link>

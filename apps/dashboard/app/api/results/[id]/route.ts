@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testResults, tests, testRuns, testHealth } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, asc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { parseId } from "@/lib/validation/id";
 
 /**
  * @swagger
@@ -17,8 +18,8 @@ import { logger } from "@/lib/logger";
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Result ID (UUID)
+ *           type: integer
+ *         description: Result ID
  *     responses:
  *       200:
  *         description: Result details retrieved successfully
@@ -31,7 +32,7 @@ import { logger } from "@/lib/logger";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     status:
  *                       type: string
  *                     outcome:
@@ -55,7 +56,7 @@ import { logger } from "@/lib/logger";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     testTitle:
  *                       type: string
  *                     filePath:
@@ -85,7 +86,7 @@ import { logger } from "@/lib/logger";
  *                     type: object
  *                     properties:
  *                       id:
- *                         type: string
+ *                         type: integer
  *                       status:
  *                         type: string
  *                       outcome:
@@ -96,7 +97,7 @@ import { logger } from "@/lib/logger";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     branch:
  *                       type: string
  *                     commitSha:
@@ -113,7 +114,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: idStr } = await params;
+  const id = parseId(idStr);
+
+  if (id === null) {
+    return NextResponse.json(
+      { error: "Invalid result ID format" },
+      { status: 400 }
+    );
+  }
 
   try {
     // Get the result with test and run data
@@ -147,7 +156,7 @@ export async function GET(
 
     const health = healthData[0] || null;
 
-    // Get recent history - last 5 runs of this test
+    // Get recent history - last 5 runs of this test (final attempts only)
     const recentHistory = await db
       .select({
         id: testResults.id,
@@ -164,15 +173,42 @@ export async function GET(
       })
       .from(testResults)
       .innerJoin(testRuns, eq(testResults.testRunId, testRuns.id))
-      .where(eq(testResults.testId, test.id))
+      .where(
+        and(
+          eq(testResults.testId, test.id),
+          eq(testResults.isFinalAttempt, true)
+        )
+      )
       .orderBy(desc(testResults.startedAt))
       .limit(5);
+
+    // Get all retry attempts for this specific test in this run
+    const retryHistory = await db
+      .select({
+        id: testResults.id,
+        status: testResults.status,
+        outcome: testResults.outcome,
+        durationMs: testResults.durationMs,
+        retryCount: testResults.retryCount,
+        isFinalAttempt: testResults.isFinalAttempt,
+        errorMessage: testResults.errorMessage,
+        startedAt: testResults.startedAt,
+      })
+      .from(testResults)
+      .where(
+        and(
+          eq(testResults.testId, test.id),
+          eq(testResults.testRunId, run.id)
+        )
+      )
+      .orderBy(asc(testResults.retryCount));
 
     return NextResponse.json({
       result,
       test,
       health,
       recentHistory,
+      retryHistory,
       run: {
         id: run.id,
         runId: run.runId,

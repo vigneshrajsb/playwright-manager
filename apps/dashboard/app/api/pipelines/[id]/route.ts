@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { testRuns, testResults, tests } from "@/lib/db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { parseId } from "@/lib/validation/id";
 
 /**
  * @swagger
@@ -17,8 +18,8 @@ import { logger } from "@/lib/logger";
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Pipeline ID (UUID)
+ *           type: integer
+ *         description: Pipeline ID
  *     responses:
  *       200:
  *         description: Pipeline details retrieved successfully
@@ -31,7 +32,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
+  const { id: idStr } = await params;
+  const id = parseId(idStr);
+
+  if (id === null) {
+    return NextResponse.json(
+      { error: "Invalid pipeline ID format" },
+      { status: 400 }
+    );
+  }
 
   try {
     // Get the pipeline
@@ -58,7 +67,7 @@ export async function GET(
 
     // Get recent runs from the same repository (excluding current)
     let recentRuns: Array<{
-      id: string;
+      id: number;
       runId: string;
       branch: string | null;
       status: string;
@@ -104,7 +113,7 @@ export async function GET(
           })
           .from(testRuns)
           .where(
-            sql`${testRuns.id} = ANY(ARRAY[${sql.join(runIdParams, sql`, `)}]::uuid[]) AND ${testRuns.id} != ${id}`
+            sql`${testRuns.id} = ANY(ARRAY[${sql.join(runIdParams, sql`, `)}]::integer[]) AND ${testRuns.id} != ${id}`
           )
           .orderBy(desc(testRuns.startedAt))
           .limit(5);

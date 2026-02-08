@@ -11,7 +11,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { HealthBadge } from "@/components/badges";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, ExternalLink, Clock, GitBranch, ListChecks } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import { Loader2, ExternalLink, Clock, GitBranch, ListChecks, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import {
   Tooltip,
@@ -21,6 +26,7 @@ import {
 import { formatDuration, formatDate, formatRelativeTime, stripAnsi } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
 import { PlaywrightIcon } from "@/components/icons/playwright-icon";
+import { useTimeRangeUrl } from "@/hooks";
 
 interface ResultDetail {
   result: {
@@ -70,6 +76,16 @@ interface ResultDetail {
     commitSha: string | null;
     ciJobUrl: string | null;
     reportPath: string | null;
+  }>;
+  retryHistory: Array<{
+    id: string;
+    status: string;
+    outcome: string;
+    durationMs: number;
+    retryCount: number;
+    isFinalAttempt: boolean;
+    errorMessage: string | null;
+    startedAt: string;
   }>;
   run: {
     id: string;
@@ -129,6 +145,7 @@ function getAnnotationBadgeVariant(type: string): string {
 export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
   const [data, setData] = useState<ResultDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const { buildUrl } = useTimeRangeUrl();
 
   useEffect(() => {
     if (resultId) {
@@ -147,7 +164,6 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
       setData(null);
     }
   }, [resultId]);
-
 
   return (
     <Sheet open={!!resultId} onOpenChange={(open) => !open && onClose()}>
@@ -222,6 +238,72 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                   </div>
                 )}
               </div>
+
+              {/* Retry History Timeline */}
+              {data.result.retryCount > 0 && (
+                <>
+                  <Separator />
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium">Retry History</h4>
+                    <div className="space-y-3">
+                      {data.retryHistory.map((attempt, idx) => (
+                        <div key={attempt.id} className="relative pl-6">
+                          {/* Timeline connector line */}
+                          {idx < data.retryHistory.length - 1 && (
+                            <div className="absolute left-2 top-6 h-full w-px bg-border" />
+                          )}
+
+                          {/* Timeline dot */}
+                          <div className="absolute left-0 top-1.5 h-4 w-4 rounded-full border-2 border-border bg-background flex items-center justify-center">
+                            <div
+                              className={`h-2 w-2 rounded-full ${
+                                attempt.status === "passed"
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                            />
+                          </div>
+
+                          {/* Attempt content */}
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {attempt.isFinalAttempt
+                                  ? "Final Attempt"
+                                  : `Attempt ${attempt.retryCount + 1}`}
+                              </span>
+                              {getStatusBadge(attempt.status)}
+                              <span className="text-xs text-muted-foreground">
+                                {formatDuration(attempt.durationMs)}
+                              </span>
+                            </div>
+
+                            {attempt.errorMessage && (
+                              <Collapsible>
+                                <CollapsibleTrigger className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                                  <ChevronDown className="h-3 w-3" />
+                                  View error
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="mt-2 rounded-md bg-red-500/10 p-2">
+                                    <p className="text-xs text-red-600 dark:text-red-400 whitespace-pre-wrap font-mono">
+                                      {stripAnsi(attempt.errorMessage)}
+                                    </p>
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            )}
+
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(attempt.startedAt)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <Separator />
 
@@ -379,7 +461,7 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link
-                                  href={`/dashboard/results?testRunId=${run.testRunId}`}
+                                  href={buildUrl("/dashboard/results", { testRunId: run.testRunId })}
                                   className="p-1 hover:bg-muted rounded"
                                 >
                                   <ListChecks className="h-3.5 w-3.5" />

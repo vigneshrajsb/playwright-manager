@@ -105,10 +105,22 @@ export interface TestResult {
   durationMs: number;
   errorMessage: string | null;
   retryCount: number;
+  isFinalAttempt: boolean;
   startedAt: string;
   baseUrl: string | null;
   test: TestResultTest;
   run: TestResultRun;
+}
+
+export interface RetryAttempt {
+  id: string;
+  status: string;
+  outcome: string;
+  durationMs: number;
+  retryCount: number;
+  isFinalAttempt: boolean;
+  errorMessage: string | null;
+  startedAt: string;
 }
 
 export interface RunInfo {

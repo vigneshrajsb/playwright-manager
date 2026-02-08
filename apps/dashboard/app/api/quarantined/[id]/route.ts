@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { skipRules } from "@/lib/db/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { isValidUUID } from "@/lib/validation/uuid";
+import { parseId } from "@/lib/validation/id";
 import { validatePatterns } from "@/lib/validation/patterns";
 
 interface UpdateRuleBody {
@@ -17,9 +17,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseId(idStr);
 
-    if (!isValidUUID(id)) {
+    if (id === null) {
       return NextResponse.json(
         { error: "Invalid rule ID format" },
         { status: 400 }
@@ -90,9 +91,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idStr } = await params;
+    const id = parseId(idStr);
 
-    if (!isValidUUID(id)) {
+    if (id === null) {
       return NextResponse.json(
         { error: "Invalid rule ID format" },
         { status: 400 }

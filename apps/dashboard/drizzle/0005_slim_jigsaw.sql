@@ -1,1 +1,0 @@
-ALTER TABLE "test_results" ADD COLUMN "is_final_attempt" boolean DEFAULT true NOT NULL;

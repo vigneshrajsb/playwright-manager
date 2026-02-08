@@ -29,6 +29,7 @@ import { HealthBadge } from "@/components/badges";
 import { TagFilterPopover } from "@/components/filters";
 import { formatRelativeTime } from "@/lib/utils/format";
 import { useDashboard } from "@/hooks/queries";
+import { useTimeRangeUrl } from "@/hooks";
 import type { DashboardFilters } from "@/hooks/queries";
 
 export default function DashboardOverviewPage() {
@@ -47,6 +48,7 @@ export default function DashboardOverviewPage() {
   };
 
   const { data, isLoading } = useDashboard(filters);
+  const { buildUrl } = useTimeRangeUrl();
 
   const updateUrl = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -178,7 +180,7 @@ export default function DashboardOverviewPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base font-medium">Recent Runs</CardTitle>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard/pipelines">
+              <Link href={buildUrl("/dashboard/pipelines")}>
                 View all <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
@@ -230,7 +232,7 @@ export default function DashboardOverviewPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base font-medium">Most Flaky</CardTitle>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard/tests?health=flaky">
+              <Link href={buildUrl("/dashboard/tests", { health: "flaky" })}>
                 View all <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
@@ -278,7 +280,7 @@ export default function DashboardOverviewPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-base font-medium">Most Failing</CardTitle>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/dashboard/tests?health=failing">
+              <Link href={buildUrl("/dashboard/tests", { health: "failing" })}>
                 View all <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>

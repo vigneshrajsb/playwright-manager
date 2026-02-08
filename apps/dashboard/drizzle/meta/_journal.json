@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1766977694745,
-      "tag": "0000_useful_quentin_quire",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1767046390379,
-      "tag": "0001_add_skip_rules",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1767046500000,
-      "tag": "0002_add_deleted_at_to_skip_rules",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1767046600000,
-      "tag": "0003_add_partial_index",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1767066650297,
-      "tag": "0004_strange_greymalkin",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1768378322364,
-      "tag": "0005_slim_jigsaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1768867883665,
-      "tag": "0006_slippery_master_mold",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1769496826831,
-      "tag": "0007_flippant_ser_duncan",
+      "when": 1769899304573,
+      "tag": "0000_dashing_joystick",
       "breakpoints": true
     }
   ]

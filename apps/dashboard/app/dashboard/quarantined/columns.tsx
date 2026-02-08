@@ -25,6 +25,7 @@ import type { QuarantinedRule } from "@/hooks/queries/use-quarantined";
 export interface QuarantinedTableMeta {
   onEdit: (rule: QuarantinedRule) => void;
   onDelete: (rule: QuarantinedRule) => void;
+  buildUrl?: (path: string, params?: Record<string, string | undefined>) => string;
 }
 
 function getRuleType(rule: QuarantinedRule): string {
@@ -96,12 +97,15 @@ export const quarantinedColumns: ColumnDef<QuarantinedRule>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Test" />
     ),
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const rule = row.original;
+      const meta = table.options.meta as QuarantinedTableMeta | undefined;
+      const testsUrl = meta?.buildUrl?.("/dashboard/tests", { search: encodeURIComponent(rule.test.testTitle) })
+        ?? `/dashboard/tests?search=${encodeURIComponent(rule.test.testTitle)}`;
       return (
         <div className="flex flex-col gap-0.5">
           <Link
-            href={`/dashboard/tests?search=${encodeURIComponent(rule.test.testTitle)}`}
+            href={testsUrl}
             className="font-medium hover:underline"
           >
             {rule.test.testTitle}

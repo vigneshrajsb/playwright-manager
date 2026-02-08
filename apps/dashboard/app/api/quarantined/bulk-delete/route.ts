@@ -3,10 +3,9 @@ import { db } from "@/lib/db";
 import { skipRules } from "@/lib/db/schema";
 import { and, inArray, isNull } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { isValidUUID } from "@/lib/validation/uuid";
 
 interface BulkDeleteBody {
-  ruleIds: string[];
+  ruleIds: number[];
 }
 
 export async function POST(request: NextRequest) {
@@ -21,11 +20,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate all IDs are valid UUIDs
-    const invalidIds = ruleIds.filter((id) => !isValidUUID(id));
+    // Validate all IDs are valid positive integers
+    const invalidIds = ruleIds.filter(
+      (id) => typeof id !== "number" || id <= 0 || !Number.isInteger(id)
+    );
     if (invalidIds.length > 0) {
       return NextResponse.json(
-        { error: "Invalid rule ID format" },
+        { error: "All rule IDs must be valid positive integers" },
         { status: 400 }
       );
     }
