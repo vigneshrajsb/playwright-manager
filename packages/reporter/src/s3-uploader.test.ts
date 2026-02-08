@@ -65,13 +65,6 @@ describe("uploadReportDirectory", () => {
     expect(result).toBe("reports/org/repo/run-123");
   });
 
-  it('uses default pathPrefix "reports"', async () => {
-    await uploadReportDirectory(baseConfig, "org/repo", "run-123");
-
-    const firstCall = MockPutObjectCommand.mock.calls[0][0];
-    expect(firstCall.Key).toMatch(/^reports\//);
-  });
-
   it("uses custom pathPrefix", async () => {
     const config: S3ReportConfig = {
       ...baseConfig,
@@ -121,16 +114,6 @@ describe("uploadReportDirectory", () => {
           accessKeyId: "AKID",
           secretAccessKey: "SECRET",
         },
-      }),
-    );
-  });
-
-  it("falls back to undefined credentials when not provided", async () => {
-    await uploadReportDirectory(baseConfig, "org/repo", "run-123");
-
-    expect(MockS3Client).toHaveBeenCalledWith(
-      expect.objectContaining({
-        credentials: undefined,
       }),
     );
   });

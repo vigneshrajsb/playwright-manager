@@ -113,6 +113,33 @@ describe("fetchDisabledTestsForProject", () => {
     const callArgs = mockFetch.mock.calls[0][1];
     expect(callArgs.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it("aborts fetch when timeout expires", async () => {
+    vi.useFakeTimers();
+
+    mockFetch.mockImplementation((_url: string, init: { signal: AbortSignal }) => {
+      return new Promise((_resolve, reject) => {
+        init.signal.addEventListener("abort", () => {
+          reject(new DOMException("The operation was aborted.", "AbortError"));
+        });
+      });
+    });
+
+    const promise = fetchDisabledTestsForProject(
+      "http://localhost:3000",
+      "org/repo",
+      "chromium",
+      "main",
+      undefined,
+      5000,
+    );
+
+    vi.advanceTimersByTime(5000);
+
+    await expect(promise).rejects.toThrow("aborted");
+
+    vi.useRealTimers();
+  });
 });
 
 describe("getDisabledTests", () => {
@@ -120,6 +147,11 @@ describe("getDisabledTests", () => {
 
   beforeEach(() => {
     global.fetch = mockFetch;
+    mockCache.get.mockReset();
+    mockCache.set.mockReset();
+    mockCache.getPendingRequest.mockReset();
+    mockCache.setPendingRequest.mockReset();
+    mockCache.clearPendingRequest.mockReset();
     mockCache.get.mockReturnValue(undefined);
     mockCache.getPendingRequest.mockReturnValue(undefined);
   });
@@ -262,4 +294,5 @@ describe("getDisabledTests", () => {
 
     expect(mockCache.clearPendingRequest).toHaveBeenCalledWith("org/repo:chromium:main:unknown");
   });
+
 });

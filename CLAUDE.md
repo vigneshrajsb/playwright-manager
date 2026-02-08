@@ -147,9 +147,22 @@ This generates migration files in `apps/dashboard/drizzle/`. Commit these with y
 - `packages/reporter/src/reporter.ts` - Result batching + CI detection
 - `packages/eslint-plugin/src/rules/require-fixture-imports.ts` - ESLint rule implementation
 
+## Pre-Commit Checklist
+
+**MANDATORY**: Run these before every commit to packages:
+
+```bash
+pnpm check:fix              # Auto-fix lint + formatting (Biome)
+pnpm test                   # Run all package tests
+```
+
+If either command fails, fix the issues before committing. Do not commit with failing tests or lint errors.
+
+When in doubt about whether a change needs tests or might break something, **ask the user to confirm** before committing.
+
 ## Testing Requirements
 
-**MANDATORY**: All package changes must include tests. Run `pnpm test` before committing.
+**MANDATORY**: All package changes must include tests. Tests must pass before committing.
 
 ### Rules
 
@@ -157,6 +170,7 @@ This generates migration files in `apps/dashboard/drizzle/`. Commit these with y
 - **Bug fixes** require a regression test that fails without the fix
 - **Refactors** must not break existing tests - run `pnpm test` to verify
 - **Never skip or delete tests** to make a change pass - fix the underlying issue
+- **Every test must be valuable** - no testing language behavior, no duplicating existing tests, no asserting mocks return what you told them to return
 
 ### Test Framework
 
