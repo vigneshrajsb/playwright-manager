@@ -131,7 +131,7 @@ export const test = base.extend<TestManagerFixtures>({
     async ({ testManager: options }, use, testInfo) => {
       // Skip if disabled or not configured
       if (options?.disabled || !options?.apiUrl) {
-        await use();
+        await use(undefined);
         return;
       }
 
@@ -230,7 +230,7 @@ export const test = base.extend<TestManagerFixtures>({
       }
 
       log("Test is enabled, proceeding", { testId: testInfo.testId });
-      await use();
+      await use(undefined);
     },
     { auto: true },
   ],

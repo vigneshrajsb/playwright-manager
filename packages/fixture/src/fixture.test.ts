@@ -294,5 +294,4 @@ describe("getDisabledTests", () => {
 
     expect(mockCache.clearPendingRequest).toHaveBeenCalledWith("org/repo:chromium:main:unknown");
   });
-
 });
