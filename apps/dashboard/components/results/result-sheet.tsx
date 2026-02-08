@@ -165,7 +165,6 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
     }
   }, [resultId]);
 
-
   return (
     <Sheet open={!!resultId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">

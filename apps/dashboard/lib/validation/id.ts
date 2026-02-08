@@ -1,20 +1,6 @@
 /**
- * Validate that a string is a valid positive integer ID
- *
- * @param str - The string to validate
- * @returns true if valid positive integer, false otherwise
- */
-export function isValidId(str: string): boolean {
-  const num = parseInt(str, 10);
-  return !isNaN(num) && num > 0 && String(num) === str;
-}
-
-/**
- * Parse a string ID to a number
- * Returns null if invalid
- *
- * @param str - The string to parse
- * @returns The parsed number or null if invalid
+ * Parse a string ID to a positive integer.
+ * Returns null if the string is not a valid positive integer.
  */
 export function parseId(str: string): number | null {
   const num = parseInt(str, 10);
@@ -22,4 +8,11 @@ export function parseId(str: string): number | null {
     return null;
   }
   return num;
+}
+
+/**
+ * Validate that a string is a valid positive integer ID.
+ */
+export function isValidId(str: string): boolean {
+  return parseId(str) !== null;
 }

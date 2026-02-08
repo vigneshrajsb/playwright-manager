@@ -32,11 +32,11 @@ export function useTimeRangeUrl() {
 
       // Merge additional params (may override time range if needed)
       if (additionalParams) {
-        Object.entries(additionalParams).forEach(([key, value]) => {
+        for (const [key, value] of Object.entries(additionalParams)) {
           if (value !== undefined) {
             params.set(key, value);
           }
-        });
+        }
       }
 
       const queryString = params.toString();

@@ -18,8 +18,8 @@ import { parseId } from "@/lib/validation/id";
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Test ID (UUID)
+ *           type: integer
+ *         description: Test ID
  *     responses:
  *       200:
  *         description: Test details retrieved successfully
@@ -32,7 +32,7 @@ import { parseId } from "@/lib/validation/id";
  *                   type: object
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     playwrightTestId:
  *                       type: string
  *                     filePath:
@@ -128,8 +128,8 @@ export async function GET(
  *         name: id
  *         required: true
  *         schema:
- *           type: string
- *         description: Test ID (UUID)
+ *           type: integer
+ *         description: Test ID
  *     requestBody:
  *       required: true
  *       content:

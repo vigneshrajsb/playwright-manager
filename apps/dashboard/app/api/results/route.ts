@@ -7,6 +7,7 @@ import {
   combineConditions,
 } from "@/lib/filters/build-conditions";
 import { logger } from "@/lib/logger";
+import { parseId } from "@/lib/validation/id";
 
 // Maximum number of results to return (with or without filters)
 const MAX_RESULTS = 2000;
@@ -67,8 +68,8 @@ const MAX_RESULTS = 2000;
  *       - in: query
  *         name: testRunId
  *         schema:
- *           type: string
- *         description: Filter by specific test run ID (UUID)
+ *           type: integer
+ *         description: Filter by specific test run ID
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -97,7 +98,7 @@ const MAX_RESULTS = 2000;
  *                     type: object
  *                     properties:
  *                       id:
- *                         type: string
+ *                         type: integer
  *                       status:
  *                         type: string
  *                       outcome:
@@ -111,7 +112,7 @@ const MAX_RESULTS = 2000;
  *                         type: object
  *                         properties:
  *                           id:
- *                             type: string
+ *                             type: integer
  *                           testTitle:
  *                             type: string
  *                           filePath:
@@ -128,7 +129,7 @@ const MAX_RESULTS = 2000;
  *                         type: object
  *                         properties:
  *                           id:
- *                             type: string
+ *                             type: integer
  *                           branch:
  *                             type: string
  *                           commitSha:
@@ -175,7 +176,7 @@ const MAX_RESULTS = 2000;
  *                   description: Run details when filtering by testRunId
  *                   properties:
  *                     id:
- *                       type: string
+ *                       type: integer
  *                     branch:
  *                       type: string
  *                     status:
@@ -290,9 +291,10 @@ export async function GET(request: NextRequest) {
     const filters = await getFilterOptions();
 
     let runInfo = null;
-    if (testRunId) {
+    const parsedTestRunId = testRunId ? parseId(testRunId) : null;
+    if (parsedTestRunId) {
       const run = await db.query.testRuns.findFirst({
-        where: eq(testRuns.id, testRunId),
+        where: eq(testRuns.id, parsedTestRunId),
       });
       if (run) {
         runInfo = {
@@ -310,9 +312,10 @@ export async function GET(request: NextRequest) {
     }
 
     let testInfo = null;
-    if (testId) {
+    const parsedTestId = testId ? parseId(testId) : null;
+    if (parsedTestId) {
       const test = await db.query.tests.findFirst({
-        where: eq(tests.id, testId),
+        where: eq(tests.id, parsedTestId),
       });
       if (test) {
         testInfo = {
