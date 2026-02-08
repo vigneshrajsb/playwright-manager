@@ -1,20 +1,20 @@
 import { test as base } from "@playwright/test";
-import type { TestManagerFixtureOptions, DisabledTestsResponse } from "./types";
 import { disabledTestsCache } from "./cache";
 import { detectCIContext } from "./ci-detection";
-import { DEFAULT_CACHE_TTL_MS, DEFAULT_API_TIMEOUT_MS } from "./constants";
+import { DEFAULT_API_TIMEOUT_MS, DEFAULT_CACHE_TTL_MS } from "./constants";
+import type { DisabledTestsResponse, TestManagerFixtureOptions } from "./types";
 
 /**
  * Fetch ALL disabled tests for a repository/project from the API
  * This fetches all disabled tests at once so we can cache them properly
  */
-async function fetchDisabledTestsForProject(
+export async function fetchDisabledTestsForProject(
   apiUrl: string,
   repository: string,
   projectName: string,
   branch: string | undefined,
   baseURL: string | undefined,
-  timeout: number
+  timeout: number,
 ): Promise<DisabledTestsResponse> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -49,7 +49,7 @@ async function fetchDisabledTestsForProject(
  * Get disabled tests with caching and request deduplication
  * Fetches ALL disabled tests for the repository/project and caches them
  */
-async function getDisabledTests(
+export async function getDisabledTests(
   apiUrl: string,
   repository: string,
   projectName: string,
@@ -57,7 +57,7 @@ async function getDisabledTests(
   baseURL: string | undefined,
   cacheTtl: number,
   timeout: number,
-  debug: boolean = false
+  debug: boolean = false,
 ): Promise<DisabledTestsResponse> {
   const log = (...args: unknown[]) => {
     if (debug) {
@@ -90,7 +90,7 @@ async function getDisabledTests(
     projectName,
     branch,
     baseURL,
-    timeout
+    timeout,
   );
   disabledTestsCache.setPendingRequest(cacheKey, request);
 
@@ -113,7 +113,7 @@ async function getDisabledTests(
  */
 type TestManagerFixtures = {
   testManager: TestManagerFixtureOptions;
-  _testManagerAutoSkip: void;
+  _testManagerAutoSkip: undefined;
 };
 
 /**
@@ -138,7 +138,7 @@ export const test = base.extend<TestManagerFixtures>({
       // Repository is required
       if (!options?.repository) {
         throw new Error(
-          "[TestManagerFixture] repository option is required. Example: { repository: 'org/repo' }"
+          "[TestManagerFixture] repository option is required. Example: { repository: 'org/repo' }",
         );
       }
 
@@ -193,13 +193,12 @@ export const test = base.extend<TestManagerFixtures>({
           baseURL,
           cacheTtl,
           timeout,
-          debug
+          debug,
         );
 
         disabledInfo = disabledTests.disabledTests[testInfo.testId];
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
         log("Error checking disabled status", {
           testId: testInfo.testId,
           error: errorMessage,
@@ -208,9 +207,7 @@ export const test = base.extend<TestManagerFixtures>({
         });
 
         if (!failSilently) {
-          throw new Error(
-            `[TestManagerFixture] Failed to check disabled status: ${errorMessage}`
-          );
+          throw new Error(`[TestManagerFixture] Failed to check disabled status: ${errorMessage}`);
         }
 
         log("failSilently enabled, continuing with test despite error");

@@ -1,11 +1,9 @@
-export { TestManagerReporter } from "./reporter";
+// Default export for Playwright reporter config
+export { TestManagerReporter, TestManagerReporter as default } from "./reporter";
 export type {
+  CIEnvironment,
+  ReportPayload,
+  RunMetadata,
   TestManagerReporterOptions,
   TestResultData,
-  RunMetadata,
-  ReportPayload,
-  CIEnvironment,
 } from "./types";
-
-// Default export for Playwright reporter config
-export { TestManagerReporter as default } from "./reporter";

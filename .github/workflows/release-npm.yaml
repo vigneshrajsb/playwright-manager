@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Run package tests
+        run: pnpm --filter @playwright-manager/${{ steps.package.outputs.name }} test
+
       - name: Build package
         run: pnpm --filter @playwright-manager/${{ steps.package.outputs.name }} build
 

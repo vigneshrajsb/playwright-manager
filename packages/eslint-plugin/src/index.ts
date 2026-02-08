@@ -1,5 +1,5 @@
 import requireFixtureImports from "./rules/require-fixture-imports";
-import type { PluginMeta, FlatPluginConfig, LegacyPluginConfig } from "./types";
+import type { FlatPluginConfig, LegacyPluginConfig, PluginMeta } from "./types";
 
 const meta: PluginMeta = {
   name: "@playwright-manager/eslint-plugin",

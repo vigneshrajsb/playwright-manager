@@ -6,8 +6,7 @@ import type { CachedDisabledTests, DisabledTestsResponse } from "./types";
  */
 class DisabledTestsCache {
   private cache: Map<string, CachedDisabledTests> = new Map();
-  private pendingRequests: Map<string, Promise<DisabledTestsResponse>> =
-    new Map();
+  private pendingRequests: Map<string, Promise<DisabledTestsResponse>> = new Map();
 
   /**
    * Get cached disabled tests by cache key
@@ -42,19 +41,14 @@ class DisabledTestsCache {
    * Get a pending request for deduplication
    * Multiple tests might try to fetch at the same time
    */
-  getPendingRequest(
-    cacheKey: string
-  ): Promise<DisabledTestsResponse> | undefined {
+  getPendingRequest(cacheKey: string): Promise<DisabledTestsResponse> | undefined {
     return this.pendingRequests.get(cacheKey);
   }
 
   /**
    * Set a pending request
    */
-  setPendingRequest(
-    cacheKey: string,
-    promise: Promise<DisabledTestsResponse>
-  ): void {
+  setPendingRequest(cacheKey: string, promise: Promise<DisabledTestsResponse>): void {
     this.pendingRequests.set(cacheKey, promise);
   }
 

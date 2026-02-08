@@ -1,23 +1,28 @@
 import type {
-  Reporter,
   FullConfig,
+  FullResult,
+  Reporter,
   Suite,
   TestCase,
   TestResult,
-  FullResult,
 } from "@playwright/test/reporter";
+import { uploadReportDirectory } from "./s3-uploader";
 import type {
+  CIEnvironment,
+  ReportPayload,
+  RunMetadata,
+  S3ReportConfig,
   TestManagerReporterOptions,
   TestResultData,
-  RunMetadata,
-  ReportPayload,
-  CIEnvironment,
-  S3ReportConfig,
 } from "./types";
-import { uploadReportDirectory } from "./s3-uploader";
 
 // Options type with most fields required but branch/commitSha/ciJobUrl/s3 optional
-type ResolvedOptions = Required<Omit<TestManagerReporterOptions, 'branch' | 'commitSha' | 'ciJobUrl' | 's3' | 'autoPassFlaky' | 'autoPassThreshold'>> & {
+type ResolvedOptions = Required<
+  Omit<
+    TestManagerReporterOptions,
+    "branch" | "commitSha" | "ciJobUrl" | "s3" | "autoPassFlaky" | "autoPassThreshold"
+  >
+> & {
   branch?: string;
   commitSha?: string;
   ciJobUrl?: string;
@@ -47,7 +52,7 @@ export class TestManagerReporter implements Reporter {
 
     if (!options.repository) {
       throw new Error(
-        "[TestManagerReporter] repository option is required. Example: { repository: 'org/repo' }"
+        "[TestManagerReporter] repository option is required. Example: { repository: 'org/repo' }",
       );
     }
 
@@ -219,7 +224,7 @@ export class TestManagerReporter implements Reporter {
     status: TestResult["status"],
     expectedStatus: TestCase["expectedStatus"],
     retry: number,
-    maxRetries: number
+    _maxRetries: number,
   ): TestResultData["outcome"] {
     // Check if test was expected to be skipped
     if (expectedStatus === "skipped") return "skipped";
@@ -237,11 +242,7 @@ export class TestManagerReporter implements Reporter {
     return "unexpected";
   }
 
-  private isFinalAttempt(
-    status: TestResult["status"],
-    retry: number,
-    maxRetries: number
-  ): boolean {
+  private isFinalAttempt(status: TestResult["status"], retry: number, maxRetries: number): boolean {
     // Passed tests are always final (no retry needed)
     if (status === "passed") return true;
 
@@ -252,7 +253,7 @@ export class TestManagerReporter implements Reporter {
     return retry >= maxRetries;
   }
 
-  onBegin(config: FullConfig, suite: Suite): void {
+  onBegin(config: FullConfig, _suite: Suite): void {
     if (this.isDisabled) return;
 
     this.config = config;
@@ -309,12 +310,7 @@ export class TestManagerReporter implements Reporter {
       isFinalAttempt: this.isFinalAttempt(result.status, result.retry, maxRetries),
       workerIndex: result.workerIndex,
       parallelIndex: result.parallelIndex,
-      outcome: this.determineOutcome(
-        result.status,
-        test.expectedStatus,
-        result.retry,
-        maxRetries
-      ),
+      outcome: this.determineOutcome(result.status, test.expectedStatus, result.retry, maxRetries),
       startTime: new Date(result.startTime).toISOString(),
       baseUrl: this.baseUrl,
     };
@@ -378,7 +374,7 @@ export class TestManagerReporter implements Reporter {
         console.error(
           "[TestManagerReporter] Failed to flush results",
           { runId: this.runId, resultCount: resultsToSend.length, apiUrl: this.options.apiUrl },
-          error
+          error,
         );
       }
       // Re-add results to queue for next flush attempt
@@ -389,7 +385,7 @@ export class TestManagerReporter implements Reporter {
   private async sendResults(
     results: TestResultData[],
     status: ReportPayload["status"],
-    reportPath?: string
+    reportPath?: string,
   ): Promise<{ runId?: string }> {
     const metadata: RunMetadata = {
       repository: this.options.repository,
@@ -434,7 +430,7 @@ export class TestManagerReporter implements Reporter {
       throw new Error(`API returned ${response.status}: ${text}`);
     }
 
-    const data = await response.json() as { runId?: string };
+    const data = (await response.json()) as { runId?: string };
     this.log("Results sent successfully", { runId: this.runId, count: results.length });
     return { runId: data.runId };
   }
@@ -451,7 +447,11 @@ export class TestManagerReporter implements Reporter {
     // Send remaining results with final status
     const finalStatus = this.mapFinalStatus(result.status);
 
-    this.log("Test run ended", { runId: this.runId, status: finalStatus, remainingResults: this.results.length });
+    this.log("Test run ended", {
+      runId: this.runId,
+      status: finalStatus,
+      remainingResults: this.results.length,
+    });
 
     // Upload HTML report to S3 if configured
     let reportPath: string | undefined;
@@ -462,7 +462,7 @@ export class TestManagerReporter implements Reporter {
           this.options.s3,
           this.options.repository,
           this.runId,
-          this.options.debug
+          this.options.debug,
         );
         this.log("HTML report uploaded", { reportPath });
       } catch (error) {
@@ -470,10 +470,10 @@ export class TestManagerReporter implements Reporter {
           throw error;
         }
         if (this.options.debug) {
-          console.error(
-            "[TestManagerReporter] Failed to upload HTML report",
-            { runId: this.runId, error }
-          );
+          console.error("[TestManagerReporter] Failed to upload HTML report", {
+            runId: this.runId,
+            error,
+          });
         }
       }
     }
@@ -499,8 +499,13 @@ export class TestManagerReporter implements Reporter {
       if (this.options.debug) {
         console.error(
           "[TestManagerReporter] Failed to send final report",
-          { runId: this.runId, status: finalStatus, resultCount: this.results.length, apiUrl: this.options.apiUrl },
-          error
+          {
+            runId: this.runId,
+            status: finalStatus,
+            resultCount: this.results.length,
+            apiUrl: this.options.apiUrl,
+          },
+          error,
         );
       }
     }
@@ -541,16 +546,14 @@ export class TestManagerReporter implements Reporter {
     try {
       this.log("Checking flakiness verdict for auto-pass...");
 
-      const response = await fetch(
-        `${this.options.apiUrl}/api/pipelines/${pipelineId}/verdict`
-      );
+      const response = await fetch(`${this.options.apiUrl}/api/pipelines/${pipelineId}/verdict`);
 
       if (!response.ok) {
         this.log("Failed to fetch verdict, not auto-passing");
         return;
       }
 
-      const verdict = await response.json() as {
+      const verdict = (await response.json()) as {
         canAutoPass?: boolean;
         verdict?: string;
         confidence?: number;
@@ -598,14 +601,18 @@ export class TestManagerReporter implements Reporter {
     const realTests = verdict.failedTests?.filter((t) => t.verdict === "likely_real_failure") || [];
 
     if (flakyTests.length > 0) {
-      console.log(`  ✓ ${flakyTests.length} failure${flakyTests.length > 1 ? "s are" : " is"} known flaky:`);
+      console.log(
+        `  ✓ ${flakyTests.length} failure${flakyTests.length > 1 ? "s are" : " is"} known flaky:`,
+      );
       for (const test of flakyTests) {
         console.log(`    • "${test.testTitle}" - ${test.reasoning}`);
       }
     }
 
     if (realTests.length > 0) {
-      console.log(`  ✗ ${realTests.length} failure${realTests.length > 1 ? "s need" : " needs"} investigation:`);
+      console.log(
+        `  ✗ ${realTests.length} failure${realTests.length > 1 ? "s need" : " needs"} investigation:`,
+      );
       for (const test of realTests) {
         console.log(`    • "${test.testTitle}" - ${test.reasoning}`);
       }

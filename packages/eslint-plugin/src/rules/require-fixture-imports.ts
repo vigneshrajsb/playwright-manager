@@ -1,9 +1,9 @@
 import type { Rule } from "eslint";
 import type {
   ImportDeclaration,
-  ImportSpecifier,
   ImportDefaultSpecifier,
   ImportNamespaceSpecifier,
+  ImportSpecifier,
 } from "estree";
 import type { RequireFixtureImportsOptions } from "../types";
 
@@ -13,10 +13,7 @@ const REQUIRED_FIXTURE_IMPORTS = new Set(["test", "expect"]);
 const SOURCE_PLAYWRIGHT_TEST = "@playwright/test";
 const SOURCE_FIXTURE = "@playwright-manager/fixture";
 
-type AnyImportSpecifier =
-  | ImportSpecifier
-  | ImportDefaultSpecifier
-  | ImportNamespaceSpecifier;
+type AnyImportSpecifier = ImportSpecifier | ImportDefaultSpecifier | ImportNamespaceSpecifier;
 
 const rule: Rule.RuleModule = {
   meta: {
@@ -45,8 +42,7 @@ const rule: Rule.RuleModule = {
             type: "array",
             items: { type: "string" },
             uniqueItems: true,
-            description:
-              "Additional import names to flag beyond 'test' and 'expect'",
+            description: "Additional import names to flag beyond 'test' and 'expect'",
           },
         },
         additionalProperties: false,
@@ -57,10 +53,7 @@ const rule: Rule.RuleModule = {
   create(context) {
     const options = (context.options[0] || {}) as RequireFixtureImportsOptions;
     const additionalImports = new Set<string>(options.additionalImports || []);
-    const flaggedImports = new Set([
-      ...REQUIRED_FIXTURE_IMPORTS,
-      ...additionalImports,
-    ]);
+    const flaggedImports = new Set([...REQUIRED_FIXTURE_IMPORTS, ...additionalImports]);
 
     return {
       ImportDeclaration(node: ImportDeclaration) {
@@ -116,9 +109,7 @@ const rule: Rule.RuleModule = {
 
         // Determine the message and data
         const messageId =
-          flaggedNames.length === 1
-            ? "useFixtureImport"
-            : "useFixtureImportMultiple";
+          flaggedNames.length === 1 ? "useFixtureImport" : "useFixtureImportMultiple";
         const messageData =
           flaggedNames.length === 1
             ? { importName: flaggedNames[0] }
@@ -138,26 +129,18 @@ const rule: Rule.RuleModule = {
                 if (s.type === "ImportDefaultSpecifier") return name === "test";
                 if (s.type === "ImportSpecifier") {
                   const imported =
-                    s.imported.type === "Identifier"
-                      ? s.imported.name
-                      : String(s.imported.value);
+                    s.imported.type === "Identifier" ? s.imported.name : String(s.imported.value);
                   return imported === name;
                 }
                 return false;
               });
 
               // Preserve alias if present
-              if (
-                specifier?.type === "ImportSpecifier" &&
-                specifier.local.name !== name
-              ) {
+              if (specifier?.type === "ImportSpecifier" && specifier.local.name !== name) {
                 return `${name} as ${specifier.local.name}`;
               }
               // Handle default import aliased differently
-              if (
-                specifier?.type === "ImportDefaultSpecifier" &&
-                specifier.local.name !== "test"
-              ) {
+              if (specifier?.type === "ImportDefaultSpecifier" && specifier.local.name !== "test") {
                 return `test as ${specifier.local.name}`;
               }
               return name;
@@ -173,7 +156,7 @@ const rule: Rule.RuleModule = {
               const remainingImport = buildRemainingImport(otherSpecifiers);
 
               // Insert the fixture import before the original import
-              fixes.push(fixer.insertTextBefore(node, newFixtureImport + "\n"));
+              fixes.push(fixer.insertTextBefore(node, `${newFixtureImport}\n`));
               // Replace the original import with remaining specifiers
               fixes.push(fixer.replaceText(node, remainingImport));
             }
@@ -201,15 +184,13 @@ function formatImportNames(names: string[]): string {
  * Build the remaining import statement for non-flagged specifiers
  */
 function buildRemainingImport(specifiers: AnyImportSpecifier[]): string {
-  const defaultSpec = specifiers.find(
-    (s) => s.type === "ImportDefaultSpecifier"
-  ) as ImportDefaultSpecifier | undefined;
-  const namespaceSpec = specifiers.find(
-    (s) => s.type === "ImportNamespaceSpecifier"
-  ) as ImportNamespaceSpecifier | undefined;
-  const namedSpecs = specifiers.filter(
-    (s) => s.type === "ImportSpecifier"
-  ) as ImportSpecifier[];
+  const defaultSpec = specifiers.find((s) => s.type === "ImportDefaultSpecifier") as
+    | ImportDefaultSpecifier
+    | undefined;
+  const namespaceSpec = specifiers.find((s) => s.type === "ImportNamespaceSpecifier") as
+    | ImportNamespaceSpecifier
+    | undefined;
+  const namedSpecs = specifiers.filter((s) => s.type === "ImportSpecifier") as ImportSpecifier[];
 
   const parts: string[] = [];
 
@@ -227,9 +208,7 @@ function buildRemainingImport(specifiers: AnyImportSpecifier[]): string {
   if (namedSpecs.length > 0) {
     const namedImports = namedSpecs.map((s) => {
       const imported =
-        s.imported.type === "Identifier"
-          ? s.imported.name
-          : String(s.imported.value);
+        s.imported.type === "Identifier" ? s.imported.name : String(s.imported.value);
       if (s.local.name !== imported) {
         return `${imported} as ${s.local.name}`;
       }

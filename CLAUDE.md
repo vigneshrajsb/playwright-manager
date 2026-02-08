@@ -57,7 +57,15 @@ pnpm --filter @playwright-manager/reporter build
 pnpm --filter @playwright-manager/fixture build
 pnpm --filter @playwright-manager/eslint-plugin build
 
-# Lint
+# Test packages
+pnpm test                   # Run all package tests
+pnpm test -- --watch        # Watch mode
+
+# Lint & format packages (Biome)
+pnpm check                  # Check lint + formatting
+pnpm check:fix              # Auto-fix lint + formatting
+
+# Lint dashboard (ESLint)
 pnpm lint
 
 # Database
@@ -138,6 +146,47 @@ This generates migration files in `apps/dashboard/drizzle/`. Commit these with y
 - `packages/fixture/src/fixture.ts` - Skip logic implementation
 - `packages/reporter/src/reporter.ts` - Result batching + CI detection
 - `packages/eslint-plugin/src/rules/require-fixture-imports.ts` - ESLint rule implementation
+
+## Testing Requirements
+
+**MANDATORY**: All package changes must include tests. Run `pnpm test` before committing.
+
+### Rules
+
+- **New features** require tests covering the happy path and key error paths
+- **Bug fixes** require a regression test that fails without the fix
+- **Refactors** must not break existing tests - run `pnpm test` to verify
+- **Never skip or delete tests** to make a change pass - fix the underlying issue
+
+### Test Framework
+
+- **Vitest** with globals enabled (`describe`, `it`, `expect`, `vi` available without imports)
+- Tests are co-located with source: `src/foo.ts` -> `src/foo.test.ts`
+- Root `vitest.config.ts` runs all package tests via `pnpm test`
+- Each package also has its own config for `pnpm --filter <package> test`
+
+### Writing Tests
+
+```bash
+# Run all package tests
+pnpm test
+
+# Run tests for a specific package
+pnpm --filter @playwright-manager/reporter test
+pnpm --filter @playwright-manager/fixture test
+pnpm --filter @playwright-manager/eslint-plugin test
+
+# Watch mode (re-runs on file changes)
+pnpm test -- --watch
+```
+
+### Mocking Patterns
+
+- `vi.fn()` for standalone mocks (remember to call `.mockReset()` in `beforeEach`)
+- `vi.mock('module')` for module mocking
+- `vi.useFakeTimers()` / `vi.useRealTimers()` for time-dependent code
+- Save/restore `process.env` for environment variable tests
+- ESLint rules: use `RuleTester` from `eslint` (no mocking needed)
 
 ## Environment
 
