@@ -14,7 +14,7 @@ import { logger } from "@/lib/logger";
 const AUTO_PASS_THRESHOLD = 90;
 
 export async function analyzeFlakiness(
-  pipelineId: string
+  pipelineId: number
 ): Promise<PipelineVerdict> {
   // Get failed test results for this pipeline
   const failedResults = await db
@@ -89,7 +89,7 @@ export async function analyzeFlakiness(
 }
 
 async function analyzeTestFailure(
-  testId: string,
+  testId: number,
   errorMessage: string | null,
   errorStack: string | null
 ): Promise<TestVerdict> {
@@ -222,7 +222,7 @@ async function analyzeTestFailure(
   };
 }
 
-function createUnknownVerdict(testId: string): TestVerdict {
+function createUnknownVerdict(testId: number): TestVerdict {
   return {
     testId,
     testTitle: "Unknown test",
@@ -265,7 +265,7 @@ function formatRecentHistory(
 }
 
 async function getSimilarErrors(
-  testId: string,
+  testId: number,
   errorMessage: string | null
 ): Promise<string> {
   if (!errorMessage) return "No error to compare";

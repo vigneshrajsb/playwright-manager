@@ -11,7 +11,7 @@ export interface FlakinessSignals {
 }
 
 export interface TestVerdict {
-  testId: string;
+  testId: number;
   testTitle: string;
   filePath: string;
   verdict: "flaky" | "likely_real_failure";

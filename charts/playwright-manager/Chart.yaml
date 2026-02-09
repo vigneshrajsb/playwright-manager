@@ -2,8 +2,8 @@ apiVersion: v2
 name: playwright-manager
 description: Self-hosted test management for Playwright - track health, manage flaky tests, and control test execution remotely via quarantine rules
 type: application
-version: 0.4.7
-appVersion: "0.4.7"
+version: 0.4.8
+appVersion: "0.4.8"
 home: https://github.com/vigneshrajsb/playwright-manager
 sources:
   - https://github.com/vigneshrajsb/playwright-manager
@@ -19,7 +19,7 @@ keywords:
 annotations:
   artifacthub.io/license: MIT
   artifacthub.io/changes: |
-    - Fix broken screenshots, traces, and attachments in hosted Playwright reports by replacing presigned S3 URLs with server-side proxy
+    - Fix type error in verdict route that blocked Docker image builds
 dependencies:
   - name: postgresql
     version: "~16.4.0"

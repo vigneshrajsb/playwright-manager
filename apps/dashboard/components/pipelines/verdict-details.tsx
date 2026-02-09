@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ThumbsUp, ThumbsDown, Bot, Calculator, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,16 +50,10 @@ interface TestVerdictCardProps {
 }
 
 function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
-  const [feedbackGiven, setFeedbackGiven] = useState<"up" | "down" | null>(test.userFeedback ?? null);
+  const [localFeedback, setLocalFeedback] = useState<"up" | "down" | null>(null);
+  const feedbackGiven = localFeedback ?? test.userFeedback ?? null;
   const [expanded, setExpanded] = useState(false);
   const feedbackMutation = useVerdictFeedback();
-
-  // Sync state when prop changes (e.g., after data fetch)
-  useEffect(() => {
-    if (test.userFeedback) {
-      setFeedbackGiven(test.userFeedback);
-    }
-  }, [test.userFeedback]);
 
   const isFlaky = test.verdict === "flaky";
   const verdictBadge = isFlaky ? (
@@ -79,7 +73,7 @@ function TestVerdictCard({ test, pipelineId }: TestVerdictCardProps) {
       llmUsed: test.llmUsed,
       feedback,
     });
-    setFeedbackGiven(feedback);
+    setLocalFeedback(feedback);
   };
 
   return (

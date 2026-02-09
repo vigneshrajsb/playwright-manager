@@ -60,7 +60,7 @@ import { validatePatterns } from "@/lib/validation/patterns";
  */
 
 interface BulkToggleBody {
-  testIds: string[];
+  testIds: number[];
   enabled: boolean;
   reason?: string;
   branchPattern?: string;

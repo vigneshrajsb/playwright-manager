@@ -11,7 +11,7 @@ export interface BaseFiltersData {
   tags: string[];
 }
 
-export interface TestFiltersData extends BaseFiltersData {}
+export type TestFiltersData = BaseFiltersData;
 
 export interface ResultFiltersData extends BaseFiltersData {
   statuses: string[];

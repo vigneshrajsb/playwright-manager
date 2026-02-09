@@ -38,8 +38,8 @@ interface ResultDetail {
     errorStack: string | null;
     retryCount: number;
     startedAt: string;
-    attachments: any[];
-    annotations: any[];
+    attachments: Array<{ name: string; contentType: string; path?: string; body?: string }>;
+    annotations: Array<{ type: string; description?: string }>;
     baseUrl: string | null;
   };
   test: {
@@ -147,6 +147,7 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
   const [loading, setLoading] = useState(false);
   const { buildUrl } = useTimeRangeUrl();
 
+  /* eslint-disable react-hooks/set-state-in-effect -- data fetch requires setState in effect */
   useEffect(() => {
     if (resultId) {
       setLoading(true);
@@ -164,6 +165,7 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
       setData(null);
     }
   }, [resultId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <Sheet open={!!resultId} onOpenChange={(open) => !open && onClose()}>

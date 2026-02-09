@@ -32,25 +32,21 @@ export function EditRuleSheet({ rule, onClose }: EditRuleSheetProps) {
 
   const updateMutation = useUpdateSkipRule();
 
-  // Sync form state when rule changes
+  /* eslint-disable react-hooks/set-state-in-effect -- form state sync from prop */
   useEffect(() => {
     if (rule) {
       setReason(rule.reason || "");
       setBranchPattern(rule.branchPattern || "");
       setEnvPattern(rule.envPattern || "");
       setShowAdvanced(!!(rule.branchPattern || rule.envPattern));
-    }
-  }, [rule]);
-
-  // Reset state when sheet closes
-  useEffect(() => {
-    if (!rule) {
+    } else {
       setReason("");
       setBranchPattern("");
       setEnvPattern("");
       setShowAdvanced(false);
     }
   }, [rule]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSave = async () => {
     if (!rule || !reason.trim()) return;

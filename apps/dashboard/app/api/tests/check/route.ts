@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
       string,
       {
         reason: string;
-        ruleId: string;
+        ruleId: number;
         matchedBranch?: boolean;
         matchedEnv?: boolean;
       }
