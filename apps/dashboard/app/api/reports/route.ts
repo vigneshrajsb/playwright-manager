@@ -423,7 +423,7 @@ function calculateStats(results: DbTestResult[]): HealthStats {
   );
 }
 
-async function updateTestHealth(tx: Transaction, testId: string) {
+async function updateTestHealth(tx: Transaction, testId: number) {
   // Get last N final results for this test (based on overall window)
   // Only count final attempts to avoid skewing health metrics with retry attempts
   const allResults = await tx.query.testResults.findMany({

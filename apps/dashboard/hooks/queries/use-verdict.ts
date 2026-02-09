@@ -43,7 +43,7 @@ export function useRefreshVerdict() {
 
 interface VerdictFeedbackParams {
   testRunId: string;
-  testId: string;
+  testId: number;
   verdict: string;
   confidence: number;
   llmUsed: boolean;

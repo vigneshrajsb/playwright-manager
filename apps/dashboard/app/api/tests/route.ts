@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
             )
         : [];
 
-    const rulesByTestId = new Map<string, typeof rulesResult>();
+    const rulesByTestId = new Map<number, typeof rulesResult>();
     for (const rule of rulesResult) {
       if (!rulesByTestId.has(rule.testId)) {
         rulesByTestId.set(rule.testId, []);

@@ -14,11 +14,11 @@ const MAX_VERSIONS = 10;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { versionId } = body;
+    const versionId = Number(body.versionId);
 
-    if (!versionId || typeof versionId !== "string") {
+    if (!body.versionId || !Number.isInteger(versionId) || versionId <= 0) {
       return NextResponse.json(
-        { error: "versionId is required" },
+        { error: "versionId is required and must be a positive integer" },
         { status: 400 }
       );
     }
