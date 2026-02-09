@@ -3,6 +3,37 @@ entries:
   playwright-manager:
   - annotations:
       artifacthub.io/changes: |
+        - Fix type error in verdict route that blocked Docker image builds
+      artifacthub.io/license: MIT
+    apiVersion: v2
+    appVersion: 0.4.8
+    created: "2026-02-09T10:01:01.719532293Z"
+    dependencies:
+    - name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: ~16.4.0
+    description: Self-hosted test management for Playwright - track health, manage
+      flaky tests, and control test execution remotely via quarantine rules
+    digest: 588b813bc3bf7930c51b2dc6f48052e8e52b41f39d312dabb7b49e3ca1c9399c
+    home: https://github.com/vigneshrajsb/playwright-manager
+    keywords:
+    - playwright
+    - testing
+    - test-management
+    - dashboard
+    - flaky-tests
+    - quarantine
+    maintainers:
+    - name: vigneshrajsb
+    name: playwright-manager
+    sources:
+    - https://github.com/vigneshrajsb/playwright-manager
+    type: application
+    urls:
+    - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.4.8/playwright-manager-0.4.8.tgz
+    version: 0.4.8
+  - annotations:
+      artifacthub.io/changes: |
         - Fix broken screenshots, traces, and attachments in hosted Playwright reports by replacing presigned S3 URLs with server-side proxy
       artifacthub.io/license: MIT
     apiVersion: v2
@@ -315,4 +346,4 @@ entries:
     urls:
     - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.0/playwright-manager-0.2.0.tgz
     version: 0.2.0
-generated: "2026-02-09T09:31:55.447920598Z"
+generated: "2026-02-09T10:01:01.719570184Z"
