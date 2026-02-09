@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -54,16 +54,6 @@ export function DisableTestDialog({
   const [branchPattern, setBranchPattern] = useState("");
   const [envPattern, setEnvPattern] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-
-  // Reset state when dialog closes (handles escape key, overlay click, etc.)
-  useEffect(() => {
-    if (!open) {
-      setReason("");
-      setBranchPattern("");
-      setEnvPattern("");
-      setShowAdvanced(false);
-    }
-  }, [open]);
 
   const handleConfirm = async () => {
     if (!reason.trim()) return;

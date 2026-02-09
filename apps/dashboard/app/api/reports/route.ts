@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
         let test;
         if (existingTest) {
           // Build update data, including restore if test was deleted
-          const updateData: Record<string, any> = {
+          const baseUpdateData = {
             playwrightTestId: testResult.testId,
             tags: testResult.tags || [],
             locationLine: testResult.location.line,
@@ -257,11 +257,9 @@ export async function POST(request: NextRequest) {
           };
 
           // Auto-restore if test was soft-deleted (it's back in the codebase)
-          if (existingTest.isDeleted) {
-            updateData.isDeleted = false;
-            updateData.deletedAt = null;
-            updateData.deletedReason = null;
-          }
+          const updateData = existingTest.isDeleted
+            ? { ...baseUpdateData, isDeleted: false, deletedAt: null, deletedReason: null }
+            : baseUpdateData;
 
           const [updated] = await tx
             .update(tests)

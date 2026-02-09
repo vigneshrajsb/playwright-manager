@@ -12,7 +12,7 @@ import { createHash } from "crypto";
 export function normalizeErrorMessage(errorMessage: string): string {
   if (!errorMessage) return "";
 
-  let normalized = errorMessage
+  const normalized = errorMessage
     // Remove line:column numbers (file.ts:123:45 -> file.ts)
     .replace(/:\d+:\d+/g, "")
     // Remove standalone line numbers (:123)

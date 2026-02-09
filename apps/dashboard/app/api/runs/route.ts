@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     since.setDate(since.getDate() - days);
 
     // Build query
-    let query = db
+    const query = db
       .select()
       .from(testRuns)
       .where(gte(testRuns.startedAt, since))

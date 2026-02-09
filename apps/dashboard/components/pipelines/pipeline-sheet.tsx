@@ -115,6 +115,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
   );
   const { buildUrl } = useTimeRangeUrl();
 
+  /* eslint-disable react-hooks/set-state-in-effect -- data fetch requires setState in effect */
   useEffect(() => {
     if (pipelineId) {
       setLoading(true);
@@ -132,6 +133,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
       setData(null);
     }
   }, [pipelineId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const pipeline = data?.pipeline;
   const recentRuns = data?.recentRuns || [];
