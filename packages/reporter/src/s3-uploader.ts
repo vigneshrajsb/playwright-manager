@@ -1,6 +1,6 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { S3ReportConfig } from "./types";
-import * as fs from "fs";
-import * as path from "path";
 
 /**
  * Get content type based on file extension
@@ -60,7 +60,7 @@ export async function uploadReportDirectory(
   config: S3ReportConfig,
   repository: string,
   runId: string,
-  debug: boolean = false
+  debug: boolean = false,
 ): Promise<string> {
   // Dynamic import to handle optional dependency
   let S3Client: typeof import("@aws-sdk/client-s3").S3Client;
@@ -73,7 +73,7 @@ export async function uploadReportDirectory(
   } catch {
     throw new Error(
       "@aws-sdk/client-s3 is required for S3 report upload. " +
-        "Install it with: npm install @aws-sdk/client-s3"
+        "Install it with: npm install @aws-sdk/client-s3",
     );
   }
 
@@ -84,7 +84,7 @@ export async function uploadReportDirectory(
   if (!fs.existsSync(reportDir)) {
     throw new Error(
       `Report directory not found: ${reportDir}. ` +
-        "Make sure the Playwright HTML reporter is enabled and has generated a report."
+        "Make sure the Playwright HTML reporter is enabled and has generated a report.",
     );
   }
 
@@ -110,7 +110,7 @@ export async function uploadReportDirectory(
 
   if (debug) {
     console.log(
-      `[TestManagerReporter] Uploading ${files.length} files to s3://${config.bucket}/${s3BasePath}`
+      `[TestManagerReporter] Uploading ${files.length} files to s3://${config.bucket}/${s3BasePath}`,
     );
   }
 
@@ -128,7 +128,7 @@ export async function uploadReportDirectory(
         Key: s3Key,
         Body: fileContent,
         ContentType: contentType,
-      })
+      }),
     );
 
     if (debug) {
@@ -138,7 +138,7 @@ export async function uploadReportDirectory(
 
   if (debug) {
     console.log(
-      `[TestManagerReporter] Report upload complete: s3://${config.bucket}/${s3BasePath}`
+      `[TestManagerReporter] Report upload complete: s3://${config.bucket}/${s3BasePath}`,
     );
   }
 

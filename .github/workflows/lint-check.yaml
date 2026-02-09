@@ -1,0 +1,70 @@
+name: Lint & Type Check
+
+on:
+  workflow_call:
+  push:
+    branches: [main]
+
+jobs:
+  biome:
+    name: Biome (Lint & Format Packages)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Biome check
+        run: pnpm check
+
+  lint-dashboard:
+    name: ESLint Dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm --filter @playwright-manager/dashboard lint
+
+  typecheck-packages:
+    name: Type Check Packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check reporter
+        run: pnpm --filter @playwright-manager/reporter build
+
+      - name: Type check fixture
+        run: pnpm --filter @playwright-manager/fixture build
+
+      - name: Type check eslint-plugin
+        run: pnpm --filter @playwright-manager/eslint-plugin build

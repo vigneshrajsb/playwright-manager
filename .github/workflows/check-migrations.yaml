@@ -1,6 +1,7 @@
 name: Check Database Migrations
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'apps/dashboard/lib/db/schema.ts'

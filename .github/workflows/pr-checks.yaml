@@ -1,0 +1,17 @@
+name: PR Checks
+
+on:
+  pull_request:
+
+jobs:
+  test-packages:
+    name: Test Packages
+    uses: ./.github/workflows/test-packages.yaml
+
+  lint-check:
+    name: Lint & Type Check
+    uses: ./.github/workflows/lint-check.yaml
+
+  check-migrations:
+    name: Check Migrations
+    uses: ./.github/workflows/check-migrations.yaml
