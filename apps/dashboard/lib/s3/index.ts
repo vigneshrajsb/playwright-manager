@@ -1,14 +1,14 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import {
+  S3Client,
+  GetObjectCommand,
+  NoSuchKey,
+} from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
 
-// S3 config from environment variables
-// Note: endpoint should be undefined for AWS S3 (not empty string)
 const s3Config = {
   bucket: process.env.S3_BUCKET || undefined,
   region: process.env.S3_REGION || "us-east-1",
-  endpoint: process.env.S3_ENDPOINT || undefined, // undefined for AWS S3, URL for MinIO/R2
-  // Public endpoint for presigned URLs (for Docker: internal endpoint vs public localhost)
-  publicEndpoint: process.env.S3_PUBLIC_ENDPOINT || process.env.S3_ENDPOINT || undefined,
+  endpoint: process.env.S3_ENDPOINT || undefined,
   accessKeyId: process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey:
     process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY,
@@ -16,22 +16,15 @@ const s3Config = {
 
 let s3Client: S3Client | null = null;
 
-/**
- * Get or create S3 client instance
- * Uses public endpoint for presigned URL generation (browser access)
- */
 function getS3Client(): S3Client | null {
   if (!s3Config.bucket) {
     return null;
   }
 
   if (!s3Client) {
-    // Use public endpoint for presigned URLs so they're accessible from browsers
-    const endpoint = s3Config.publicEndpoint || s3Config.endpoint;
-
     s3Client = new S3Client({
       region: s3Config.region,
-      endpoint,
+      endpoint: s3Config.endpoint,
       credentials:
         s3Config.accessKeyId && s3Config.secretAccessKey
           ? {
@@ -39,43 +32,62 @@ function getS3Client(): S3Client | null {
               secretAccessKey: s3Config.secretAccessKey,
             }
           : undefined,
-      forcePathStyle: !!endpoint, // Required for MinIO/custom endpoints
+      forcePathStyle: !!s3Config.endpoint,
     });
   }
 
   return s3Client;
 }
 
-/**
- * Check if S3 storage is configured
- */
 export function isS3Configured(): boolean {
   return !!s3Config.bucket;
 }
 
 /**
- * Generate a presigned URL for accessing an HTML report
- *
- * @param reportPath - S3 path to the report directory (e.g., "reports/org/repo/runId")
- * @param expiresIn - URL expiration time in seconds (default: 1 hour)
- * @returns Presigned URL or null if S3 not configured
+ * Fetch a report asset from S3 as a streaming response.
+ * Returns null if S3 is not configured or the key does not exist.
  */
-export async function getReportPresignedUrl(
+export async function getReportAsset(
   reportPath: string,
-  expiresIn: number = 3600
-): Promise<string | null> {
+  assetPath: string,
+): Promise<{
+  body: ReadableStream;
+  contentType: string;
+  contentLength?: number;
+} | null> {
   const client = getS3Client();
   if (!client || !s3Config.bucket) {
     return null;
   }
 
-  // The reportPath is the directory, we need index.html
-  const key = `${reportPath}/index.html`;
+  const key = `${reportPath}/${assetPath}`;
 
-  const command = new GetObjectCommand({
-    Bucket: s3Config.bucket,
-    Key: key,
-  });
+  try {
+    const response = await client.send(
+      new GetObjectCommand({
+        Bucket: s3Config.bucket,
+        Key: key,
+      }),
+    );
 
-  return getSignedUrl(client, command, { expiresIn });
+    if (!response.Body) {
+      return null;
+    }
+
+    const body =
+      response.Body instanceof Readable
+        ? (Readable.toWeb(response.Body) as ReadableStream)
+        : (response.Body as ReadableStream);
+
+    return {
+      body,
+      contentType: response.ContentType || "application/octet-stream",
+      contentLength: response.ContentLength,
+    };
+  } catch (error: unknown) {
+    if (error instanceof NoSuchKey) {
+      return null;
+    }
+    throw error;
+  }
 }
