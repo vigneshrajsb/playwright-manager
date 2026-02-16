@@ -340,6 +340,14 @@ export class TestManagerReporter implements Reporter {
       }));
     }
 
+    // Detect dashboard-initiated skips from annotations
+    const isDashboardSkip = test.annotations.some(
+      (a) => a.type === "skip" && a.description?.startsWith("[dashboard]"),
+    );
+    if (isDashboardSkip) {
+      resultData.skippedByDashboard = true;
+    }
+
     this.results.push(resultData);
     this.log("Test ended", {
       testId: test.id,

@@ -25,7 +25,7 @@ export interface PipelineFiltersData {
 }
 
 export interface TestHealth {
-  healthScore: number;
+  healthScore: number | null;
   passRate: string;
   flakinessRate: string;
   recentPassRate?: string;
@@ -65,7 +65,7 @@ export interface TestWithHealth {
   filePath: string;
   projectName: string;
   health: {
-    healthScore: number;
+    healthScore: number | null;
     passRate: string;
     flakinessRate: string;
     recentPassRate?: string;
