@@ -893,6 +893,33 @@ describe("flushResults / sendResults", () => {
 // ─── printSummary ───────────────────────────────────────────
 
 describe("printSummary", () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    const ciVars = [
+      "GITHUB_ACTIONS",
+      "GITHUB_REF_NAME",
+      "GITHUB_HEAD_REF",
+      "GITHUB_SHA",
+      "GITHUB_SERVER_URL",
+      "GITHUB_REPOSITORY",
+      "GITHUB_RUN_ID",
+      "GITHUB_RUN_ATTEMPT",
+      "GITLAB_CI",
+      "CIRCLECI",
+      "JENKINS_URL",
+      "TF_BUILD",
+      "CF_BUILD_URL",
+      "CI",
+    ];
+    for (const v of ciVars) delete process.env[v];
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
   it("prints dashboard URL with pipeline ID", async () => {
     await runReporterLifecycle();
 
