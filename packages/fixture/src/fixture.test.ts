@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_API_TIMEOUT_MS, DEFAULT_CACHE_TTL_MS } from "./constants";
 import type { DisabledTestsResponse } from "./types";
 

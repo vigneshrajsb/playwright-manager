@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TestManagerReporter } from "./reporter";
 import {
   createMockFullConfig,

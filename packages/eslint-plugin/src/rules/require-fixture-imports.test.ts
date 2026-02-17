@@ -1,4 +1,5 @@
 import { RuleTester } from "eslint";
+import { describe } from "vitest";
 import rule from "./require-fixture-imports";
 
 const ruleTester = new RuleTester({
