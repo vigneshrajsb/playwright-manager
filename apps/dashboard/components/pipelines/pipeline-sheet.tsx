@@ -337,15 +337,22 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                   {pipeline.baseUrl && (
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Base URL</span>
-                      <a
-                        href={pipeline.baseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-primary hover:underline truncate max-w-[200px]"
-                      >
-                        {pipeline.baseUrl.replace(/^https?:\/\//, "")}
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                      </a>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <a
+                            href={pipeline.baseUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-primary hover:underline max-w-[200px]"
+                          >
+                            <span className="truncate">{pipeline.baseUrl.replace(/^https?:\/\//, "")}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0" />
+                          </a>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p>{pipeline.baseUrl}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   )}
                   {pipeline.playwrightVersion && (
