@@ -199,7 +199,7 @@ export async function GET(request: NextRequest) {
       })
       .from(testHealth)
       .innerJoin(tests, eq(testHealth.testId, tests.id))
-      .where(testWhereClause)
+      .where(and(testWhereClause, sql`${testHealth.healthScore} IS NOT NULL`))
       .groupBy(sql`1`);
 
     // Get filtered test IDs for run filtering (now integers, not UUIDs)

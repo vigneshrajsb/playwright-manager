@@ -52,7 +52,7 @@ interface ResultDetail {
     tags: string[] | null;
   };
   health: {
-    healthScore: number;
+    healthScore: number | null;
     passRate: string;
     flakinessRate: string;
     recentPassRate?: string;

@@ -1,0 +1,1 @@
+ALTER TABLE "test_health" ALTER COLUMN "health_score" DROP NOT NULL;

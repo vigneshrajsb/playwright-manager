@@ -175,6 +175,7 @@ export interface TestResultData {
   }>;
   startTime: string;
   baseUrl?: string;
+  skippedByDashboard?: boolean;
 }
 
 /**

@@ -182,7 +182,7 @@ export const testHealth = pgTable(
       .default("0")
       .notNull(),
     avgDurationMs: integer("avg_duration_ms").default(0).notNull(),
-    healthScore: integer("health_score").default(100).notNull(),
+    healthScore: integer("health_score").default(100),
     trend: varchar("trend", { length: 20 }).default("stable").notNull(),
     consecutivePasses: integer("consecutive_passes").default(0).notNull(),
     consecutiveFailures: integer("consecutive_failures").default(0).notNull(),

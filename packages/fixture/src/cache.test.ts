@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { disabledTestsCache } from "./cache";
 import type { DisabledTestsResponse } from "./types";
 

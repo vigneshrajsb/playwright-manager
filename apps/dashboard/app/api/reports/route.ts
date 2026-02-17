@@ -177,8 +177,8 @@ export async function POST(request: NextRequest) {
       });
 
       let testRun;
-      // Count only final attempts for accurate test totals
-      const finalAttemptCount = body.results.filter(r => r.isFinalAttempt ?? true).length;
+      // Count only executed final attempts for accurate test totals (exclude skipped)
+      const finalAttemptCount = body.results.filter(r => (r.isFinalAttempt ?? true) && r.outcome !== "skipped").length;
 
       if (existingRun) {
         // Update existing run - accumulate totalTests (final attempts only)
@@ -301,7 +301,10 @@ export async function POST(request: NextRequest) {
           outcome: testResult.outcome,
           attachments: testResult.attachments || [],
           annotations: testResult.annotations || [],
-          skippedByDashboard: testResult.skippedByDashboard || false,
+          skippedByDashboard: testResult.skippedByDashboard ||
+            testResult.annotations?.some(
+              (a) => a.type === "skip" && a.description?.startsWith("[dashboard]")
+            ) || false,
           baseUrl: testResult.baseUrl || body.metadata?.baseUrl,
           startedAt: new Date(testResult.startTime),
         });
@@ -378,6 +381,55 @@ export async function POST(request: NextRequest) {
         })
         .where(eq(testRuns.id, testRun.id));
 
+      // Fix orphaned non-final attempts on final batch.
+      // When Playwright skips retries (e.g., snapshot-writing failures),
+      // the reporter marks attempt 0 as non-final but no retry ever arrives.
+      // Promote the highest retry_count result to final for orphaned tests.
+      const isFinalBatch = body.status && body.status !== "running";
+      if (isFinalBatch) {
+        const orphaned = await tx.execute<{ id: number; test_id: number; outcome: string }>(sql`
+          SELECT DISTINCT ON (tr.test_id) tr.id, tr.test_id, tr.outcome
+          FROM ${testResults} tr
+          WHERE tr.test_run_id = ${testRun.id}
+            AND tr.test_id NOT IN (
+              SELECT tr2.test_id FROM ${testResults} tr2
+              WHERE tr2.test_run_id = ${testRun.id} AND tr2.is_final_attempt = true
+            )
+          ORDER BY tr.test_id, tr.retry_count DESC
+        `);
+
+        let orphanPassed = 0, orphanFailed = 0, orphanSkipped = 0, orphanFlaky = 0;
+        for (const row of orphaned) {
+          await tx
+            .update(testResults)
+            .set({ isFinalAttempt: true })
+            .where(eq(testResults.id, row.id));
+
+          switch (row.outcome) {
+            case "expected": orphanPassed++; break;
+            case "unexpected": orphanFailed++; break;
+            case "skipped": orphanSkipped++; break;
+            case "flaky": orphanFlaky++; break;
+          }
+
+          // Recompute health now that the test has a final attempt
+          await updateTestHealth(tx, row.test_id);
+        }
+
+        if (orphaned.length > 0) {
+          await tx
+            .update(testRuns)
+            .set({
+              passedCount: sql`${testRuns.passedCount} + ${orphanPassed}`,
+              failedCount: sql`${testRuns.failedCount} + ${orphanFailed}`,
+              skippedCount: sql`${testRuns.skippedCount} + ${orphanSkipped}`,
+              flakyCount: sql`${testRuns.flakyCount} + ${orphanFlaky}`,
+              totalTests: sql`${testRuns.totalTests} + ${orphanPassed + orphanFailed + orphanFlaky}`,
+            })
+            .where(eq(testRuns.id, testRun.id));
+        }
+      }
+
       return testRun;
     });
 
@@ -438,27 +490,84 @@ async function updateTestHealth(tx: Transaction, testId: number) {
   // Calculate overall stats (all results in window)
   const overallStats = calculateStats(allResults);
   const overallExecuted = overallStats.passed + overallStats.failed + overallStats.flaky;
-  const overallPassRate = overallExecuted > 0 ? (overallStats.passed / overallExecuted) * 100 : 0;
-  const overallFlakinessRate = overallExecuted > 0 ? (overallStats.flaky / overallExecuted) * 100 : 0;
+  const overallPassRate = overallExecuted > 0 ? (overallStats.passed / overallExecuted) * 100 : null;
+  const overallFlakinessRate = overallExecuted > 0 ? (overallStats.flaky / overallExecuted) * 100 : null;
 
   // Calculate recent stats (first N results only)
   const recentResults = allResults.slice(0, HEALTH_RECENT_WINDOW);
   const recentStats = calculateStats(recentResults);
   const recentExecuted = recentStats.passed + recentStats.failed + recentStats.flaky;
-  const recentPassRate = recentExecuted > 0 ? (recentStats.passed / recentExecuted) * 100 : 0;
-  const recentFlakinessRate = recentExecuted > 0 ? (recentStats.flaky / recentExecuted) * 100 : 0;
+  const recentPassRate = recentExecuted > 0 ? (recentStats.passed / recentExecuted) * 100 : null;
+  const recentFlakinessRate = recentExecuted > 0 ? (recentStats.flaky / recentExecuted) * 100 : null;
 
-  // Weighted pass rate: recent window has more impact
-  const weightedPassRate = (recentPassRate * HEALTH_RECENT_WEIGHT) + (overallPassRate * HEALTH_OVERALL_WEIGHT);
+  // Weighted pass rate with fallback when one window has no execution data
+  let weightedPassRate: number | null;
+  if (recentPassRate !== null && overallPassRate !== null) {
+    weightedPassRate = (recentPassRate * HEALTH_RECENT_WEIGHT) + (overallPassRate * HEALTH_OVERALL_WEIGHT);
+  } else if (overallPassRate !== null) {
+    weightedPassRate = overallPassRate;
+  } else if (recentPassRate !== null) {
+    weightedPassRate = recentPassRate;
+  } else {
+    weightedPassRate = null;
+  }
 
-  // Use the higher flakiness rate (more conservative)
-  const flakinessRate = Math.max(recentFlakinessRate, overallFlakinessRate);
+  // Flakiness rate with same fallback pattern
+  let flakinessRate: number | null;
+  if (recentFlakinessRate !== null && overallFlakinessRate !== null) {
+    flakinessRate = Math.max(recentFlakinessRate, overallFlakinessRate);
+  } else if (overallFlakinessRate !== null) {
+    flakinessRate = overallFlakinessRate;
+  } else if (recentFlakinessRate !== null) {
+    flakinessRate = recentFlakinessRate;
+  } else {
+    flakinessRate = null;
+  }
+
+  // No execution data at all — update metadata only, don't touch health metrics
+  if (weightedPassRate === null) {
+    const existingHealth = await tx.query.testHealth.findFirst({
+      where: eq(testHealth.testId, testId),
+    });
+
+    const metadataUpdate = {
+      totalRuns: overallStats.total,
+      skippedCount: overallStats.skipped,
+      lastStatus: allResults[0].status,
+      lastRunAt: allResults[0].startedAt,
+      updatedAt: new Date(),
+    };
+
+    if (existingHealth) {
+      await tx.update(testHealth).set({
+        ...metadataUpdate,
+        healthScore: null,
+      }).where(eq(testHealth.testId, testId));
+    } else {
+      await tx.insert(testHealth).values({
+        testId,
+        ...metadataUpdate,
+        healthScore: null,
+        passRate: "0.00",
+        flakinessRate: "0.00",
+        recentPassRate: "0.00",
+        recentFlakinessRate: "0.00",
+        healthDivergence: "0.00",
+        avgDurationMs: 0,
+        trend: "stable",
+        consecutivePasses: 0,
+        consecutiveFailures: 0,
+      });
+    }
+    return;
+  }
 
   // Final health score with flakiness penalty
-  const healthScore = Math.max(0, Math.round(weightedPassRate - flakinessRate * 2));
+  const effectiveFlakinessRate = flakinessRate ?? 0;
+  const healthScore = Math.max(0, Math.round(weightedPassRate - effectiveFlakinessRate * 2));
 
   // Health divergence: difference between recent and overall (negative = declining)
-  const healthDivergence = recentPassRate - overallPassRate;
+  const healthDivergence = (recentPassRate ?? 0) - (overallPassRate ?? 0);
 
   // Calculate consecutive passes/failures (from most recent results)
   let consecutivePasses = 0,
@@ -489,12 +598,14 @@ async function updateTestHealth(tx: Transaction, testId: number) {
     failedCount: overallStats.failed,
     skippedCount: overallStats.skipped,
     flakyCount: overallStats.flaky,
-    passRate: overallPassRate.toFixed(2),
-    flakinessRate: flakinessRate.toFixed(2),
-    recentPassRate: recentPassRate.toFixed(2),
-    recentFlakinessRate: recentFlakinessRate.toFixed(2),
+    passRate: (overallPassRate ?? 0).toFixed(2),
+    flakinessRate: effectiveFlakinessRate.toFixed(2),
+    recentPassRate: (recentPassRate ?? 0).toFixed(2),
+    recentFlakinessRate: (recentFlakinessRate ?? 0).toFixed(2),
     healthDivergence: healthDivergence.toFixed(2),
-    avgDurationMs: Math.round(overallStats.totalDuration / overallStats.total),
+    avgDurationMs: overallExecuted > 0
+      ? Math.round(overallStats.totalDuration / overallExecuted)
+      : 0,
     healthScore,
     trend,
     consecutivePasses,
