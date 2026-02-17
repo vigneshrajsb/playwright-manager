@@ -7,6 +7,7 @@ import {
   combineConditions,
 } from "@/lib/filters/build-conditions";
 import { logger } from "@/lib/logger";
+import { cleanupStaleRuns } from "@/lib/db/cleanup-stale-runs";
 
 /**
  * @swagger
@@ -151,6 +152,8 @@ export async function GET(request: NextRequest) {
   const sortOrder = searchParams.get("sortOrder") || "desc";
 
   try {
+    cleanupStaleRuns();
+
     const offset = (page - 1) * limit;
 
     // Build filter conditions using shared utilities

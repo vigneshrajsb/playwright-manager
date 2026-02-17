@@ -9,6 +9,7 @@ import {
 import { eq, and, desc, sql, gte, lt, isNull, SQL } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { getFilterOptions } from "@/lib/db/filter-cache";
+import { cleanupStaleRuns } from "@/lib/db/cleanup-stale-runs";
 
 /**
  * @swagger
@@ -148,6 +149,8 @@ export async function GET(request: NextRequest) {
   const tags = searchParams.get("tags"); // comma-separated
 
   try {
+    cleanupStaleRuns();
+
     const since = new Date();
     since.setDate(since.getDate() - days);
 
