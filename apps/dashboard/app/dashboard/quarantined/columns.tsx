@@ -100,7 +100,7 @@ export const quarantinedColumns: ColumnDef<QuarantinedRule>[] = [
     cell: ({ row, table }) => {
       const rule = row.original;
       const meta = table.options.meta as QuarantinedTableMeta | undefined;
-      const testsUrl = meta?.buildUrl?.("/dashboard/tests", { search: encodeURIComponent(rule.test.testTitle) })
+      const testsUrl = meta?.buildUrl?.("/dashboard/tests", { search: rule.test.testTitle })
         ?? `/dashboard/tests?search=${encodeURIComponent(rule.test.testTitle)}`;
       return (
         <div className="flex flex-col gap-0.5">

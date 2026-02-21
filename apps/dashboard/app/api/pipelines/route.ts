@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testRuns, testResults, tests } from "@/lib/db/schema";
-import { eq, desc, asc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql, inArray } from "drizzle-orm";
 import {
   buildPipelineConditions,
   combineConditions,
@@ -190,9 +190,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Add run ID filter using parameterized query (safe from SQL injection)
-      const runIdParams = runIds.map((id) => sql`${id}`);
-      conditions.push(sql`${testRuns.id} = ANY(ARRAY[${sql.join(runIdParams, sql`, `)}]::uuid[])`);
+      conditions.push(inArray(testRuns.id, runIds));
     }
 
     const updatedWhereClause = combineConditions(conditions);
