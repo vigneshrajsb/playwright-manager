@@ -6,3 +6,4 @@ export * from "./use-results";
 export * from "./use-skip-rules";
 export * from "./use-quarantined";
 export * from "./use-verdict";
+export * from "./use-test-detail";

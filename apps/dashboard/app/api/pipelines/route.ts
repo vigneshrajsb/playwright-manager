@@ -171,8 +171,6 @@ export async function GET(request: NextRequest) {
         ? testRuns.durationMs
         : testRuns.startedAt;
 
-    const whereClause = combineConditions(conditions);
-
     // If repository filter is set, we need to filter runs that have results from tests in that repo
     if (repository) {
       // Get runs that have at least one result from a test in this repository

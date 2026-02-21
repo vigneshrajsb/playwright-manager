@@ -24,6 +24,7 @@ import { TagFilterPopover } from "@/components/filters";
 import { ConfirmationDialog } from "@/components/dialogs";
 import { DisableTestDialog } from "@/components/dialogs/disable-test-dialog";
 import { RulesSheet } from "@/components/tests/rules-sheet";
+import { TestDetailSheet } from "@/components/tests/test-detail-sheet";
 import { testColumns, type TestTableMeta } from "./columns";
 import { useDataTableUrlState, useTimeRangeUrl } from "@/hooks";
 import { useTests, useTestFilters, useToggleTests, useDeleteTests } from "@/hooks/queries";
@@ -52,6 +53,10 @@ export default function TestsPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dialogState, setDialogState] = useState<DialogState>({ type: "closed" });
   const [rulesSheetTest, setRulesSheetTest] = useState<Test | null>(null);
+
+  const selectedTestId = searchParams.get("testId") || null;
+  const openTestSheet = (id: string) => updateUrl({ testId: id });
+  const closeTestSheet = () => updateUrl({ testId: undefined });
 
   // Parse filters from URL
   const search = searchParams.get("search") || "";
@@ -105,6 +110,7 @@ export default function TestsPage() {
 
   const tableMeta: TestTableMeta = {
     onViewRules: (test) => setRulesSheetTest(test),
+    onOpenSheet: (id) => openTestSheet(id),
     buildUrl,
   };
 
@@ -206,6 +212,9 @@ export default function TestsPage() {
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
         getRowId={(row) => row.id}
+        // Row click
+        onRowClick={(row) => openTestSheet(row.id)}
+        highlightedRowId={selectedTestId || undefined}
         // Column visibility
         columnVisibility={columnVisibility}
         onColumnVisibilityChange={setColumnVisibility}
@@ -346,6 +355,16 @@ export default function TestsPage() {
         testId={rulesSheetTest?.id ?? null}
         testTitle={rulesSheetTest?.testTitle}
         onClose={() => setRulesSheetTest(null)}
+      />
+
+      {/* Test Detail Sheet */}
+      <TestDetailSheet
+        testId={selectedTestId}
+        onClose={closeTestSheet}
+        onOpenRulesSheet={(id) => {
+          const test = tests.find((t) => t.id === id);
+          if (test) setRulesSheetTest(test);
+        }}
       />
     </div>
     </TooltipProvider>

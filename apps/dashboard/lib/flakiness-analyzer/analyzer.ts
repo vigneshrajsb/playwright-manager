@@ -9,8 +9,6 @@ import type {
   TestVerdict,
   FlakinessSignals,
 } from "./types";
-import { logger } from "@/lib/logger";
-
 const AUTO_PASS_THRESHOLD = 90;
 
 export async function analyzeFlakiness(
