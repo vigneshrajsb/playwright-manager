@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     logger.info(`Recalculated health for ${recalculated} tests`);
     return NextResponse.json({ recalculated });
   } catch (error) {
-    logger.error("Failed to recalculate health:", error);
+    logger.error({ err: error }, "Failed to recalculate health");
     return NextResponse.json(
       { error: "Failed to recalculate health" },
       { status: 500 }
