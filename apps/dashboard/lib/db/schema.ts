@@ -88,6 +88,7 @@ export const testRuns = pgTable(
     failedCount: integer("failed_count").default(0).notNull(),
     skippedCount: integer("skipped_count").default(0).notNull(),
     flakyCount: integer("flaky_count").default(0).notNull(),
+    quarantinedCount: integer("quarantined_count").default(0).notNull(),
     status: varchar("status", { length: 50 }).default("running").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()

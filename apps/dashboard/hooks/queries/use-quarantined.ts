@@ -7,6 +7,7 @@ import { queryKeys, type QuarantinedFilters } from "./keys";
 import type { Pagination, SkipRule } from "@/types";
 
 export interface QuarantinedRule extends SkipRule {
+  skipCount: number;
   test: {
     id: string;
     testTitle: string;

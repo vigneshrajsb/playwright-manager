@@ -59,6 +59,7 @@ export function getStatusVariant(status: string): string {
     timedOut: "bg-orange-500/10 text-orange-600",
     skipped: "bg-gray-500/10 text-gray-600",
     interrupted: "bg-yellow-500/10 text-yellow-600",
+    quarantined: "bg-purple-500/10 text-purple-600",
   };
 
   return variants[status] || variants.skipped;
@@ -87,6 +88,7 @@ export function getOutcomeVariant(outcome: string): string {
     unexpected: "bg-red-500/10 text-red-600",
     flaky: "bg-yellow-500/10 text-yellow-600",
     skipped: "bg-gray-500/10 text-gray-600",
+    quarantined: "bg-purple-500/10 text-purple-600",
   };
 
   return variants[outcome] || variants.skipped;

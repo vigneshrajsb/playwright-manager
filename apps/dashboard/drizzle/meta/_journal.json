@@ -15,6 +15,13 @@
       "when": 1771278663336,
       "tag": "0001_marvelous_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771724962980,
+      "tag": "0002_great_fixer",
+      "breakpoints": true
     }
   ]
 }

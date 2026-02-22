@@ -230,7 +230,8 @@ export async function POST(request: NextRequest) {
       let passedCount = 0,
         failedCount = 0,
         skippedCount = 0,
-        flakyCount = 0;
+        flakyCount = 0,
+        quarantinedCount = 0;
 
       for (const testResult of body.results) {
         // Upsert test - now includes repository in unique key
@@ -363,6 +364,9 @@ export async function POST(request: NextRequest) {
               flakyCount++;
               break;
           }
+          if (testResult.skippedByDashboard) {
+            quarantinedCount++;
+          }
         }
 
         // Update test health
@@ -377,6 +381,7 @@ export async function POST(request: NextRequest) {
           failedCount: testRun.failedCount + failedCount,
           skippedCount: testRun.skippedCount + skippedCount,
           flakyCount: testRun.flakyCount + flakyCount,
+          quarantinedCount: testRun.quarantinedCount + quarantinedCount,
         })
         .where(eq(testRuns.id, testRun.id));
 
@@ -386,8 +391,8 @@ export async function POST(request: NextRequest) {
       // Promote the highest retry_count result to final for orphaned tests.
       const isFinalBatch = body.status && body.status !== "running";
       if (isFinalBatch) {
-        const orphaned = await tx.execute<{ id: number; test_id: number; outcome: string }>(sql`
-          SELECT DISTINCT ON (tr.test_id) tr.id, tr.test_id, tr.outcome
+        const orphaned = await tx.execute<{ id: number; test_id: number; outcome: string; skipped_by_dashboard: boolean }>(sql`
+          SELECT DISTINCT ON (tr.test_id) tr.id, tr.test_id, tr.outcome, tr.skipped_by_dashboard
           FROM ${testResults} tr
           WHERE tr.test_run_id = ${testRun.id}
             AND tr.test_id NOT IN (
@@ -397,7 +402,7 @@ export async function POST(request: NextRequest) {
           ORDER BY tr.test_id, tr.retry_count DESC
         `);
 
-        let orphanPassed = 0, orphanFailed = 0, orphanSkipped = 0, orphanFlaky = 0;
+        let orphanPassed = 0, orphanFailed = 0, orphanSkipped = 0, orphanFlaky = 0, orphanQuarantined = 0;
         for (const row of orphaned) {
           await tx
             .update(testResults)
@@ -409,6 +414,9 @@ export async function POST(request: NextRequest) {
             case "unexpected": orphanFailed++; break;
             case "skipped": orphanSkipped++; break;
             case "flaky": orphanFlaky++; break;
+          }
+          if (row.skipped_by_dashboard) {
+            orphanQuarantined++;
           }
 
           // Recompute health now that the test has a final attempt
@@ -423,6 +431,7 @@ export async function POST(request: NextRequest) {
               failedCount: sql`${testRuns.failedCount} + ${orphanFailed}`,
               skippedCount: sql`${testRuns.skippedCount} + ${orphanSkipped}`,
               flakyCount: sql`${testRuns.flakyCount} + ${orphanFlaky}`,
+              quarantinedCount: sql`${testRuns.quarantinedCount} + ${orphanQuarantined}`,
               totalTests: sql`${testRuns.totalTests} + ${orphanPassed + orphanFailed + orphanFlaky}`,
             })
             .where(eq(testRuns.id, testRun.id));

@@ -1,0 +1,1 @@
+ALTER TABLE "test_runs" ADD COLUMN "quarantined_count" integer DEFAULT 0 NOT NULL;

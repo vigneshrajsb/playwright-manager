@@ -78,10 +78,16 @@ export function QuarantineRuleCard({
         </div>
       </div>
 
-      {/* Date */}
-      <span className="text-xs text-muted-foreground shrink-0 hidden sm:block">
-        {formatDate(rule.createdAt)}
-      </span>
+      {/* Skip count + date */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground shrink-0 hidden sm:flex">
+        {rule.skipCount > 0 && (
+          <>
+            <span>Skipped in {rule.skipCount} {rule.skipCount === 1 ? "run" : "runs"}</span>
+            <span>·</span>
+          </>
+        )}
+        <span>{formatDate(rule.createdAt)}</span>
+      </div>
 
       {/* Actions */}
       <div className="flex items-center gap-0.5 shrink-0">
