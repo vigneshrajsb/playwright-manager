@@ -960,6 +960,14 @@ describe("printSummary", () => {
 // ─── S3 upload in onEnd ─────────────────────────────────────
 
 describe("S3 upload in onEnd", () => {
+  it("skips S3 upload when autoUpload is false", async () => {
+    await runReporterLifecycle({
+      reporterOptions: { s3: { bucket: "my-bucket", region: "us-east-1", autoUpload: false } },
+    });
+
+    expect(mockUploadReportDirectory).not.toHaveBeenCalled();
+  });
+
   it("uploads report and includes reportPath in final send", async () => {
     const { body } = await runReporterLifecycle({
       reporterOptions: { s3: { bucket: "my-bucket", region: "us-east-1" } },

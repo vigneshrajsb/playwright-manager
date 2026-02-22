@@ -6,6 +6,7 @@ import type {
   TestCase,
   TestResult,
 } from "@playwright/test/reporter";
+import { detectCIEnvironment, generateRunId } from "./ci-detect";
 import { uploadReportDirectory } from "./s3-uploader";
 import type {
   CIEnvironment,
@@ -16,7 +17,6 @@ import type {
   TestResultData,
 } from "./types";
 
-// Options type with most fields required but branch/commitSha/ciJobUrl/s3 optional
 type ResolvedOptions = Required<
   Omit<
     TestManagerReporterOptions,
@@ -43,7 +43,6 @@ export class TestManagerReporter implements Reporter {
   private baseUrl: string | undefined = undefined;
 
   constructor(options: TestManagerReporterOptions) {
-    // Check if disabled first
     if (options.disabled) {
       this.isDisabled = true;
       this.options = options as ResolvedOptions;
@@ -73,118 +72,14 @@ export class TestManagerReporter implements Reporter {
       autoPassThreshold: options.autoPassThreshold ?? 90,
     };
 
-    this.ciEnv = this.detectCIEnvironment();
-    this.runId = this.options.runId || this.ciEnv.runId || this.generateRunId();
+    this.ciEnv = detectCIEnvironment();
+    this.runId = this.options.runId || this.ciEnv.runId || generateRunId();
   }
 
   private log(...args: unknown[]): void {
     if (this.options.debug) {
       console.log("[TestManagerReporter]", ...args);
     }
-  }
-
-  private detectCIEnvironment(): CIEnvironment {
-    const env = process.env;
-
-    // GitHub Actions
-    if (env.GITHUB_ACTIONS) {
-      return {
-        isCI: true,
-        branch: env.GITHUB_REF_NAME || env.GITHUB_HEAD_REF,
-        commitSha: env.GITHUB_SHA,
-        commitMessage: undefined, // Not available in env
-        jobUrl: `${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}`,
-        runId: `github-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}`,
-      };
-    }
-
-    // GitLab CI
-    if (env.GITLAB_CI) {
-      return {
-        isCI: true,
-        branch: env.CI_COMMIT_REF_NAME,
-        commitSha: env.CI_COMMIT_SHA,
-        commitMessage: env.CI_COMMIT_MESSAGE,
-        jobUrl: env.CI_JOB_URL,
-        runId: `gitlab-${env.CI_PIPELINE_ID}-${env.CI_JOB_ID}`,
-      };
-    }
-
-    // CircleCI
-    if (env.CIRCLECI) {
-      return {
-        isCI: true,
-        branch: env.CIRCLE_BRANCH,
-        commitSha: env.CIRCLE_SHA1,
-        commitMessage: undefined,
-        jobUrl: env.CIRCLE_BUILD_URL,
-        runId: `circle-${env.CIRCLE_WORKFLOW_ID}-${env.CIRCLE_BUILD_NUM}`,
-      };
-    }
-
-    // Jenkins
-    if (env.JENKINS_URL) {
-      return {
-        isCI: true,
-        branch: env.GIT_BRANCH || env.BRANCH_NAME,
-        commitSha: env.GIT_COMMIT,
-        commitMessage: undefined,
-        jobUrl: env.BUILD_URL,
-        runId: `jenkins-${env.BUILD_ID}`,
-      };
-    }
-
-    // Azure DevOps
-    if (env.TF_BUILD) {
-      return {
-        isCI: true,
-        branch: env.BUILD_SOURCEBRANCH?.replace("refs/heads/", ""),
-        commitSha: env.BUILD_SOURCEVERSION,
-        commitMessage: env.BUILD_SOURCEVERSIONMESSAGE,
-        jobUrl: `${env.SYSTEM_TEAMFOUNDATIONCOLLECTIONURI}${env.SYSTEM_TEAMPROJECT}/_build/results?buildId=${env.BUILD_BUILDID}`,
-        runId: `azure-${env.BUILD_BUILDID}`,
-      };
-    }
-
-    // Codefresh
-    if (env.CF_BUILD_URL) {
-      return {
-        isCI: true,
-        branch: env.CF_BRANCH,
-        commitSha: env.CF_REVISION,
-        commitMessage: env.CF_COMMIT_MESSAGE,
-        jobUrl: env.CF_BUILD_URL,
-        runId: `codefresh-${env.CF_BUILD_ID}`,
-      };
-    }
-
-    // Generic CI detection
-    if (env.CI) {
-      return {
-        isCI: true,
-        branch: env.BRANCH_NAME || env.GIT_BRANCH,
-        commitSha: env.GIT_COMMIT || env.COMMIT_SHA,
-        commitMessage: undefined,
-        jobUrl: undefined,
-        runId: undefined,
-      };
-    }
-
-    // Local development
-    return {
-      isCI: false,
-      branch: undefined,
-      commitSha: undefined,
-      commitMessage: undefined,
-      jobUrl: undefined,
-      runId: undefined,
-    };
-  }
-
-  private generateRunId(): string {
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    return `local-${timestamp}-${random}`;
   }
 
   private getRelativePath(absolutePath: string): string {
@@ -461,9 +356,8 @@ export class TestManagerReporter implements Reporter {
       remainingResults: this.results.length,
     });
 
-    // Upload HTML report to S3 if configured
     let reportPath: string | undefined;
-    if (this.options.s3) {
+    if (this.options.s3 && this.options.s3.autoUpload !== false) {
       try {
         this.log("Uploading HTML report to S3...");
         reportPath = await uploadReportDirectory(
