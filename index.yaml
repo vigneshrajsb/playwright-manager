@@ -8,6 +8,39 @@ entries:
         - Rename disable to quarantine throughout dashboard
       artifacthub.io/license: MIT
     apiVersion: v2
+    appVersion: 0.5.1
+    created: "2026-02-22T18:51:31.691224762Z"
+    dependencies:
+    - name: postgresql
+      repository: oci://registry-1.docker.io/bitnamicharts
+      version: ~16.4.0
+    description: Self-hosted test management for Playwright - track health, manage
+      flaky tests, and control test execution remotely via quarantine rules
+    digest: 2e2ec90745bc86e82e8fd4c47c33d3e50339a8532d89c37b85a287fb954fc5c9
+    home: https://github.com/vigneshrajsb/playwright-manager
+    keywords:
+    - playwright
+    - testing
+    - test-management
+    - dashboard
+    - flaky-tests
+    - quarantine
+    maintainers:
+    - name: vigneshrajsb
+    name: playwright-manager
+    sources:
+    - https://github.com/vigneshrajsb/playwright-manager
+    type: application
+    urls:
+    - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.5.1/playwright-manager-0.5.1.tgz
+    version: 0.5.1
+  - annotations:
+      artifacthub.io/changes: |
+        - Add quarantine tracking with skip counts, pipeline split, and result badges
+        - Add test detail sidebar with run history and skip rules
+        - Rename disable to quarantine throughout dashboard
+      artifacthub.io/license: MIT
+    apiVersion: v2
     appVersion: 0.5.0
     created: "2026-02-22T04:05:01.836110893Z"
     dependencies:
@@ -410,4 +443,4 @@ entries:
     urls:
     - https://github.com/vigneshrajsb/playwright-manager/releases/download/playwright-manager-0.2.0/playwright-manager-0.2.0.tgz
     version: 0.2.0
-generated: "2026-02-22T04:05:01.83618956Z"
+generated: "2026-02-22T18:51:31.691298284Z"
