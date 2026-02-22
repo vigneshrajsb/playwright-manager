@@ -43,6 +43,13 @@ export interface S3ReportConfig {
    * @default "playwright-report"
    */
   reportDir?: string;
+
+  /**
+   * Automatically upload report at end of test run
+   * Set to false to skip auto-upload and use `playwright-manager upload-report` instead
+   * @default true
+   */
+  autoUpload?: boolean;
 }
 
 /**

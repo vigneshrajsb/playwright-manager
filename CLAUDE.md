@@ -138,6 +138,10 @@ This generates migration files in `apps/dashboard/drizzle/`. Commit these with y
 - **No inline custom colors or arbitrary values** - Use theme variables
 - **Follow patterns in `apps/dashboard/app/(home)`** for layout reference
 
+## Reference Docs
+
+- `docs/release-process.md` - Tagging and release conventions for all components
+
 ## Key Files
 
 - `apps/dashboard/lib/db/schema.ts` - Database schema (source of truth)
