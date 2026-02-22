@@ -12,8 +12,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ConfirmationDialog } from "@/components/dialogs";
-import { Loader2, Trash2, GitBranch, Globe, Ban } from "lucide-react";
+import { Loader2, Trash2, Pencil, GitBranch, Globe } from "lucide-react";
 import { formatDate } from "@/lib/utils/format";
+import { getRuleType, getRuleTypeLabel, getRuleIcon } from "@/lib/utils/rule-type";
+import { EditRuleDialog } from "@/components/quarantined/edit-rule-dialog";
 import { useSkipRules, useDeleteSkipRule } from "@/hooks/queries";
 import type { SkipRule } from "@/types";
 
@@ -29,9 +31,8 @@ export function RulesSheet({
   testTitle,
   onClose,
 }: RulesSheetProps) {
-  const [confirmDeleteRule, setConfirmDeleteRule] = useState<SkipRule | null>(
-    null
-  );
+  const [confirmDeleteRule, setConfirmDeleteRule] = useState<SkipRule | null>(null);
+  const [editRule, setEditRule] = useState<SkipRule | null>(null);
 
   const { data, isLoading } = useSkipRules(testId);
   const deleteMutation = useDeleteSkipRule();
@@ -48,24 +49,6 @@ export function RulesSheet({
         },
       }
     );
-  };
-
-  const getRuleTypeLabel = (rule: SkipRule) => {
-    const isGlobal = !rule.branchPattern && !rule.envPattern;
-    if (isGlobal) return "Global";
-    if (rule.branchPattern && rule.envPattern) return "Branch + Environment";
-    if (rule.branchPattern) return "Branch";
-    if (rule.envPattern) return "Environment";
-    return "Unknown";
-  };
-
-  const getRuleIcon = (rule: SkipRule) => {
-    const isGlobal = !rule.branchPattern && !rule.envPattern;
-    if (isGlobal) return Ban;
-    if (rule.branchPattern && rule.envPattern) return GitBranch;
-    if (rule.branchPattern) return GitBranch;
-    if (rule.envPattern) return Globe;
-    return Ban;
   };
 
   return (
@@ -112,22 +95,33 @@ export function RulesSheet({
                             <div className="flex items-center gap-2">
                               <Icon className="h-4 w-4 text-muted-foreground" />
                               <Badge variant="secondary" className="text-xs">
-                                {getRuleTypeLabel(rule)}
+                                {getRuleTypeLabel(getRuleType(rule))}
                               </Badge>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                              onClick={() => setConfirmDeleteRule(rule)}
-                              disabled={isDeleting}
-                            >
-                              {isDeleting ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => setEditRule(rule)}
+                                disabled={isDeleting}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                onClick={() => setConfirmDeleteRule(rule)}
+                                disabled={isDeleting}
+                              >
+                                {isDeleting ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
                           </div>
 
                           <p className="text-sm">{rule.reason}</p>
@@ -194,6 +188,12 @@ export function RulesSheet({
             handleDeleteRule(confirmDeleteRule);
           }
         }}
+      />
+
+      <EditRuleDialog
+        rule={editRule}
+        testTitle={testTitle}
+        onClose={() => setEditRule(null)}
       />
     </>
   );

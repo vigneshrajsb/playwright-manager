@@ -1,115 +1,115 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronDown, Loader2, HelpCircle } from "lucide-react";
+import { ChevronDown, Loader2, HelpCircle, GitBranch, Globe } from "lucide-react";
+import { useUpdateSkipRule } from "@/hooks/queries";
+import type { SkipRule } from "@/types";
 
-export interface DisableTestDialogProps {
-  /** Whether the dialog is open */
-  open: boolean;
-  /** Callback when dialog open state changes */
-  onOpenChange: (open: boolean) => void;
-  /** Number of tests being disabled */
-  testCount: number;
-  /** Whether the action is loading */
-  loading?: boolean;
-  /** Callback when confirmed with disable data */
-  onConfirm: (data: {
-    reason: string;
-    branchPattern?: string;
-    envPattern?: string;
-  }) => void | Promise<void>;
+interface EditRuleDialogProps {
+  rule: SkipRule | null;
+  testTitle?: string;
+  onClose: () => void;
 }
 
-/**
- * Enhanced disable dialog with conditional skip options
- *
- * Allows users to:
- * - Provide a reason for disabling (required)
- * - Optionally specify a branch pattern (glob)
- * - Optionally specify an environment pattern (glob)
- */
-export function DisableTestDialog({
-  open,
-  onOpenChange,
-  testCount,
-  loading = false,
-  onConfirm,
-}: DisableTestDialogProps) {
+export function EditRuleDialog({ rule, testTitle, onClose }: EditRuleDialogProps) {
   const [reason, setReason] = useState("");
   const [branchPattern, setBranchPattern] = useState("");
   const [envPattern, setEnvPattern] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const handleConfirm = async () => {
-    if (!reason.trim()) return;
-    await onConfirm({
-      reason: reason.trim(),
-      branchPattern: branchPattern.trim() || undefined,
-      envPattern: envPattern.trim() || undefined,
-    });
-  };
+  const updateMutation = useUpdateSkipRule();
 
-  const handleClose = () => {
-    if (!loading) {
+  /* eslint-disable react-hooks/set-state-in-effect -- form state sync from prop */
+  useEffect(() => {
+    if (rule) {
+      setReason(rule.reason || "");
+      setBranchPattern(rule.branchPattern || "");
+      setEnvPattern(rule.envPattern || "");
+      setShowAdvanced(!!(rule.branchPattern || rule.envPattern));
+    } else {
       setReason("");
       setBranchPattern("");
       setEnvPattern("");
       setShowAdvanced(false);
-      onOpenChange(false);
+    }
+  }, [rule]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const handleSave = async () => {
+    if (!rule || !reason.trim()) return;
+
+    updateMutation.mutate(
+      {
+        id: rule.id,
+        reason: reason.trim(),
+        branchPattern: branchPattern.trim() || null,
+        envPattern: envPattern.trim() || null,
+      },
+      {
+        onSuccess: () => {
+          onClose();
+        },
+      }
+    );
+  };
+
+  const handleClose = () => {
+    if (!updateMutation.isPending) {
+      onClose();
     }
   };
 
   const isGlobalRule = !branchPattern.trim() && !envPattern.trim();
-  const plural = testCount === 1 ? "test" : "tests";
+  const hasChanges =
+    rule &&
+    (reason.trim() !== rule.reason ||
+      (branchPattern.trim() || null) !== rule.branchPattern ||
+      (envPattern.trim() || null) !== rule.envPattern);
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={!!rule} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>
-            Disable {testCount} {plural}
-          </DialogTitle>
-          <DialogDescription>
-            {isGlobalRule
-              ? `This will skip the ${plural} on all branches and environments.`
-              : `This will skip the ${plural} only when conditions match.`}
-          </DialogDescription>
+          <DialogTitle>Edit Skip Rule</DialogTitle>
+          {testTitle && (
+            <DialogDescription className="truncate text-xs">
+              {testTitle}
+            </DialogDescription>
+          )}
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Reason (required) */}
+        <div className="space-y-4 py-2">
           <div className="space-y-2">
             <label
-              htmlFor="reason"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              htmlFor="edit-reason"
+              className="text-sm font-medium leading-none"
             >
               Reason *
             </label>
             <Input
-              id="reason"
+              id="edit-reason"
               placeholder="Why is this test being disabled?"
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              disabled={loading}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReason(e.target.value)}
+              disabled={updateMutation.isPending}
             />
           </div>
 
-          {/* Advanced Options Toggle */}
           <Button
             type="button"
             variant="ghost"
@@ -123,14 +123,13 @@ export function DisableTestDialog({
             />
           </Button>
 
-          {/* Advanced Options */}
           {showAdvanced && (
             <div className="space-y-4 rounded-md border p-4">
-              {/* Branch Pattern */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
+                  <GitBranch className="h-4 w-4 text-muted-foreground" />
                   <label
-                    htmlFor="branchPattern"
+                    htmlFor="edit-branchPattern"
                     className="text-sm font-medium leading-none"
                   >
                     Branch Pattern
@@ -148,19 +147,19 @@ export function DisableTestDialog({
                   </Tooltip>
                 </div>
                 <Input
-                  id="branchPattern"
+                  id="edit-branchPattern"
                   placeholder="e.g., feature-*, release/*"
                   value={branchPattern}
                   onChange={(e) => setBranchPattern(e.target.value)}
-                  disabled={loading}
+                  disabled={updateMutation.isPending}
                 />
               </div>
 
-              {/* Environment Pattern */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
                   <label
-                    htmlFor="envPattern"
+                    htmlFor="edit-envPattern"
                     className="text-sm font-medium leading-none"
                   >
                     Environment Pattern
@@ -178,30 +177,39 @@ export function DisableTestDialog({
                   </Tooltip>
                 </div>
                 <Input
-                  id="envPattern"
+                  id="edit-envPattern"
                   placeholder="e.g., *.staging.example.com"
                   value={envPattern}
                   onChange={(e) => setEnvPattern(e.target.value)}
-                  disabled={loading}
+                  disabled={updateMutation.isPending}
                 />
               </div>
 
-              {/* Help text */}
               <p className="text-xs text-muted-foreground">
-                Leave both empty for a global skip rule. If both are set, both
-                must match.
+                {isGlobalRule
+                  ? "No patterns set - this is a global skip rule."
+                  : "Both patterns must match for the rule to apply."}
               </p>
             </div>
           )}
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={updateMutation.isPending}
+          >
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={!reason.trim() || loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Disable
+          <Button
+            onClick={handleSave}
+            disabled={!reason.trim() || !hasChanges || updateMutation.isPending}
+          >
+            {updateMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Save Changes
           </Button>
         </DialogFooter>
       </DialogContent>

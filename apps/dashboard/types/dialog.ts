@@ -1,10 +1,10 @@
 export type DialogState =
   | { type: "closed" }
-  | { type: "disable" }
+  | { type: "quarantine" }
   | { type: "delete" };
 
 export const dialogActions = {
   close: (): DialogState => ({ type: "closed" }),
-  disable: (): DialogState => ({ type: "disable" }),
+  quarantine: (): DialogState => ({ type: "quarantine" }),
   delete: (): DialogState => ({ type: "delete" }),
 };

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -24,9 +25,9 @@ import {
   GitBranch,
   ListChecks,
   Globe,
-  Ban,
   ScrollText,
   RotateCw,
+  Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import { PlaywrightIcon } from "@/components/icons/playwright-icon";
@@ -36,6 +37,8 @@ import {
   formatRelativeTime,
 } from "@/lib/utils/format";
 import { openReportUrl } from "@/lib/utils/report";
+import { getRuleType, getRuleTypeLabel, getRuleIcon } from "@/lib/utils/rule-type";
+import { EditRuleDialog } from "@/components/quarantined/edit-rule-dialog";
 import { useTestDetail } from "@/hooks/queries/use-test-detail";
 import { useTimeRangeUrl } from "@/hooks";
 import type { SkipRule } from "@/types";
@@ -57,24 +60,13 @@ function getDotColor(outcome: string) {
   return OUTCOME_DOT_COLORS[outcome] ?? "bg-gray-400";
 }
 
-function getRuleTypeLabel(rule: SkipRule) {
-  if (!rule.branchPattern && !rule.envPattern) return "Global";
-  if (rule.branchPattern && rule.envPattern) return "Branch + Environment";
-  if (rule.branchPattern) return "Branch";
-  return "Environment";
-}
-
-function getRuleIcon(rule: SkipRule) {
-  if (!rule.branchPattern && !rule.envPattern) return Ban;
-  if (rule.branchPattern) return GitBranch;
-  return Globe;
-}
 
 export function TestDetailSheet({
   testId,
   onClose,
   onOpenRulesSheet,
 }: TestDetailSheetProps) {
+  const [editRule, setEditRule] = useState<SkipRule | null>(null);
   const { data, isLoading } = useTestDetail(testId);
   const { buildUrl } = useTimeRangeUrl();
 
@@ -88,6 +80,7 @@ export function TestDetailSheet({
   const hasSkipRules = activeSkipRules.length > 0;
 
   return (
+    <>
     <Sheet open={!!testId} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="right" className="sm:max-w-xl overflow-y-auto">
         {isLoading ? (
@@ -310,11 +303,21 @@ export function TestDetailSheet({
                       const Icon = getRuleIcon(rule);
                       return (
                         <div key={rule.id} className="rounded-lg border p-3 space-y-1.5">
-                          <div className="flex items-center gap-2">
-                            <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                            <Badge variant="secondary" className="text-xs">
-                              {getRuleTypeLabel(rule)}
-                            </Badge>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                              <Badge variant="secondary" className="text-xs">
+                                {getRuleTypeLabel(getRuleType(rule))}
+                              </Badge>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => setEditRule(rule)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                           <p className="text-sm">{rule.reason}</p>
                           {(rule.branchPattern || rule.envPattern) && (
@@ -391,5 +394,12 @@ export function TestDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+
+    <EditRuleDialog
+      rule={editRule}
+      testTitle={test?.testTitle}
+      onClose={() => setEditRule(null)}
+    />
+    </>
   );
 }
