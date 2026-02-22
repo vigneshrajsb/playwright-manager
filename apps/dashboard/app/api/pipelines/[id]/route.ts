@@ -78,6 +78,7 @@ export async function GET(
       failedCount: number;
       skippedCount: number;
       flakyCount: number;
+      quarantinedCount: number;
       ciJobUrl: string | null;
       reportPath: string | null;
     }> = [];
@@ -108,6 +109,7 @@ export async function GET(
             failedCount: testRuns.failedCount,
             skippedCount: testRuns.skippedCount,
             flakyCount: testRuns.flakyCount,
+            quarantinedCount: testRuns.quarantinedCount,
             ciJobUrl: testRuns.ciJobUrl,
             reportPath: testRuns.reportPath,
           })

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { RowSelectionState, VisibilityState } from "@tanstack/react-table";
-import { Search, X, Trash2, CheckCircle, XCircle, ClipboardList } from "lucide-react";
+import { Search, X, Trash2, CheckCircle, ShieldBan, ClipboardList } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import { Input } from "@/components/ui/input";
@@ -22,8 +22,9 @@ import {
 } from "@/components/data-table";
 import { TagFilterPopover } from "@/components/filters";
 import { ConfirmationDialog } from "@/components/dialogs";
-import { DisableTestDialog } from "@/components/dialogs/disable-test-dialog";
+import { QuarantineTestDialog } from "@/components/dialogs/quarantine-test-dialog";
 import { RulesSheet } from "@/components/tests/rules-sheet";
+import { TestDetailSheet } from "@/components/tests/test-detail-sheet";
 import { testColumns, type TestTableMeta } from "./columns";
 import { useDataTableUrlState, useTimeRangeUrl } from "@/hooks";
 import { useTests, useTestFilters, useToggleTests, useDeleteTests } from "@/hooks/queries";
@@ -52,6 +53,10 @@ export default function TestsPage() {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [dialogState, setDialogState] = useState<DialogState>({ type: "closed" });
   const [rulesSheetTest, setRulesSheetTest] = useState<Test | null>(null);
+
+  const selectedTestId = searchParams.get("testId") || null;
+  const openTestSheet = (id: string) => updateUrl({ testId: id });
+  const closeTestSheet = () => updateUrl({ testId: undefined });
 
   // Parse filters from URL
   const search = searchParams.get("search") || "";
@@ -105,6 +110,7 @@ export default function TestsPage() {
 
   const tableMeta: TestTableMeta = {
     onViewRules: (test) => setRulesSheetTest(test),
+    onOpenSheet: (id) => openTestSheet(id),
     buildUrl,
   };
 
@@ -155,11 +161,11 @@ export default function TestsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setDialogState(dialogActions.disable())}
+              onClick={() => setDialogState(dialogActions.quarantine())}
               disabled={isActionPending}
             >
-              <XCircle className="mr-1 h-4 w-4" />
-              Disable
+              <ShieldBan className="mr-1 h-4 w-4" />
+              Quarantine
             </Button>
             <Button
               variant="outline"
@@ -206,6 +212,9 @@ export default function TestsPage() {
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
         getRowId={(row) => row.id}
+        // Row click
+        onRowClick={(row) => openTestSheet(row.id)}
+        highlightedRowId={selectedTestId || undefined}
         // Column visibility
         columnVisibility={columnVisibility}
         onColumnVisibilityChange={setColumnVisibility}
@@ -296,9 +305,9 @@ export default function TestsPage() {
         )}
       />
 
-      {/* Disable Dialog */}
-      {dialogState.type === "disable" && (
-        <DisableTestDialog
+      {/* Quarantine Dialog */}
+      {dialogState.type === "quarantine" && (
+        <QuarantineTestDialog
           open={true}
           onOpenChange={() => setDialogState(dialogActions.close())}
           testCount={selectedIds.length}
@@ -346,6 +355,16 @@ export default function TestsPage() {
         testId={rulesSheetTest?.id ?? null}
         testTitle={rulesSheetTest?.testTitle}
         onClose={() => setRulesSheetTest(null)}
+      />
+
+      {/* Test Detail Sheet */}
+      <TestDetailSheet
+        testId={selectedTestId}
+        onClose={closeTestSheet}
+        onOpenRulesSheet={(id) => {
+          const test = tests.find((t) => t.id === id);
+          if (test) setRulesSheetTest(test);
+        }}
       />
     </div>
     </TooltipProvider>

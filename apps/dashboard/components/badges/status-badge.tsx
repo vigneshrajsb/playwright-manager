@@ -96,6 +96,8 @@ export interface StatusBadgeWithTooltipProps {
   expectedStatus: string;
   /** The outcome (expected, unexpected, flaky, skipped) */
   outcome: string;
+  /** Whether the test was skipped by a dashboard quarantine rule */
+  skippedByDashboard?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -116,8 +118,11 @@ export function StatusBadgeWithTooltip({
   status,
   expectedStatus,
   outcome,
+  skippedByDashboard,
   className,
 }: StatusBadgeWithTooltipProps) {
+  const isQuarantined = outcome === "skipped" && skippedByDashboard;
+
   // Determine if result is unexpected
   const isUnexpected = outcome === "unexpected";
   const isFailed = status === "failed" || status === "timedOut";
@@ -128,7 +133,7 @@ export function StatusBadgeWithTooltip({
     passed: isRed ? "bg-red-500/10 text-red-600" : "bg-green-500/10 text-green-600",
     failed: "bg-red-500/10 text-red-600",
     timedOut: "bg-orange-500/10 text-orange-600",
-    skipped: "bg-gray-500/10 text-gray-600",
+    skipped: isQuarantined ? "bg-purple-500/10 text-purple-600" : "bg-gray-500/10 text-gray-600",
     interrupted: "bg-yellow-500/10 text-yellow-600",
   };
 
@@ -136,7 +141,10 @@ export function StatusBadgeWithTooltip({
   let tooltipMessage = "";
   let tooltipColor = "text-green-600";
 
-  if (outcome === "skipped") {
+  if (isQuarantined) {
+    tooltipMessage = "Quarantined by skip rule";
+    tooltipColor = "text-purple-600";
+  } else if (outcome === "skipped") {
     tooltipMessage = "Skipped";
     tooltipColor = "text-muted-foreground";
   } else if (status === expectedStatus || (status === "passed" && expectedStatus === "passed")) {
@@ -157,7 +165,7 @@ export function StatusBadgeWithTooltip({
     <Tooltip>
       <TooltipTrigger asChild>
         <Badge className={`${variants[status] || variants.skipped} cursor-help ${className || ""}`}>
-          {status}
+          {isQuarantined ? "quarantined" : status}
         </Badge>
       </TooltipTrigger>
       <TooltipContent>

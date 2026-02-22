@@ -108,6 +108,7 @@ export interface TestResult {
   isFinalAttempt: boolean;
   startedAt: string;
   baseUrl: string | null;
+  skippedByDashboard: boolean;
   test: TestResultTest;
   run: TestResultRun;
 }
@@ -161,6 +162,7 @@ export interface Pipeline {
   failedCount: number;
   skippedCount: number;
   flakyCount: number;
+  quarantinedCount: number;
 }
 
 export interface RecentRun {

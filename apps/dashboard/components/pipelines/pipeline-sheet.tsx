@@ -53,6 +53,7 @@ interface PipelineDetail {
     failedCount: number;
     skippedCount: number;
     flakyCount: number;
+    quarantinedCount: number;
     status: string;
     repository: string | null;
   };
@@ -68,6 +69,7 @@ interface PipelineDetail {
     failedCount: number;
     skippedCount: number;
     flakyCount: number;
+    quarantinedCount: number;
     ciJobUrl: string | null;
     reportPath: string | null;
   }>;
@@ -144,8 +146,9 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
       ? {
           passed: (pipeline.passedCount / pipeline.totalTests) * 100,
           failed: (pipeline.failedCount / pipeline.totalTests) * 100,
-          skipped: (pipeline.skippedCount / pipeline.totalTests) * 100,
+          skipped: ((pipeline.skippedCount - pipeline.quarantinedCount) / pipeline.totalTests) * 100,
           flaky: (pipeline.flakyCount / pipeline.totalTests) * 100,
+          quarantined: (pipeline.quarantinedCount / pipeline.totalTests) * 100,
         }
       : null;
 
@@ -270,6 +273,12 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                           style={{ width: `${percentages.failed}%` }}
                         />
                       )}
+                      {percentages.quarantined > 0 && (
+                        <div
+                          className="h-full bg-purple-500"
+                          style={{ width: `${percentages.quarantined}%` }}
+                        />
+                      )}
                       {percentages.skipped > 0 && (
                         <div
                           className="h-full bg-gray-400"
@@ -296,10 +305,17 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                         <span className="text-muted-foreground">Failed:</span>
                         <span className="font-medium">{pipeline.failedCount}</span>
                       </span>
+                      {pipeline.quarantinedCount > 0 && (
+                        <span className="flex items-center gap-1">
+                          <span className="h-2 w-2 rounded-full bg-purple-500" />
+                          <span className="text-muted-foreground">Quarantined:</span>
+                          <span className="font-medium">{pipeline.quarantinedCount}</span>
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
                         <span className="h-2 w-2 rounded-full bg-gray-400" />
                         <span className="text-muted-foreground">Skipped:</span>
-                        <span className="font-medium">{pipeline.skippedCount}</span>
+                        <span className="font-medium">{pipeline.skippedCount - pipeline.quarantinedCount}</span>
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">

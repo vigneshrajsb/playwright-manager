@@ -113,6 +113,13 @@ export async function GET(request: NextRequest) {
         envPattern: skipRules.envPattern,
         reason: skipRules.reason,
         createdAt: skipRules.createdAt,
+        skipCount: sql<number>`(
+          SELECT count(*)::int
+          FROM test_results
+          WHERE test_results.test_id = skip_rules.test_id
+            AND test_results.skipped_by_dashboard = true
+            AND test_results.is_final_attempt = true
+        )`,
         test: {
           id: tests.id,
           testTitle: tests.testTitle,

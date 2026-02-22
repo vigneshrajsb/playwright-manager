@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { testRuns, testResults, tests } from "@/lib/db/schema";
-import { eq, desc, asc, sql } from "drizzle-orm";
+import { eq, desc, asc, sql, inArray } from "drizzle-orm";
 import {
   buildPipelineConditions,
   combineConditions,
@@ -171,8 +171,6 @@ export async function GET(request: NextRequest) {
         ? testRuns.durationMs
         : testRuns.startedAt;
 
-    const whereClause = combineConditions(conditions);
-
     // If repository filter is set, we need to filter runs that have results from tests in that repo
     if (repository) {
       // Get runs that have at least one result from a test in this repository
@@ -192,9 +190,7 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // Add run ID filter using parameterized query (safe from SQL injection)
-      const runIdParams = runIds.map((id) => sql`${id}`);
-      conditions.push(sql`${testRuns.id} = ANY(ARRAY[${sql.join(runIdParams, sql`, `)}]::uuid[])`);
+      conditions.push(inArray(testRuns.id, runIds));
     }
 
     const updatedWhereClause = combineConditions(conditions);

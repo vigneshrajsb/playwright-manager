@@ -65,6 +65,7 @@ export const queryKeys = {
   tests: {
     all: ["tests"] as const,
     list: (filters: TestFilters) => ["tests", "list", filters] as const,
+    detail: (id: string | null) => ["tests", "detail", id] as const,
   },
   pipelines: {
     all: ["pipelines"] as const,

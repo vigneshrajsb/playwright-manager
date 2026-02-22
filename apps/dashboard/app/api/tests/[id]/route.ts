@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { tests, testResults, testRuns } from "@/lib/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { tests, testResults, testRuns, skipRules } from "@/lib/db/schema";
+import { eq, desc, isNull, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { parseId } from "@/lib/validation/id";
 
@@ -81,7 +81,7 @@ export async function GET(
       return NextResponse.json({ error: "Test not found" }, { status: 404 });
     }
 
-    // Get recent results with run info
+    // Get recent results with run info (final attempts only, so retries don't appear as separate entries)
     const recentResults = await db
       .select({
         result: testResults,
@@ -89,9 +89,15 @@ export async function GET(
       })
       .from(testResults)
       .innerJoin(testRuns, eq(testResults.testRunId, testRuns.id))
-      .where(eq(testResults.testId, id))
+      .where(and(eq(testResults.testId, id), eq(testResults.isFinalAttempt, true)))
       .orderBy(desc(testResults.startedAt))
       .limit(50);
+
+    // Get active skip rules
+    const activeSkipRules = await db
+      .select()
+      .from(skipRules)
+      .where(and(eq(skipRules.testId, id), isNull(skipRules.deletedAt)));
 
     return NextResponse.json({
       test,
@@ -103,8 +109,11 @@ export async function GET(
           branch: r.run.branch,
           commitSha: r.run.commitSha,
           status: r.run.status,
+          ciJobUrl: r.run.ciJobUrl,
+          reportPath: r.run.reportPath,
         },
       })),
+      skipRules: activeSkipRules,
     });
   } catch (error) {
     logger.error({ err: error }, "Failed to fetch test");

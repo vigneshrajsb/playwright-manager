@@ -7,6 +7,7 @@ import { queryKeys, type QuarantinedFilters } from "./keys";
 import type { Pagination, SkipRule } from "@/types";
 
 export interface QuarantinedRule extends SkipRule {
+  skipCount: number;
   test: {
     id: string;
     testTitle: string;
@@ -107,31 +108,3 @@ export function useDeleteQuarantinedRule() {
   });
 }
 
-interface BulkDeleteParams {
-  ruleIds: string[];
-}
-
-export function useBulkDeleteQuarantined() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ ruleIds }: BulkDeleteParams) => {
-      return apiFetch("/api/quarantined/bulk-delete", {
-        method: "POST",
-        body: JSON.stringify({ ruleIds }),
-      });
-    },
-    onSuccess: (_, { ruleIds }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.quarantined.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tests.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.skipRules.all });
-      const count = ruleIds.length;
-      toast.success(`${count} rule${count > 1 ? "s" : ""} deleted`);
-    },
-    onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete rules"
-      );
-    },
-  });
-}

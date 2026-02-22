@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, ListChecks, ScrollText } from "lucide-react";
+import { MoreHorizontal, ListChecks, ScrollText, PanelRightOpen } from "lucide-react";
 import Link from "next/link";
 import { HealthBadge } from "@/components/badges";
 import { SkipRulesBadges } from "@/components/badges/skip-rule-badge";
@@ -21,6 +21,7 @@ import type { Test } from "@/types";
 
 export interface TestTableMeta {
   onViewRules?: (test: Test) => void;
+  onOpenSheet?: (testId: string) => void;
   buildUrl?: (path: string, params?: Record<string, string | undefined>) => string;
 }
 
@@ -166,6 +167,11 @@ export const testColumns: ColumnDef<Test>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); meta?.onOpenSheet?.(test.id); }}>
+              <PanelRightOpen className="mr-2 h-4 w-4" />
+              View Details
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href={resultsUrl}>
                 <ListChecks className="mr-2 h-4 w-4" />

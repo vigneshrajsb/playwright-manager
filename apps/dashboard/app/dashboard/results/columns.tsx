@@ -80,6 +80,7 @@ export const resultColumns = (
             status={row.original.status}
             expectedStatus={row.original.expectedStatus}
             outcome={row.original.outcome}
+            skippedByDashboard={row.original.skippedByDashboard}
           />
           {retryCount > 0 && (
             <Tooltip>

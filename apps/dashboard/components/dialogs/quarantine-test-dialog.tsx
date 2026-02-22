@@ -1,113 +1,100 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronDown, Loader2, HelpCircle, GitBranch, Globe } from "lucide-react";
-import { useUpdateSkipRule, type QuarantinedRule } from "@/hooks/queries";
+import { ChevronDown, Loader2, HelpCircle } from "lucide-react";
 
-interface EditRuleSheetProps {
-  rule: QuarantinedRule | null;
-  onClose: () => void;
+export interface QuarantineTestDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  testCount: number;
+  loading?: boolean;
+  onConfirm: (data: {
+    reason: string;
+    branchPattern?: string;
+    envPattern?: string;
+  }) => void | Promise<void>;
 }
 
-export function EditRuleSheet({ rule, onClose }: EditRuleSheetProps) {
+export function QuarantineTestDialog({
+  open,
+  onOpenChange,
+  testCount,
+  loading = false,
+  onConfirm,
+}: QuarantineTestDialogProps) {
   const [reason, setReason] = useState("");
   const [branchPattern, setBranchPattern] = useState("");
   const [envPattern, setEnvPattern] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const updateMutation = useUpdateSkipRule();
+  const handleConfirm = async () => {
+    if (!reason.trim()) return;
+    await onConfirm({
+      reason: reason.trim(),
+      branchPattern: branchPattern.trim() || undefined,
+      envPattern: envPattern.trim() || undefined,
+    });
+  };
 
-  /* eslint-disable react-hooks/set-state-in-effect -- form state sync from prop */
-  useEffect(() => {
-    if (rule) {
-      setReason(rule.reason || "");
-      setBranchPattern(rule.branchPattern || "");
-      setEnvPattern(rule.envPattern || "");
-      setShowAdvanced(!!(rule.branchPattern || rule.envPattern));
-    } else {
+  const handleClose = () => {
+    if (!loading) {
       setReason("");
       setBranchPattern("");
       setEnvPattern("");
       setShowAdvanced(false);
-    }
-  }, [rule]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  const handleSave = async () => {
-    if (!rule || !reason.trim()) return;
-
-    updateMutation.mutate(
-      {
-        id: rule.id,
-        reason: reason.trim(),
-        branchPattern: branchPattern.trim() || null,
-        envPattern: envPattern.trim() || null,
-      },
-      {
-        onSuccess: () => {
-          onClose();
-        },
-      }
-    );
-  };
-
-  const handleClose = () => {
-    if (!updateMutation.isPending) {
-      onClose();
+      onOpenChange(false);
     }
   };
 
   const isGlobalRule = !branchPattern.trim() && !envPattern.trim();
-  const hasChanges =
-    rule &&
-    (reason.trim() !== rule.reason ||
-      (branchPattern.trim() || null) !== rule.branchPattern ||
-      (envPattern.trim() || null) !== rule.envPattern);
+  const plural = testCount === 1 ? "test" : "tests";
 
   return (
-    <Sheet open={!!rule} onOpenChange={(open) => !open && handleClose()}>
-      <SheetContent side="right" className="sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle>Edit Skip Rule</SheetTitle>
-          <SheetDescription className="truncate text-xs">
-            {rule?.test.testTitle}
-          </SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>
+            Quarantine {testCount} {plural}
+          </DialogTitle>
+          <DialogDescription>
+            {isGlobalRule
+              ? `This will skip the ${plural} on all branches and environments.`
+              : `This will skip the ${plural} only when conditions match.`}
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="mt-6 space-y-4 px-4">
-          {/* Reason (required) */}
+        <div className="space-y-4 py-4">
           <div className="space-y-2">
             <label
-              htmlFor="edit-reason"
-              className="text-sm font-medium leading-none"
+              htmlFor="reason"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               Reason *
             </label>
             <Input
-              id="edit-reason"
-              placeholder="Why is this test being disabled?"
+              id="reason"
+              placeholder="Why is this test being quarantined?"
               value={reason}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReason(e.target.value)}
-              disabled={updateMutation.isPending}
+              onChange={(e) => setReason(e.target.value)}
+              disabled={loading}
             />
           </div>
 
-          {/* Advanced Options Toggle */}
           <Button
             type="button"
             variant="ghost"
@@ -121,15 +108,12 @@ export function EditRuleSheet({ rule, onClose }: EditRuleSheetProps) {
             />
           </Button>
 
-          {/* Advanced Options */}
           {showAdvanced && (
             <div className="space-y-4 rounded-md border p-4">
-              {/* Branch Pattern */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <GitBranch className="h-4 w-4 text-muted-foreground" />
                   <label
-                    htmlFor="edit-branchPattern"
+                    htmlFor="branchPattern"
                     className="text-sm font-medium leading-none"
                   >
                     Branch Pattern
@@ -147,20 +131,18 @@ export function EditRuleSheet({ rule, onClose }: EditRuleSheetProps) {
                   </Tooltip>
                 </div>
                 <Input
-                  id="edit-branchPattern"
+                  id="branchPattern"
                   placeholder="e.g., feature-*, release/*"
                   value={branchPattern}
                   onChange={(e) => setBranchPattern(e.target.value)}
-                  disabled={updateMutation.isPending}
+                  disabled={loading}
                 />
               </div>
 
-              {/* Environment Pattern */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
                   <label
-                    htmlFor="edit-envPattern"
+                    htmlFor="envPattern"
                     className="text-sm font-medium leading-none"
                   >
                     Environment Pattern
@@ -178,43 +160,32 @@ export function EditRuleSheet({ rule, onClose }: EditRuleSheetProps) {
                   </Tooltip>
                 </div>
                 <Input
-                  id="edit-envPattern"
+                  id="envPattern"
                   placeholder="e.g., *.staging.example.com"
                   value={envPattern}
                   onChange={(e) => setEnvPattern(e.target.value)}
-                  disabled={updateMutation.isPending}
+                  disabled={loading}
                 />
               </div>
 
-              {/* Help text */}
               <p className="text-xs text-muted-foreground">
-                {isGlobalRule
-                  ? "No patterns set - this is a global skip rule."
-                  : "Both patterns must match for the rule to apply."}
+                Leave both empty for a global skip rule. If both are set, both
+                must match.
               </p>
             </div>
           )}
         </div>
 
-        <SheetFooter className="mt-6 px-4">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={updateMutation.isPending}
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!reason.trim() || !hasChanges || updateMutation.isPending}
-          >
-            {updateMutation.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Save Changes
+          <Button onClick={handleConfirm} disabled={!reason.trim() || loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Quarantine
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -180,11 +180,17 @@ export const pipelineColumns = (
           <span className="text-muted-foreground">/</span>
           <span className="text-red-600 font-medium">{pipeline.failedCount}</span>
           <span className="text-muted-foreground">/</span>
-          <span className="text-gray-500">{pipeline.skippedCount}</span>
+          <span className="text-gray-500">{pipeline.skippedCount - pipeline.quarantinedCount}</span>
           {pipeline.flakyCount > 0 && (
             <>
               <span className="text-muted-foreground">/</span>
               <span className="text-yellow-600">{pipeline.flakyCount}</span>
+            </>
+          )}
+          {pipeline.quarantinedCount > 0 && (
+            <>
+              <span className="text-muted-foreground">/</span>
+              <span className="text-purple-600">{pipeline.quarantinedCount}</span>
             </>
           )}
           <span className="text-xs text-muted-foreground ml-1">

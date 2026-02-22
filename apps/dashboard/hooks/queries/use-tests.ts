@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { apiFetch, buildUrl } from "@/lib/api";
 import { queryKeys, type TestFilters } from "./keys";
-import type { Test, Pagination, TestFiltersData } from "@/types";
+import type { Test, Pagination } from "@/types";
 
 interface TestsResponse {
   tests: Test[];

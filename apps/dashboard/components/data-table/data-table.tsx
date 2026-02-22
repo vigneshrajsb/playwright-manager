@@ -80,6 +80,7 @@ export function DataTable<TData, TValue>({
   toolbar,
   highlightedRowId,
 }: DataTableProps<TData, TValue>) {
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -167,7 +168,10 @@ export function DataTable<TData, TValue>({
                   key={row.id}
                   data-state={(row.getIsSelected() || row.id === highlightedRowId) && "selected"}
                   className={onRowClick ? "cursor-pointer" : undefined}
-                  onClick={() => onRowClick?.(row.original)}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('[role="checkbox"]')) return;
+                    onRowClick?.(row.original);
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
