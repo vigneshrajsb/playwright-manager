@@ -93,7 +93,6 @@ async function uploadReport(values: UploadReportFlags): Promise<void> {
       },
       startTime: new Date().toISOString(),
       endTime: new Date().toISOString(),
-      status: "passed",
       results: [],
     }),
   });

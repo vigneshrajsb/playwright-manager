@@ -101,7 +101,7 @@ describe("upload-report", () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.metadata.reportPath).toBe("reports/org/repo/run-123");
     expect(body.results).toEqual([]);
-    expect(body.status).toBe("passed");
+    expect(body).not.toHaveProperty("status");
   });
 
   it("uses --run-id override", async () => {
