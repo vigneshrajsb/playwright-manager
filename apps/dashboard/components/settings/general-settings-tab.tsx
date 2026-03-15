@@ -1,39 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Copy, Loader2, XCircle } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
+import { CheckCircle2, Loader2, Minus, XCircle } from "lucide-react";
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      className="h-6 w-6 shrink-0"
-      onClick={() => {
-        navigator.clipboard.writeText(text);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      {copied ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-    </Button>
-  );
-}
+const subscribe = () => () => {};
+const getOrigin = () => window.location.origin;
+const getServerOrigin = () => "http://localhost:3000";
 
 function StatusIndicator({ label, value }: { label: string; value: string }) {
-  const isOk =
-    value === "connected" || value === "ok" || value === "configured" || value === "not_configured";
+  const isOk = value === "connected" || value === "ok" || value === "configured";
+  const isNeutral = value === "not_configured";
   return (
     <div className="flex items-center justify-between py-2">
       <span className="text-sm text-muted-foreground">{label}</span>
       <div className="flex items-center gap-2">
         {isOk ? (
           <CheckCircle2 className="h-4 w-4 text-green-500" />
+        ) : isNeutral ? (
+          <Minus className="h-4 w-4 text-muted-foreground" />
         ) : (
           <XCircle className="h-4 w-4 text-red-500" />
         )}
@@ -44,6 +32,8 @@ function StatusIndicator({ label, value }: { label: string; value: string }) {
 }
 
 export function GeneralSettingsTab() {
+  const appUrl = useSyncExternalStore(subscribe, getOrigin, getServerOrigin);
+
   const { data: health, isLoading: healthLoading } = useQuery({
     queryKey: ["health"],
     queryFn: async () => {
@@ -58,9 +48,8 @@ export function GeneralSettingsTab() {
       const res = await fetch("/api/admin/status");
       return res.json() as Promise<{ hasData: boolean; testCount: number; runCount: number }>;
     },
+    staleTime: 60_000,
   });
-
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
 
   const configSnippet = `reporter: [
   ["@playwright-manager/reporter", {

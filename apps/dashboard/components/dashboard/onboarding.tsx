@@ -4,9 +4,9 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   CheckCircle2,
-  Copy,
   ExternalLink,
   Loader2,
   Package,
@@ -14,22 +14,6 @@ import {
   Terminal,
   Zap,
 } from "lucide-react";
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={handleCopy}>
-      {copied ? <CheckCircle2 className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
-    </Button>
-  );
-}
 
 function CodeBlock({ children }: { children: string }) {
   return (

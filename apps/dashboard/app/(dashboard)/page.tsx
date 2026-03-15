@@ -58,6 +58,7 @@ export default function DashboardOverviewPage() {
       const res = await fetch("/api/admin/status");
       return res.json() as Promise<{ hasData: boolean; testCount: number; runCount: number }>;
     },
+    staleTime: 60_000,
   });
 
   const updateUrl = (updates: Record<string, string>) => {

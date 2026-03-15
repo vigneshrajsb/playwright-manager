@@ -103,10 +103,10 @@ export async function runInit(): Promise<void> {
         signal: AbortSignal.timeout(5000),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as { db?: string; s3?: string };
         console.log(`  Dashboard: connected`);
-        console.log(`  Database:  ${(data as any).db || "unknown"}`);
-        console.log(`  Storage:   ${(data as any).s3 || "unknown"}`);
+        console.log(`  Database:  ${data.db || "unknown"}`);
+        console.log(`  Storage:   ${data.s3 || "unknown"}`);
       } else {
         console.log(`  Dashboard returned ${res.status} — check if it's running at ${apiUrl}`);
       }
