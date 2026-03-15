@@ -156,8 +156,8 @@ export const testColumns: ColumnDef<Test>[] = [
       const test = row.original;
       const meta = table.options.meta as TestTableMeta | undefined;
       const hasSkipRules = test.skipRules && test.skipRules.length > 0;
-      const resultsUrl = meta?.buildUrl?.("/dashboard/results", { testId: test.id })
-        ?? `/dashboard/results?testId=${test.id}`;
+      const resultsUrl = meta?.buildUrl?.("/results", { testId: test.id })
+        ?? `/results?testId=${test.id}`;
 
       return (
         <DropdownMenu>

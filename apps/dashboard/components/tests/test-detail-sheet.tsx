@@ -262,7 +262,7 @@ export function TestDetailSheet({
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link
-                                  href={buildUrl("/dashboard/results", {
+                                  href={buildUrl("/results", {
                                     testRunId: r.run.id,
                                   })}
                                   className="p-1 hover:bg-muted rounded"
@@ -280,7 +280,7 @@ export function TestDetailSheet({
                 )}
                 {results.length > 10 && (
                   <Link
-                    href={buildUrl("/dashboard/results", { testId: test.id })}
+                    href={buildUrl("/results", { testId: test.id })}
                     className="text-xs text-primary hover:underline"
                   >
                     View all {results.length > 50 ? "50+" : results.length} results →
@@ -368,7 +368,7 @@ export function TestDetailSheet({
               {/* Quick Actions */}
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" asChild className="flex-1">
-                  <Link href={buildUrl("/dashboard/results", { testId: test.id })}>
+                  <Link href={buildUrl("/results", { testId: test.id })}>
                     <ListChecks className="mr-2 h-4 w-4" />
                     View All Results
                   </Link>

@@ -37,7 +37,7 @@ export default function QuarantinedPage() {
     onPageChange,
     searchParams,
   } = useDataTableUrlState({
-    basePath: "/dashboard/quarantined",
+    basePath: "/quarantined",
     defaultSortField: "createdAt",
     defaultSortOrder: "desc",
   });
@@ -185,7 +185,7 @@ export default function QuarantinedPage() {
               <QuarantineRuleCard
                 key={rule.id}
                 rule={rule}
-                testUrl={buildUrl("/dashboard/tests", { testId: rule.test.id })}
+                testUrl={buildUrl("/tests", { testId: rule.test.id })}
                 onEdit={(r) => setEditRule(r)}
                 onDelete={(r) => setDeleteRule(r)}
               />

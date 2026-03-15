@@ -203,7 +203,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
               {/* Quick Actions */}
               <div className="flex flex-wrap gap-3">
                 <Link
-                  href={buildUrl("/dashboard/results", { testRunId: pipeline.id })}
+                  href={buildUrl("/results", { testRunId: pipeline.id })}
                   title="View all test results for this pipeline"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border bg-background hover:bg-muted transition-colors"
                 >
@@ -454,7 +454,7 @@ export function PipelineSheet({ pipelineId, onClose }: PipelineSheetProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link
-                                  href={buildUrl("/dashboard/results", { testRunId: run.id })}
+                                  href={buildUrl("/results", { testRunId: run.id })}
                                   className="p-1 hover:bg-muted rounded"
                                 >
                                   <ListChecks className="h-3.5 w-3.5" />

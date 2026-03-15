@@ -206,8 +206,8 @@ export const pipelineColumns = (
     id: "actions",
     cell: ({ row }) => {
       const pipeline = row.original;
-      const resultsUrl = buildUrl?.("/dashboard/results", { testRunId: pipeline.id })
-        ?? `/dashboard/results?testRunId=${pipeline.id}`;
+      const resultsUrl = buildUrl?.("/results", { testRunId: pipeline.id })
+        ?? `/results?testRunId=${pipeline.id}`;
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

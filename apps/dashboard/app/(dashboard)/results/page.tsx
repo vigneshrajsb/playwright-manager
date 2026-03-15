@@ -39,7 +39,7 @@ export default function ResultsPage() {
     onPageChange,
     searchParams,
   } = useDataTableUrlState({
-    basePath: "/dashboard/results",
+    basePath: "/results",
     defaultSortField: "startedAt",
     defaultSortOrder: "desc",
   });

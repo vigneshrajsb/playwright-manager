@@ -38,7 +38,7 @@ export default function PipelinesPage() {
     onPageChange,
     searchParams,
   } = useDataTableUrlState({
-    basePath: "/dashboard/pipelines",
+    basePath: "/pipelines",
     defaultSortField: "startedAt",
     defaultSortOrder: "desc",
   });

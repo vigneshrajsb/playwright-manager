@@ -471,7 +471,7 @@ export function ResultSheet({ resultId, onClose }: ResultSheetProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Link
-                                  href={buildUrl("/dashboard/results", { testRunId: run.testRunId })}
+                                  href={buildUrl("/results", { testRunId: run.testRunId })}
                                   className="p-1 hover:bg-muted rounded"
                                 >
                                   <ListChecks className="h-3.5 w-3.5" />
