@@ -35,6 +35,12 @@ dc_resource('minio-init', labels=['storage'], resource_deps=['minio'])
 dc_resource('dashboard', labels=['app'], resource_deps=['db', 'minio-init'])
 
 local_resource(
+    'docs',
+    serve_cmd='pnpm dev:docs',
+    labels=['app'],
+)
+
+local_resource(
     'db-push',
     cmd='cd apps/dashboard && pnpm db:push',
     labels=['database'],
@@ -76,6 +82,9 @@ local_resource(
 #
 # Access dashboard:
 #   http://localhost:3031
+#
+# Access docs site:
+#   http://localhost:3032
 #
 # Access MinIO Console (S3 storage):
 #   http://localhost:9001

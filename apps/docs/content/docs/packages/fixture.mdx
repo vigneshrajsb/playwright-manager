@@ -1,16 +1,146 @@
 ---
 title: Fixture
-description: Playwright fixture that auto-skips quarantined tests.
+description: Playwright fixture that auto-skips quarantined tests based on dashboard rules.
 ---
 
 ## Overview
 
-Content coming soon.
+The `@playwright-manager/fixture` extends Playwright's `test` object with an auto-skip fixture. Before each test runs, it checks the dashboard for active skip rules and automatically skips quarantined tests.
+
+- Runs as an auto fixture — no per-test code changes needed
+- Per-worker caching with request deduplication
+- Fail-silent by default — dashboard outages won't block CI
+- Supports branch and environment-scoped skip rules
+
+## Installation
+
+```bash
+npm install -D @playwright-manager/fixture
+# or
+pnpm add -D @playwright-manager/fixture
+```
+
+## Setup
+
+Replace your `@playwright/test` imports with `@playwright-manager/fixture` in your test files:
+
+```ts title="Before"
+import { test, expect } from "@playwright/test";
+```
+
+```ts title="After"
+import { test, expect } from "@playwright-manager/fixture";
+```
+
+Everything else stays the same — `test` and `expect` work identically to Playwright's built-in versions.
+
+<Callout type="info">
+Use the [`@playwright-manager/eslint-plugin`](/docs/packages/eslint-plugin) to automatically catch and fix accidental `@playwright/test` imports.
+</Callout>
 
 ## Configuration
 
-Content coming soon.
+Configure the fixture via `use` in your `playwright.config.ts`:
 
-## How it works
+```ts title="playwright.config.ts"
+import { defineConfig } from "@playwright/test";
 
-Content coming soon.
+export default defineConfig({
+  use: {
+    testManager: {
+      apiUrl: "http://localhost:3000",
+      repository: "org/repo",
+    },
+  },
+});
+```
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiUrl` | `string` | **required** | URL of the Playwright Manager dashboard |
+| `repository` | `string` | **required** | Repository identifier in `org/repo` format |
+| `disabled` | `boolean` | `false` | Disable the fixture without removing config |
+| `branch` | `string` | auto-detect | Override the auto-detected git branch |
+| `cacheTtl` | `number` | `60000` | Cache duration in milliseconds (1 minute) |
+| `failSilently` | `boolean` | `true` | Suppress errors if dashboard is unreachable |
+| `timeout` | `number` | `5000` | API request timeout in milliseconds |
+| `debug` | `boolean` | `false` | Enable debug logging |
+
+### Per-project configuration
+
+You can set different options per Playwright project:
+
+```ts title="playwright.config.ts"
+export default defineConfig({
+  projects: [
+    {
+      name: "staging",
+      use: {
+        baseURL: "https://staging.example.com",
+        testManager: {
+          apiUrl: "http://localhost:3000",
+          repository: "org/repo",
+        },
+      },
+    },
+    {
+      name: "production",
+      use: {
+        baseURL: "https://example.com",
+        testManager: {
+          apiUrl: "http://localhost:3000",
+          repository: "org/repo",
+          disabled: true, // don't skip tests in production checks
+        },
+      },
+    },
+  ],
+});
+```
+
+## How It Works
+
+### Skip flow
+
+1. Before each test, the fixture calls `POST /api/tests/check` with the repository, project name, branch, and base URL
+2. The API returns all disabled tests for that context
+3. If the current test is in the disabled list, it's skipped with the reason from the dashboard
+4. Skipped tests show `[dashboard] <reason>` in Playwright's output
+
+### Caching
+
+The fixture caches disabled test lists per worker to minimize API calls:
+
+- **Cache key**: `{repository}:{projectName}:{branch}:{baseURL}`
+- **TTL**: Configurable via `cacheTtl` (default: 60 seconds)
+- **Request deduplication**: If multiple workers request the same data simultaneously, only one API call is made — the others await the same promise
+
+In practice, this means a single API call covers all tests in a project for the duration of the cache TTL, regardless of how many workers are running.
+
+### Fail-silent behavior
+
+With `failSilently: true` (the default):
+
+- If the dashboard is unreachable, tests run normally — nothing is skipped
+- API errors are logged only when `debug: true`
+- Dashboard outages never block CI pipelines
+
+Set `failSilently: false` if you want tests to fail when the dashboard is unavailable (not recommended for CI).
+
+## CI Branch Detection
+
+The fixture auto-detects the current branch from CI environment variables. This allows skip rules to target specific branches.
+
+| CI Provider | Branch Variable |
+|---|---|
+| GitHub Actions | `GITHUB_REF_NAME` / `GITHUB_HEAD_REF` |
+| GitLab CI | `CI_COMMIT_REF_NAME` |
+| CircleCI | `CIRCLE_BRANCH` |
+| Jenkins | `GIT_BRANCH` / `BRANCH_NAME` |
+| Azure DevOps | `BUILD_SOURCEBRANCH` |
+| Codefresh | `CF_BRANCH` |
+| Generic CI | `BRANCH_NAME` / `GIT_BRANCH` |
+
+For local development, set the `BRANCH_NAME` environment variable or use the `branch` option in the config.
