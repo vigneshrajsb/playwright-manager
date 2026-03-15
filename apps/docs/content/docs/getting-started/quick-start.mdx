@@ -3,10 +3,112 @@ title: Quick Start
 description: Get up and running in minutes.
 ---
 
-## Run your first suite
+Get from zero to seeing test results in the dashboard in under 15 minutes.
 
-Content coming soon.
+## Prerequisites
 
-## View results in the dashboard
+- **Node.js 18+** and a package manager (npm, pnpm, or yarn)
+- **Docker** (for running the dashboard)
+- An existing **Playwright** test suite
 
-Content coming soon.
+## 1. Start the dashboard
+
+Pull the Docker image and start with Docker Compose:
+
+```bash
+curl -O https://raw.githubusercontent.com/vigneshrajsb/playwright-manager/main/docker-compose.yml
+docker compose up -d
+```
+
+The dashboard is now running at [http://localhost:3000](http://localhost:3000).
+
+Want S3-based HTML report hosting too? Use the `with-storage` profile:
+
+```bash
+docker compose --profile with-storage up -d
+```
+
+## 2. Install packages
+
+In your Playwright project:
+
+```bash
+npm install -D @playwright-manager/reporter @playwright-manager/fixture
+```
+
+## 3. Configure your project
+
+Run the setup wizard:
+
+```bash
+npx playwright-manager init
+```
+
+This auto-detects your repository and prints the config snippet to add to `playwright.config.ts`.
+
+Or configure manually:
+
+```ts title="playwright.config.ts"
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  reporter: [
+    ["html"],
+    ["@playwright-manager/reporter", {
+      apiUrl: "http://localhost:3000",
+      repository: "your-org/your-repo",
+    }],
+  ],
+  use: {
+    testManager: {
+      apiUrl: "http://localhost:3000",
+      repository: "your-org/your-repo",
+    },
+  },
+});
+```
+
+## 4. Run your tests
+
+```bash
+npx playwright test
+```
+
+You should see a connectivity confirmation in the output:
+
+```
+[Playwright Manager] Connected to http://localhost:3000
+```
+
+After the run completes, a dashboard link is printed:
+
+```
+[Playwright Manager] Results uploaded successfully
+  Dashboard:  http://localhost:3000/dashboard/pipelines?pipelineId=...
+```
+
+## 5. View results
+
+Open the dashboard at [http://localhost:3000](http://localhost:3000) to see:
+
+- **Overview** — health scores, pass rates, flaky test trends
+- **Pipelines** — CI run history with per-test verdicts
+- **Tests** — full test inventory with health metrics
+- **Quarantined** — manage skip rules to disable flaky tests without code changes
+
+## Environment variable shortcut
+
+For org-wide rollout, set these in your CI environment instead of per-repo config:
+
+```bash
+PLAYWRIGHT_MANAGER_URL=https://your-dashboard-url
+PLAYWRIGHT_MANAGER_REPOSITORY=your-org/your-repo
+```
+
+Then you only need to install the packages — no `playwright.config.ts` changes required.
+
+## Next steps
+
+- [Installation](/docs/getting-started/installation) — package details and what's optional
+- [Setup](/docs/getting-started/setup) — full configuration reference
+- [Docker](/docs/self-hosting/docker) — production deployment guide

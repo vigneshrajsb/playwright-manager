@@ -44,15 +44,18 @@ export class TestManagerReporter implements Reporter {
       return;
     }
 
-    if (!options.repository) {
+    const repository = options.repository || process.env.PLAYWRIGHT_MANAGER_REPOSITORY || "";
+    if (!repository) {
       throw new Error(
-        "[TestManagerReporter] repository option is required. Example: { repository: 'org/repo' }",
+        "[TestManagerReporter] repository option is required. Set it in reporter options or via PLAYWRIGHT_MANAGER_REPOSITORY env var. Example: { repository: 'org/repo' }",
       );
     }
 
+    const apiUrl = options.apiUrl || process.env.PLAYWRIGHT_MANAGER_URL || "";
+
     this.options = {
-      apiUrl: options.apiUrl,
-      repository: options.repository,
+      apiUrl,
+      repository,
       disabled: false,
       branch: options.branch,
       commitSha: options.commitSha,
@@ -159,6 +162,14 @@ export class TestManagerReporter implements Reporter {
       isCI: this.ciEnv.isCI,
     });
 
+    if (!this.options.apiUrl) {
+      console.warn(
+        "[Playwright Manager] \u26a0 No apiUrl configured — results will not be recorded. Set apiUrl in reporter options or PLAYWRIGHT_MANAGER_URL env var.",
+      );
+    } else {
+      this.checkConnectivity();
+    }
+
     // Start flush interval timer
     if (this.options.flushInterval > 0) {
       this.flushTimer = setInterval(() => {
@@ -167,6 +178,25 @@ export class TestManagerReporter implements Reporter {
         }
       }, this.options.flushInterval);
     }
+  }
+
+  private checkConnectivity(): void {
+    const apiUrl = this.options.apiUrl;
+    fetch(`${apiUrl}/api/health`, { method: "GET", signal: AbortSignal.timeout(5000) })
+      .then((res) => {
+        if (res.ok) {
+          console.log(`[Playwright Manager] Connected to ${apiUrl}`);
+        } else {
+          console.warn(
+            `[Playwright Manager] \u26a0 Dashboard returned ${res.status} at ${apiUrl} — results may not be recorded`,
+          );
+        }
+      })
+      .catch(() => {
+        console.warn(
+          `[Playwright Manager] \u26a0 Cannot reach dashboard at ${apiUrl} — results will not be recorded`,
+        );
+      });
   }
 
   onTestEnd(test: TestCase, result: TestResult): void {

@@ -27,6 +27,7 @@ beforeEach(() => {
     text: () => Promise.resolve(""),
   });
   vi.spyOn(console, "log").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -34,6 +35,12 @@ const DEFAULT_OPTIONS = {
   apiUrl: "http://localhost:3000",
   repository: "org/repo",
 } as const;
+
+function getReportCalls() {
+  return mockFetch.mock.calls.filter(
+    (c: any[]) => typeof c[0] === "string" && c[0].includes("/api/reports"),
+  );
+}
 
 /**
  * Run a full reporter lifecycle (onBegin -> onTestEnd -> onEnd) and return
@@ -61,8 +68,10 @@ async function runReporterLifecycle(opts?: {
 
   await reporter.onEnd(createMockFullResult(opts?.fullResultOverrides));
 
-  const call = mockFetch.mock.calls[0];
-  const body = JSON.parse(call[1].body);
+  const reportCall = mockFetch.mock.calls.find(
+    (c: any[]) => typeof c[0] === "string" && c[0].includes("/api/reports"),
+  );
+  const body = JSON.parse(reportCall![1].body);
   return { body, reporter };
 }
 
@@ -93,13 +102,14 @@ describe("constructor", () => {
     // Add a single test (below default batchSize of 50)
     reporter.onTestEnd(createMockTestCase() as any, createMockTestResult() as any);
 
-    // Should NOT have flushed yet (only 1 result, batchSize=50)
-    expect(mockFetch).not.toHaveBeenCalled();
+    // Should NOT have flushed results yet (only 1 result, batchSize=50)
+    expect(getReportCalls()).toHaveLength(0);
 
     await reporter.onEnd(createMockFullResult());
 
-    expect(mockFetch).toHaveBeenCalled();
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const reportCalls = getReportCalls();
+    expect(reportCalls.length).toBeGreaterThanOrEqual(1);
+    const body = JSON.parse(reportCalls[0][1].body);
     expect(body.results).toHaveLength(1);
     expect(body.status).toBe("passed");
   });
@@ -270,9 +280,10 @@ describe("onTestEnd", () => {
     reporter.onBegin(createMockFullConfig(), createMockSuite());
     reporter.onTestEnd(createMockTestCase() as any, createMockTestResult() as any);
 
-    // Should have flushed immediately since batchSize=1
-    expect(mockFetch).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    // Should have flushed results immediately since batchSize=1
+    const reportCalls = getReportCalls();
+    expect(reportCalls).toHaveLength(1);
+    const body = JSON.parse(reportCalls[0][1].body);
     expect(body.status).toBe("running");
     expect(body.results).toHaveLength(1);
 
@@ -597,11 +608,13 @@ describe("skippedByDashboard", () => {
 
 describe("flushResults / sendResults", () => {
   it("re-queues results on failure when failSilently=true", async () => {
-    let callCount = 0;
-    mockFetch.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.reject(new Error("Network error"));
+    let reportCallCount = 0;
+    mockFetch.mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/api/reports")) {
+        reportCallCount++;
+        if (reportCallCount === 1) {
+          return Promise.reject(new Error("Network error"));
+        }
       }
       return Promise.resolve({
         ok: true,
@@ -624,14 +637,14 @@ describe("flushResults / sendResults", () => {
     await new Promise((r) => setTimeout(r, 10));
 
     // First flush failed (batchSize=1 triggered it), results re-queued
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(getReportCalls()).toHaveLength(1);
 
     // onEnd sends remaining results (the re-queued ones)
     await reporter.onEnd(createMockFullResult());
 
     // Second call succeeds — the re-queued result is sent
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    const finalBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(getReportCalls()).toHaveLength(2);
+    const finalBody = JSON.parse(getReportCalls()[1][1].body);
     expect(finalBody.results).toHaveLength(1);
     expect(finalBody.status).toBe("passed");
   });
@@ -689,13 +702,13 @@ describe("flushResults / sendResults", () => {
     reporter.onTestEnd(createMockTestCase() as any, createMockTestResult() as any);
 
     // First flush (running) should not have endTime
-    const runningBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const runningBody = JSON.parse(getReportCalls()[0][1].body);
     expect(runningBody.endTime).toBeUndefined();
 
     await reporter.onEnd(createMockFullResult());
 
     // Final send should have endTime
-    const finalBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    const finalBody = JSON.parse(getReportCalls()[1][1].body);
     expect(finalBody.endTime).toBeDefined();
   });
 
@@ -709,13 +722,13 @@ describe("flushResults / sendResults", () => {
     reporter.onTestEnd(createMockTestCase() as any, createMockTestResult() as any);
 
     // batchSize=1 flushes immediately
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(getReportCalls()).toHaveLength(1);
 
     await reporter.onEnd(createMockFullResult());
 
     // Final send with empty results
-    expect(mockFetch).toHaveBeenCalledTimes(2);
-    const finalBody = JSON.parse(mockFetch.mock.calls[1][1].body);
+    expect(getReportCalls()).toHaveLength(2);
+    const finalBody = JSON.parse(getReportCalls()[1][1].body);
     expect(finalBody.results).toHaveLength(0);
     expect(finalBody.status).toBe("passed");
   });
@@ -827,8 +840,9 @@ describe("S3 upload in onEnd", () => {
     await reporter.onEnd(createMockFullResult());
 
     // Should still send results (without reportPath)
-    expect(mockFetch).toHaveBeenCalled();
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    const reportCalls = getReportCalls();
+    expect(reportCalls.length).toBeGreaterThanOrEqual(1);
+    const body = JSON.parse(reportCalls[0][1].body);
     expect(body.metadata.reportPath).toBeUndefined();
   });
 

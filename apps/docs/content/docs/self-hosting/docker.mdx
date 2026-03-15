@@ -5,8 +5,89 @@ description: Deploy Playwright Manager with Docker.
 
 ## Docker Compose
 
-Content coming soon.
+The quickest way to run Playwright Manager with PostgreSQL:
+
+```bash
+curl -O https://raw.githubusercontent.com/vigneshrajsb/playwright-manager/main/docker-compose.yml
+docker compose up -d
+```
+
+This starts:
+- **PostgreSQL 16** on port 5433
+- **Dashboard** on port 3000
+
+### With S3 report storage
+
+To also start MinIO for HTML report hosting:
+
+```bash
+docker compose --profile with-storage up -d
+```
+
+This additionally starts:
+- **MinIO** on port 9000 (API) and 9001 (console)
+- Auto-creates the `playwright-reports` bucket
+
+Configure the dashboard to use MinIO by adding these to your `.env`:
+
+```bash
+S3_BUCKET=playwright-reports
+S3_REGION=us-east-1
+S3_ENDPOINT=http://minio:9000
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
+```
 
 ## Building the image
 
-Content coming soon.
+To build the dashboard image from source:
+
+```bash
+docker build -t playwright-manager -f apps/dashboard/Dockerfile .
+```
+
+The production image uses a multi-stage build (Node 20 Alpine) and runs as a non-root user on port 3000.
+
+## Production recommendations
+
+### Use an external database
+
+For production, use a managed PostgreSQL instance instead of the bundled container:
+
+```yaml
+services:
+  dashboard:
+    image: vigneshrajsb/playwright-manager:latest
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://user:password@your-db-host:5432/playwright_manager
+      NEXT_PUBLIC_APP_URL: https://playwright-manager.yourcompany.com
+```
+
+### Reverse proxy
+
+Place behind nginx, Caddy, or your preferred reverse proxy for TLS termination:
+
+```
+https://playwright-manager.yourcompany.com → http://dashboard:3000
+```
+
+### Persistent storage
+
+The bundled PostgreSQL uses a Docker volume (`postgres_data`). For MinIO, data is stored in `minio_data`. Both persist across container restarts.
+
+### Health checks
+
+The dashboard exposes `GET /api/health` which checks database and S3 connectivity. Use this for your load balancer health checks.
+
+## Upgrading
+
+Pull the latest image and restart:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Database migrations run automatically on startup.

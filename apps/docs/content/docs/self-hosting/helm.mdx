@@ -5,8 +5,137 @@ description: Deploy Playwright Manager on Kubernetes with Helm.
 
 ## Install the chart
 
-Content coming soon.
+Add the OCI registry and install:
 
-## Configuration values
+```bash
+helm install playwright-manager \
+  oci://ghcr.io/vigneshrajsb/charts/playwright-manager \
+  --set postgresql.auth.postgresPassword=your-secure-password
+```
 
-Content coming soon.
+This deploys:
+- Playwright Manager dashboard
+- PostgreSQL 16 (Bitnami subchart)
+- A migration job that runs before the deployment
+
+## Minimal values
+
+The only required override is the PostgreSQL password:
+
+```yaml title="values.yaml"
+postgresql:
+  auth:
+    postgresPassword: "your-secure-password"
+```
+
+## Production values
+
+```yaml title="values.yaml"
+replicaCount: 2
+
+image:
+  repository: vigneshrajsb/playwright-manager
+  tag: "0.6.0"
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: playwright-manager.yourcompany.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: playwright-manager-tls
+      hosts:
+        - playwright-manager.yourcompany.com
+
+env:
+  NEXT_PUBLIC_APP_URL: https://playwright-manager.yourcompany.com
+  # S3 report storage (optional)
+  # S3_BUCKET: playwright-reports
+  # S3_REGION: us-east-1
+
+# Use an external database instead of the bundled PostgreSQL
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: your-rds-instance.region.rds.amazonaws.com
+  port: 5432
+  database: playwright_manager
+  user: playwright_manager
+  existingSecret: playwright-manager-db-secret
+  existingSecretPasswordKey: password
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+```
+
+## Common customizations
+
+### External database
+
+To use an existing PostgreSQL instance:
+
+```yaml
+postgresql:
+  enabled: false
+
+externalDatabase:
+  host: your-db-host
+  port: 5432
+  database: playwright_manager
+  user: app_user
+  existingSecret: db-credentials
+  existingSecretPasswordKey: password
+```
+
+### Resource limits
+
+```yaml
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+```
+
+### Pod disruption budget
+
+```yaml
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+```
+
+## Health checks
+
+The chart configures liveness and readiness probes against `GET /api/health`:
+
+- **Liveness**: checks every 10s, 6 retries before restart
+- **Readiness**: checks every 5s, 3 retries before removing from service
+
+The health endpoint verifies database connectivity, so pods are only marked ready when they can serve requests.
+
+## Upgrading
+
+```bash
+helm upgrade playwright-manager \
+  oci://ghcr.io/vigneshrajsb/charts/playwright-manager
+```
+
+Database migrations run automatically via a pre-upgrade job.

@@ -4,6 +4,9 @@ import { detectCIContext } from "./ci-detection";
 import { DEFAULT_API_TIMEOUT_MS, DEFAULT_CACHE_TTL_MS } from "./constants";
 import type { DisabledTestsResponse, TestManagerFixtureOptions } from "./types";
 
+let hasLoggedNotConfigured = false;
+let hasLoggedConnected = false;
+
 /**
  * Fetch ALL disabled tests for a repository/project from the API
  * This fetches all disabled tests at once so we can cache them properly
@@ -129,28 +132,39 @@ export const test = base.extend<TestManagerFixtures>({
   // Auto fixture - runs before every test automatically
   _testManagerAutoSkip: [
     async ({ testManager: options }, use, testInfo) => {
+      const resolvedApiUrl = options?.apiUrl || process.env.PLAYWRIGHT_MANAGER_URL || "";
+      const resolvedRepository =
+        options?.repository || process.env.PLAYWRIGHT_MANAGER_REPOSITORY || "";
+
       // Skip if disabled or not configured
-      if (options?.disabled || !options?.apiUrl) {
+      if (options?.disabled || !resolvedApiUrl) {
+        if (!options?.disabled && !resolvedApiUrl && !hasLoggedNotConfigured) {
+          hasLoggedNotConfigured = true;
+          console.warn(
+            "[Playwright Manager] Fixture not configured \u2014 set testManager.apiUrl in playwright.config.ts or PLAYWRIGHT_MANAGER_URL env var to enable quarantine rules",
+          );
+        }
         await use(undefined);
         return;
       }
 
       // Repository is required
-      if (!options?.repository) {
+      if (!resolvedRepository) {
         throw new Error(
-          "[TestManagerFixture] repository option is required. Example: { repository: 'org/repo' }",
+          "[TestManagerFixture] repository option is required. Set it in testManager options or via PLAYWRIGHT_MANAGER_REPOSITORY env var. Example: { repository: 'org/repo' }",
         );
       }
 
       const {
-        apiUrl,
-        repository,
         branch: branchOverride,
         cacheTtl = DEFAULT_CACHE_TTL_MS,
         failSilently = true,
         debug = false,
         timeout = DEFAULT_API_TIMEOUT_MS,
       } = options;
+
+      const apiUrl = resolvedApiUrl;
+      const repository = resolvedRepository;
 
       const log = (...args: unknown[]) => {
         if (debug) {
@@ -195,6 +209,11 @@ export const test = base.extend<TestManagerFixtures>({
           timeout,
           debug,
         );
+
+        if (!hasLoggedConnected) {
+          hasLoggedConnected = true;
+          console.log("[Playwright Manager] Quarantine rules active");
+        }
 
         disabledInfo = disabledTests.disabledTests[testInfo.testId];
       } catch (error) {

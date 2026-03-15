@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import { detectCIEnvironment, generateRunId } from "./ci-detect";
+import { runCheckConnection } from "./commands/check-connection";
+import { runInit } from "./commands/init";
 import { findConfigFile, loadReporterConfig } from "./config-loader";
 import { uploadReportDirectory } from "./s3-uploader";
 
@@ -23,12 +25,20 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     process.exit(0);
   }
 
-  if (command === "upload-report") {
-    await uploadReport(values);
-  } else {
-    console.error(`Unknown command: ${command}`);
-    printHelp();
-    process.exit(1);
+  switch (command) {
+    case "upload-report":
+      await uploadReport(values);
+      break;
+    case "init":
+      await runInit();
+      break;
+    case "check-connection":
+      await runCheckConnection({ config: values.config });
+      break;
+    default:
+      console.error(`Unknown command: ${command}`);
+      printHelp();
+      process.exit(1);
   }
 }
 
@@ -62,7 +72,10 @@ async function uploadReport(values: UploadReportFlags): Promise<void> {
     process.exit(1);
   }
 
-  const { s3, apiUrl, repository } = options;
+  const apiUrl = options.apiUrl || process.env.PLAYWRIGHT_MANAGER_URL || "";
+  const repository = options.repository || process.env.PLAYWRIGHT_MANAGER_REPOSITORY || "";
+  const { s3 } = options;
+
   if (!s3) {
     console.error("[Playwright Manager] No s3 config found in reporter options.");
     process.exit(1);
@@ -113,7 +126,9 @@ function printHelp(): void {
   console.log(`playwright-manager <command> [options]
 
 Commands:
-  upload-report    Upload Playwright HTML report to S3
+  init               Set up Playwright Manager in your project
+  check-connection   Verify dashboard connectivity
+  upload-report      Upload Playwright HTML report to S3
 
 Options:
   --config <path>      Path to playwright.config.ts (default: auto-detect)

@@ -3,10 +3,67 @@ title: Environment Variables
 description: Configuration reference for all environment variables.
 ---
 
-## Required
+## Dashboard variables
 
-Content coming soon.
+### Required
 
-## Optional
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/playwright_test_manager` |
 
-Content coming soon.
+### Application
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `NEXT_PUBLIC_APP_URL` | Public URL of the dashboard (used for link generation) | `http://localhost:3000` |
+| `PORT` | Port the server listens on | `3000` |
+| `HOSTNAME` | Hostname to bind to | `0.0.0.0` |
+
+### S3 report storage (optional)
+
+Configure these to enable Playwright HTML report hosting. Compatible with AWS S3, MinIO, Cloudflare R2, DigitalOcean Spaces, and other S3-compatible providers.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `S3_BUCKET` | S3 bucket name | — (disabled if empty) |
+| `S3_REGION` | AWS region or provider region | `us-east-1` |
+| `S3_ENDPOINT` | Custom endpoint for non-AWS providers | — (uses AWS S3) |
+| `S3_ACCESS_KEY_ID` | Access key for S3 authentication | — (uses IAM/instance role) |
+| `S3_SECRET_ACCESS_KEY` | Secret key for S3 authentication | — (uses IAM/instance role) |
+
+### MinIO (development)
+
+Used by `docker-compose.yml` for local S3-compatible storage:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MINIO_ROOT_USER` | MinIO admin username | `minioadmin` |
+| `MINIO_ROOT_PASSWORD` | MinIO admin password | `minioadmin` |
+
+## Client-side variables
+
+These environment variables are used by the reporter and fixture packages in your Playwright project:
+
+| Variable | Used by | Description |
+|----------|---------|-------------|
+| `PLAYWRIGHT_MANAGER_URL` | Reporter, Fixture | Dashboard API URL (fallback when not set in config) |
+| `PLAYWRIGHT_MANAGER_REPOSITORY` | Reporter, Fixture | Repository in `org/repo` format (fallback when not set in config) |
+
+## Example `.env` file
+
+```bash
+# Required
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/playwright_test_manager
+
+# Dashboard
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# S3 (optional - for HTML report hosting)
+# S3_BUCKET=playwright-reports
+# S3_REGION=us-east-1
+# S3_ENDPOINT=http://localhost:9000
+# S3_ACCESS_KEY_ID=minioadmin
+# S3_SECRET_ACCESS_KEY=minioadmin
+```
+
+A `.env.example` file is included in the repository root.

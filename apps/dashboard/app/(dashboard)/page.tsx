@@ -2,6 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +26,7 @@ import {
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { PassRateChart } from "@/components/dashboard/pass-rate-chart";
 import { HealthPieChart } from "@/components/dashboard/health-pie-chart";
+import { OnboardingWelcome } from "@/components/dashboard/onboarding";
 import { HealthBadge } from "@/components/badges";
 import { TagFilterPopover } from "@/components/filters";
 import { formatRelativeTime } from "@/lib/utils/format";
@@ -49,6 +51,14 @@ export default function DashboardOverviewPage() {
 
   const { data, isLoading } = useDashboard(filters);
   const { buildUrl } = useTimeRangeUrl();
+
+  const { data: adminStatus } = useQuery({
+    queryKey: ["admin", "status"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/status");
+      return res.json() as Promise<{ hasData: boolean; testCount: number; runCount: number }>;
+    },
+  });
 
   const updateUrl = (updates: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -81,6 +91,10 @@ export default function DashboardOverviewPage() {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  if (adminStatus && !adminStatus.hasData) {
+    return <OnboardingWelcome />;
   }
 
   return (

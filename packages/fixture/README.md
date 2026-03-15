@@ -7,6 +7,8 @@ Playwright fixture that automatically skips tests disabled in the Playwright Man
 - Automatic test skipping based on dashboard status
 - Per-worker caching with request deduplication
 - Fail-silently behavior to prevent dashboard outages from blocking CI
+- **Environment variable fallbacks** — configure via `PLAYWRIGHT_MANAGER_URL` and `PLAYWRIGHT_MANAGER_REPOSITORY` for org-wide CI setup
+- **Startup warnings** — logs when not configured and confirms when quarantine rules are active
 
 ## Installation
 
@@ -53,15 +55,48 @@ test("my test", async ({ page }) => {
 
 | Option         | Type      | Required | Default | Description                                 |
 | -------------- | --------- | -------- | ------- | ------------------------------------------- |
-| `apiUrl`       | `string`  | Yes      | -       | URL of your Playwright Manager Dashboard    |
-| `repository`   | `string`  | Yes      | -       | Repository identifier in `org/repo` format  |
+| `apiUrl`       | `string`  | No       | `PLAYWRIGHT_MANAGER_URL` env var | URL of your Playwright Manager Dashboard |
+| `repository`   | `string`  | No       | `PLAYWRIGHT_MANAGER_REPOSITORY` env var | Repository identifier in `org/repo` format |
+| `branch`       | `string`  | No       | auto-detect | Override branch name for skip rule matching |
 | `disabled`     | `boolean` | No       | `false` | Disable the fixture                         |
 | `cacheTtl`     | `number`  | No       | `60000` | Cache duration in milliseconds (1 minute)   |
 | `failSilently` | `boolean` | No       | `true`  | Suppress errors if dashboard is unreachable |
 | `timeout`      | `number`  | No       | `5000`  | API request timeout in milliseconds         |
 | `debug`        | `boolean` | No       | `false` | Enable debug logging                        |
 
+Both `apiUrl` and `repository` can be set via environment variables as fallback:
+- `PLAYWRIGHT_MANAGER_URL` — fallback for `apiUrl`
+- `PLAYWRIGHT_MANAGER_REPOSITORY` — fallback for `repository`
+
+Precedence: explicit config > environment variable. If neither is set, the fixture logs a one-time warning and runs tests normally.
+
+## Startup Behavior
+
+The fixture logs status messages once per worker:
+
+- **Not configured:** `[Playwright Manager] Fixture not configured — set testManager.apiUrl in playwright.config.ts or PLAYWRIGHT_MANAGER_URL env var to enable quarantine rules`
+- **Connected:** `[Playwright Manager] Quarantine rules active` (logged on first successful API call)
+
+These messages are always logged (not gated by `debug`) to help catch misconfiguration early.
+
 ## Examples
+
+### Org-Wide CI Setup (Environment Variables)
+
+Set these in your CI provider — no per-repo config changes needed:
+
+```bash
+PLAYWRIGHT_MANAGER_URL=https://your-dashboard.example.com
+PLAYWRIGHT_MANAGER_REPOSITORY=your-org/your-repo
+```
+
+```typescript
+export default defineConfig({
+  use: {
+    testManager: {} as TestManagerFixtureOptions,
+  },
+});
+```
 
 ### Basic Setup
 
@@ -79,20 +114,6 @@ export default defineConfig({
 });
 ```
 
-### CI Setup with Environment Variables
-
-```typescript
-export default defineConfig({
-  use: {
-    testManager: {
-      apiUrl: process.env.DASHBOARD_URL || "http://localhost:3031",
-      repository: process.env.GITHUB_REPOSITORY || "my-org/my-app",
-      disabled: process.env.SKIP_DASHBOARD_CHECK === "true",
-    } as TestManagerFixtureOptions,
-  },
-});
-```
-
 ### Full Configuration
 
 ```typescript
@@ -101,6 +122,9 @@ export default defineConfig({
     testManager: {
       apiUrl: "https://dashboard.example.com",
       repository: "my-org/my-app",
+
+      // Override branch detection
+      branch: "main",
 
       // Caching
       cacheTtl: 30000, // Check every 30 seconds instead of 60
@@ -142,6 +166,7 @@ The release triggers the npm publish workflow automatically.
 
 | Package Version | Playwright Version |
 | --------------- | ------------------ |
+| 0.2.x           | >= 1.25.0          |
 | 0.1.x           | >= 1.25.0          |
 
 **Minimum supported version: 1.25.0**

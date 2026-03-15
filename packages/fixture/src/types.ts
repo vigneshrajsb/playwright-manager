@@ -3,16 +3,18 @@
  */
 export interface TestManagerFixtureOptions {
   /**
-   * URL of the Test Manager Dashboard API
+   * URL of the Test Manager Dashboard API.
+   * Falls back to PLAYWRIGHT_MANAGER_URL env var if not set.
    * @example "http://localhost:3000"
    */
-  apiUrl: string;
+  apiUrl?: string;
 
   /**
-   * GitHub repository in org/repo format
+   * Repository in org/repo format.
+   * Falls back to PLAYWRIGHT_MANAGER_REPOSITORY env var if not set.
    * @example "vigneshrajsb/devtools"
    */
-  repository: string;
+  repository?: string;
 
   /**
    * Disable the fixture without removing config
