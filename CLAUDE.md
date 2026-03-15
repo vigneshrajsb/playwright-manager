@@ -92,7 +92,7 @@ pnpm db:studio              # Open Drizzle Studio GUI
    - Auto-detects CI environment (GitHub Actions, GitLab, CircleCI, Jenkins, Azure DevOps, Codefresh)
    - Batches results (50 per request) to `POST /api/results` and `POST /api/reports`
    - Extracts branch, commit SHA, job URL from CI environment
-   - Startup connectivity check (non-blocking GET to `/api/health`)
+   - Startup connectivity check (non-blocking GET to `/api/admin/health`)
    - CLI: `npx playwright-manager init|check-connection|upload-report`
 
 3. **ESLint Plugin** (`packages/eslint-plugin`) - Linting for test files
@@ -132,7 +132,8 @@ Both reporter and fixture support `PLAYWRIGHT_MANAGER_URL` and `PLAYWRIGHT_MANAG
 
 ### Key API Endpoints
 
-- `GET /api/health` - Deep health check (DB + S3 connectivity)
+- `GET /api/health` - Lightweight liveness check (for K8s probes)
+- `GET /api/admin/health` - Deep health check (DB + S3 connectivity)
 - `GET /api/admin/status` - Instance status (test/run counts, used for onboarding detection)
 - `POST /api/tests/check` - Fixture checks which tests to skip
 - `POST /api/results` - Reporter submits test results
@@ -156,7 +157,8 @@ Both reporter and fixture support `PLAYWRIGHT_MANAGER_URL` and `PLAYWRIGHT_MANAG
 - `apps/dashboard/lib/db/schema.ts` - Database schema (source of truth)
 - `apps/dashboard/app/api/tests/check/route.ts` - Fixture integration
 - `apps/dashboard/app/api/results/route.ts` - Reporter integration
-- `apps/dashboard/app/api/health/route.ts` - Deep health check (DB + S3)
+- `apps/dashboard/app/api/health/route.ts` - Lightweight liveness check
+- `apps/dashboard/app/api/admin/health/route.ts` - Deep health check (DB + S3)
 - `apps/dashboard/app/api/admin/status/route.ts` - Instance status for onboarding
 - `packages/fixture/src/fixture.ts` - Skip logic implementation
 - `packages/reporter/src/reporter.ts` - Result batching + CI detection

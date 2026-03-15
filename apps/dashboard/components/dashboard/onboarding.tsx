@@ -34,7 +34,7 @@ export function OnboardingWelcome() {
   const checkConnection = async () => {
     setHealthStatus({ loading: true });
     try {
-      const res = await fetch("/api/health");
+      const res = await fetch("/api/admin/health");
       const data = await res.json();
       setHealthStatus({ loading: false, result: data });
     } catch {

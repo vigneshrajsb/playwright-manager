@@ -27,7 +27,7 @@ export async function runCheckConnection(flags: CheckConnectionFlags): Promise<v
   console.log("");
 
   try {
-    const res = await fetch(`${apiUrl}/api/health`, {
+    const res = await fetch(`${apiUrl}/api/admin/health`, {
       signal: AbortSignal.timeout(10000),
     });
 

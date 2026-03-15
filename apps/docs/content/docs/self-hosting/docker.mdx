@@ -79,7 +79,10 @@ The bundled PostgreSQL uses a Docker volume (`postgres_data`). For MinIO, data i
 
 ### Health checks
 
-The dashboard exposes `GET /api/health` which checks database and S3 connectivity. Use this for your load balancer health checks.
+The dashboard exposes two health endpoints:
+
+- **`GET /api/health`** — Lightweight liveness check (always returns `{ status: "ok" }`). Use this for load balancer health checks.
+- **`GET /api/admin/health`** — Deep diagnostic check (verifies DB and S3 connectivity). Use this for debugging or setup validation.
 
 ## Upgrading
 

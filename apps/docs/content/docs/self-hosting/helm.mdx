@@ -124,12 +124,12 @@ podDisruptionBudget:
 
 ## Health checks
 
-The chart configures liveness and readiness probes against `GET /api/health`:
+The chart configures liveness and readiness probes against `GET /api/health` (a lightweight check that confirms the process is alive):
 
 - **Liveness**: checks every 10s, 6 retries before restart
 - **Readiness**: checks every 5s, 3 retries before removing from service
 
-The health endpoint verifies database connectivity, so pods are only marked ready when they can serve requests.
+For deep diagnostics (DB + S3 connectivity), use `GET /api/admin/health` — this is intended for debugging and CLI tools, not for K8s probes.
 
 ## Upgrading
 

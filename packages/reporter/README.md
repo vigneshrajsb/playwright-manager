@@ -105,7 +105,7 @@ Uploads a Playwright HTML report to S3-compatible storage. Requires S3 configura
 
 ## Startup Connectivity Check
 
-On `onBegin()`, the reporter makes a non-blocking `GET /api/health` call and logs the result:
+On `onBegin()`, the reporter makes a non-blocking `GET /api/admin/health` call and logs the result:
 
 - **Success:** `[Playwright Manager] Connected to https://your-dashboard`
 - **Failure:** `[Playwright Manager] ⚠ Cannot reach dashboard at https://your-dashboard — results will not be recorded`

@@ -99,7 +99,7 @@ export async function runInit(): Promise<void> {
     console.log("Checking dashboard connectivity...");
 
     try {
-      const res = await fetch(`${apiUrl}/api/health`, {
+      const res = await fetch(`${apiUrl}/api/admin/health`, {
         signal: AbortSignal.timeout(5000),
       });
       if (res.ok) {

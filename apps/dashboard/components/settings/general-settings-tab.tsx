@@ -37,7 +37,7 @@ export function GeneralSettingsTab() {
   const { data: health, isLoading: healthLoading } = useQuery({
     queryKey: ["health"],
     queryFn: async () => {
-      const res = await fetch("/api/health");
+      const res = await fetch("/api/admin/health");
       return res.json() as Promise<{ status: string; db: string; s3: string }>;
     },
   });

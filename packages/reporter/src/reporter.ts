@@ -182,7 +182,7 @@ export class TestManagerReporter implements Reporter {
 
   private checkConnectivity(): void {
     const apiUrl = this.options.apiUrl;
-    fetch(`${apiUrl}/api/health`, { method: "GET", signal: AbortSignal.timeout(5000) })
+    fetch(`${apiUrl}/api/admin/health`, { method: "GET", signal: AbortSignal.timeout(5000) })
       .then((res) => {
         if (res.ok) {
           console.log(`[Playwright Manager] Connected to ${apiUrl}`);
