@@ -44,7 +44,7 @@ export default function TestsPage() {
     onPageChange,
     searchParams,
   } = useDataTableUrlState({
-    basePath: "/dashboard/tests",
+    basePath: "/tests",
     defaultSortField: "lastSeenAt",
     defaultSortOrder: "desc",
   });

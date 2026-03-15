@@ -34,10 +34,8 @@ export default function RootLayout({
       >
         <QueryProvider>
           <ThemeProvider>
-            <div className="flex min-h-screen flex-col">
-              <Navbar />
-              <main className="flex-1 p-6 overflow-x-hidden">{children}</main>
-            </div>
+            <Navbar />
+            {children}
             <Toaster />
           </ThemeProvider>
         </QueryProvider>

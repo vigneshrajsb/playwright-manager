@@ -1,0 +1,4 @@
+{
+  "title": "Package Guides",
+  "pages": ["reporter", "fixture", "eslint-plugin"]
+}

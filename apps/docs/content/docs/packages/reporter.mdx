@@ -1,0 +1,169 @@
+---
+title: Reporter
+description: Playwright reporter that sends test results to the dashboard and uploads HTML reports to S3.
+---
+
+## Overview
+
+The `@playwright-manager/reporter` is a Playwright reporter that automatically sends test results to the Playwright Manager dashboard. It provides:
+
+- Real-time result streaming with batching and periodic flushing
+- Automatic CI environment detection (GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps, Codefresh)
+- HTML report hosting via S3-compatible storage
+- Sharded test run support
+- Tag and annotation extraction
+
+## Installation
+
+```bash
+npm install -D @playwright-manager/reporter
+# or
+pnpm add -D @playwright-manager/reporter
+```
+
+## Configuration
+
+Add the reporter to your `playwright.config.ts`:
+
+```ts title="playwright.config.ts"
+import { defineConfig } from "@playwright/test";
+
+export default defineConfig({
+  reporter: [
+    ["html"],
+    [
+      "@playwright-manager/reporter",
+      {
+        apiUrl: "http://localhost:3000",
+        repository: "org/repo",
+      },
+    ],
+  ],
+});
+```
+
+### Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `apiUrl` | `string` | **required** | URL of the Playwright Manager dashboard |
+| `repository` | `string` | **required** | Repository identifier in `org/repo` format |
+| `disabled` | `boolean` | `false` | Disable the reporter without removing config |
+| `branch` | `string` | auto-detect | Override the detected git branch |
+| `commitSha` | `string` | auto-detect | Override the detected commit SHA |
+| `ciJobUrl` | `string` | auto-detect | Override the CI job URL |
+| `runId` | `string` | auto-generate | Custom test run identifier |
+| `batchSize` | `number` | `50` | Number of results to batch before sending |
+| `flushInterval` | `number` | `5000` | Interval (ms) to flush results even if batch size not reached |
+| `failSilently` | `boolean` | `true` | Suppress errors if dashboard is unreachable |
+| `debug` | `boolean` | `false` | Enable debug logging |
+| `s3` | `S3ReportConfig` | — | S3 configuration for HTML report hosting |
+
+### Full example
+
+```ts title="playwright.config.ts"
+export default defineConfig({
+  reporter: [
+    ["html"],
+    [
+      "@playwright-manager/reporter",
+      {
+        apiUrl: process.env.PLAYWRIGHT_MANAGER_URL,
+        repository: "org/repo",
+        failSilently: true,
+        debug: process.env.CI !== "true",
+        s3: {
+          bucket: "playwright-reports",
+          region: "us-east-1",
+          endpoint: process.env.S3_ENDPOINT,
+          pathPrefix: "reports",
+        },
+      },
+    ],
+  ],
+});
+```
+
+## CI Detection
+
+The reporter automatically detects your CI environment and extracts branch, commit SHA, and job URL. No configuration needed — it just works.
+
+| CI Provider | Detection Variable | Branch | Commit SHA | Job URL |
+|---|---|---|---|---|
+| GitHub Actions | `GITHUB_ACTIONS` | `GITHUB_REF_NAME` / `GITHUB_HEAD_REF` | `GITHUB_SHA` | Constructed from `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `GITHUB_RUN_ID` |
+| GitLab CI | `GITLAB_CI` | `CI_COMMIT_REF_NAME` | `CI_COMMIT_SHA` | `CI_JOB_URL` |
+| CircleCI | `CIRCLECI` | `CIRCLE_BRANCH` | `CIRCLE_SHA1` | `CIRCLE_BUILD_URL` |
+| Jenkins | `JENKINS_URL` | `GIT_BRANCH` / `BRANCH_NAME` | `GIT_COMMIT` | `BUILD_URL` |
+| Azure DevOps | `TF_BUILD` | `BUILD_SOURCEBRANCH` | `BUILD_SOURCEVERSION` | Constructed from collection URI + project |
+| Codefresh | `CF_BUILD_URL` | `CF_BRANCH` | `CF_REVISION` | `CF_BUILD_URL` |
+| Generic CI | `CI` | `BRANCH_NAME` / `GIT_BRANCH` | `GIT_COMMIT` / `COMMIT_SHA` | — |
+
+For unsupported CI providers, you can manually set `branch`, `commitSha`, and `ciJobUrl` in the reporter options.
+
+## S3 Report Hosting
+
+Upload your Playwright HTML reports to S3-compatible storage so they're accessible from the dashboard.
+
+### S3 Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `s3.bucket` | `string` | **required** | S3 bucket name |
+| `s3.region` | `string` | **required** | AWS region or S3-compatible region |
+| `s3.endpoint` | `string` | AWS S3 | Custom endpoint for S3-compatible providers |
+| `s3.accessKeyId` | `string` | from env/IAM | Access key ID |
+| `s3.secretAccessKey` | `string` | from env/IAM | Secret access key |
+| `s3.pathPrefix` | `string` | `"reports"` | Path prefix within the bucket |
+| `s3.reportDir` | `string` | `"playwright-report"` | Local HTML report directory |
+| `s3.autoUpload` | `boolean` | `true` | Upload automatically at end of test run |
+
+### Supported providers
+
+The S3 integration works with any S3-compatible storage:
+
+- **AWS S3** — No `endpoint` needed
+- **MinIO** — `endpoint: "http://minio.example.com:9000"`
+- **Cloudflare R2** — `endpoint: "https://<account>.r2.cloudflarestorage.com"`
+- **DigitalOcean Spaces** — `endpoint: "https://<region>.digitaloceanspaces.com"`
+- **Google Cloud Storage** — `endpoint: "https://storage.googleapis.com"`
+- **Backblaze B2** — `endpoint: "https://s3.<region>.backblazeb2.com"`
+
+### Upload path structure
+
+Reports are uploaded to:
+
+```
+{bucket}/{pathPrefix}/{repository}/{runId}/
+```
+
+For example: `playwright-reports/reports/org/repo/github-123456-1/index.html`
+
+## CLI
+
+The reporter package includes a CLI for uploading reports separately from test execution. This is useful when `s3.autoUpload` is set to `false`, or when you want to upload reports from a different CI step.
+
+```bash
+npx playwright-manager upload-report [options]
+```
+
+### CLI Options
+
+| Option | Description |
+|--------|-------------|
+| `--config <path>` | Path to `playwright.config.ts` (default: auto-detect) |
+| `--report-dir <path>` | Override report directory (default: from config) |
+| `--run-id <id>` | Override run ID (default: auto-detect from CI) |
+| `--help, -h` | Show help |
+
+The CLI reads S3 configuration from your `playwright.config.ts` reporter options — no duplicate config needed.
+
+## Result Batching
+
+Results are sent to the dashboard in batches for efficiency:
+
+1. Results accumulate in a queue as tests complete
+2. When the queue reaches `batchSize` (default: 50), results are flushed to the API
+3. A periodic timer (every `flushInterval` ms) flushes any remaining results
+4. On test run completion, all remaining results are sent with the final status
+
+If a flush fails and `failSilently` is `true`, results are re-queued for the next attempt.

@@ -32,19 +32,19 @@ import { useTimeRangeUrl } from "@/hooks";
 
 const overviewItem = {
   title: "Overview",
-  path: "/dashboard",
+  path: "/",
   icon: LayoutDashboard,
 };
 
 const manageItems = [
   {
     title: "Tests",
-    path: "/dashboard/tests",
+    path: "/tests",
     icon: FlaskConical,
   },
   {
     title: "Quarantined",
-    path: "/dashboard/quarantined",
+    path: "/quarantined",
     icon: ShieldBan,
   },
 ];
@@ -52,19 +52,19 @@ const manageItems = [
 const reportItems = [
   {
     title: "Pipelines",
-    path: "/dashboard/pipelines",
+    path: "/pipelines",
     icon: Workflow,
   },
   {
     title: "Results",
-    path: "/dashboard/results",
+    path: "/results",
     icon: ListChecks,
   },
 ];
 
 const settingsItem = {
   title: "Settings",
-  path: "/dashboard/settings",
+  path: "/settings",
   icon: Settings,
 };
 

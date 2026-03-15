@@ -4,7 +4,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "pnpm --filter @playwright-manager/dashboard dev",
+    "dev:docs": "pnpm --filter @playwright-manager/docs dev",
     "build": "pnpm --filter @playwright-manager/dashboard build",
+    "build:docs": "pnpm --filter @playwright-manager/docs build",
     "start": "pnpm --filter @playwright-manager/dashboard start",
     "lint": "pnpm --filter @playwright-manager/dashboard lint",
     "check": "biome check",

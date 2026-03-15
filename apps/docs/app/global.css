@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+:root {
+  --landing-bg: #06060b;
+  --landing-surface: #0d0d14;
+  --landing-border: #1a1a2e;
+  --landing-border-hover: #2a2a4a;
+  --landing-text: #e2e2e8;
+  --landing-text-muted: #6b6b80;
+  --landing-accent: #22c55e;
+  --landing-accent-dim: #16a34a;
+  --landing-glow: rgba(34, 197, 94, 0.08);
+  --landing-glow-strong: rgba(34, 197, 94, 0.15);
+}
+
+.landing-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.landing-radial-glow {
+  background: radial-gradient(
+    ellipse 600px 400px at center,
+    var(--landing-glow-strong),
+    transparent
+  );
+}
+
+.landing-card-glow:hover {
+  box-shadow:
+    0 0 0 1px var(--landing-border-hover),
+    0 0 20px -5px var(--landing-glow);
+}
+
+.terminal-window {
+  background: #0c0c14;
+  border: 1px solid var(--landing-border);
+  box-shadow:
+    0 0 40px -10px var(--landing-glow),
+    0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.terminal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.terminal-line {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.terminal-cursor {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -12;
+  }
+}
+
+.animated-dash {
+  animation: dash-flow 0.8s linear infinite;
+}
+
+.code-block {
+  background: #0c0c14;
+  border: 1px solid var(--landing-border);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.code-keyword { color: #c792ea; }
+.code-string { color: #c3e88d; }
+.code-property { color: #82aaff; }
+.code-punctuation { color: #6b6b80; }
+.code-comment { color: #4a4a5a; }

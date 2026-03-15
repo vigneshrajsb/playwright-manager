@@ -1,0 +1,134 @@
+---
+title: ESLint Plugin
+description: ESLint rule enforcing fixture imports over @playwright/test.
+---
+
+## Overview
+
+The `@playwright-manager/eslint-plugin` enforces that `test` and `expect` are imported from `@playwright-manager/fixture` instead of `@playwright/test`. Without this, IDE autocomplete can silently import from `@playwright/test`, bypassing the fixture's auto-skip functionality.
+
+## Installation
+
+```bash
+npm install -D @playwright-manager/eslint-plugin
+# or
+pnpm add -D @playwright-manager/eslint-plugin
+```
+
+## Configuration
+
+### Flat Config (ESLint 9+)
+
+Apply to all files using the recommended config:
+
+```js title="eslint.config.mjs"
+import playwrightManager from "@playwright-manager/eslint-plugin";
+
+export default [
+  ...playwrightManager.configs.recommended,
+];
+```
+
+Or apply only to test files:
+
+```js title="eslint.config.mjs"
+import playwrightManager from "@playwright-manager/eslint-plugin";
+
+export default [
+  {
+    files: ["**/*.spec.ts", "**/*.test.ts"],
+    plugins: { "@playwright-manager": playwrightManager },
+    rules: {
+      "@playwright-manager/require-fixture-imports": "error",
+    },
+  },
+];
+```
+
+### Legacy Config (ESLint 8)
+
+```json title=".eslintrc.json"
+{
+  "plugins": ["@playwright-manager"],
+  "rules": {
+    "@playwright-manager/require-fixture-imports": "error"
+  }
+}
+```
+
+## Rule: `require-fixture-imports`
+
+### What it catches
+
+The rule flags imports of `test` and `expect` from `@playwright/test`:
+
+```ts title="Incorrect"
+import { test, expect } from "@playwright/test";
+
+import { test } from "@playwright/test";
+
+import { expect } from "@playwright/test";
+
+import test from "@playwright/test";
+```
+
+```ts title="Correct"
+import { test, expect } from "@playwright-manager/fixture";
+
+// Type-only and utility imports from @playwright/test are fine
+import type { Page, TestInfo } from "@playwright/test";
+import { chromium, devices } from "@playwright/test";
+import * as pw from "@playwright/test";
+```
+
+### Rule options
+
+```js
+{
+  "@playwright-manager/require-fixture-imports": ["error", {
+    // Flag additional imports beyond test and expect
+    additionalImports: ["mergeTests"]
+  }]
+}
+```
+
+The `additionalImports` option lets you flag other named imports that should come from `@playwright-manager/fixture`.
+
+## Auto-fix
+
+The rule provides automatic fixes via `eslint --fix`:
+
+### Simple case — all imports are flagged
+
+The import source is rewritten:
+
+```ts title="Before"
+import { test, expect } from "@playwright/test";
+```
+
+```ts title="After"
+import { test, expect } from "@playwright-manager/fixture";
+```
+
+### Mixed imports — split into two statements
+
+When the import contains both flagged and allowed imports, it splits them:
+
+```ts title="Before"
+import { test, expect, Page, Browser } from "@playwright/test";
+```
+
+```ts title="After"
+import { test, expect } from "@playwright-manager/fixture";
+import { Page, Browser } from "@playwright/test";
+```
+
+Aliases are preserved during auto-fix:
+
+```ts title="Before"
+import { test as baseTest, expect } from "@playwright/test";
+```
+
+```ts title="After"
+import { test as baseTest, expect } from "@playwright-manager/fixture";
+```
