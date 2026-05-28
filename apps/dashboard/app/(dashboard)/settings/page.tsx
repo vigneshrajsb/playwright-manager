@@ -1,6 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { GeneralSettingsTab } from "@/components/settings/general-settings-tab";
 import { PromptSettingsTab } from "@/components/settings/prompt-settings-tab";
 
 export default function SettingsPage() {
@@ -13,23 +14,21 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="prompt" className="space-y-4">
+      <Tabs defaultValue="general" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="prompt">Prompt</TabsTrigger>
-          <TabsTrigger value="general" disabled>
-            General
-          </TabsTrigger>
           <TabsTrigger value="integrations" disabled>
             Integrations
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="prompt" className="space-y-4">
-          <PromptSettingsTab />
+        <TabsContent value="general" className="space-y-4">
+          <GeneralSettingsTab />
         </TabsContent>
 
-        <TabsContent value="general">
-          <p className="text-muted-foreground">Coming soon</p>
+        <TabsContent value="prompt" className="space-y-4">
+          <PromptSettingsTab />
         </TabsContent>
 
         <TabsContent value="integrations">

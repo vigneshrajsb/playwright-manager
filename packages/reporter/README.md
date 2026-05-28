@@ -10,6 +10,9 @@ Playwright reporter that sends test results to the Playwright Manager Dashboard 
 - Flaky test identification based on retry behavior
 - Tag and annotation support
 - Sharded test run tracking
+- **Startup connectivity check** — warns immediately if the dashboard is unreachable
+- **Environment variable fallbacks** — configure via `PLAYWRIGHT_MANAGER_URL` and `PLAYWRIGHT_MANAGER_REPOSITORY` for org-wide CI setup
+- **CLI tools** — `init`, `check-connection`, and `upload-report` commands
 
 ## Installation
 
@@ -23,7 +26,15 @@ yarn add @playwright-manager/reporter
 
 ## Quick Start
 
-Add the reporter to your `playwright.config.ts`:
+The fastest way to set up is the interactive wizard:
+
+```bash
+npx playwright-manager init
+```
+
+This auto-detects your repository, checks the dashboard connection, and prints the config snippet.
+
+Or add the reporter manually to your `playwright.config.ts`:
 
 ```typescript
 import { defineConfig } from "@playwright/test";
@@ -46,8 +57,8 @@ export default defineConfig({
 
 | Option              | Type      | Required | Default       | Description                                       |
 | ------------------- | --------- | -------- | ------------- | ------------------------------------------------- |
-| `apiUrl`            | `string`  | Yes      | -             | URL of your Playwright Manager Dashboard          |
-| `repository`        | `string`  | Yes      | -             | Repository identifier in `org/repo` format        |
+| `apiUrl`            | `string`  | No       | `PLAYWRIGHT_MANAGER_URL` env var | URL of your Playwright Manager Dashboard |
+| `repository`        | `string`  | No       | `PLAYWRIGHT_MANAGER_REPOSITORY` env var | Repository identifier in `org/repo` format |
 | `disabled`          | `boolean` | No       | `false`       | Disable the reporter without removing config      |
 | `branch`            | `string`  | No       | auto-detect   | Override the git branch name                      |
 | `commitSha`         | `string`  | No       | auto-detect   | Override the commit SHA                           |
@@ -58,7 +69,68 @@ export default defineConfig({
 | `runId`             | `string`  | No       | auto-generate | Custom identifier for the test run                |
 | `debug`             | `boolean` | No       | `false`       | Enable debug logging                              |
 
+Both `apiUrl` and `repository` can be set via environment variables as fallback:
+- `PLAYWRIGHT_MANAGER_URL` — fallback for `apiUrl`
+- `PLAYWRIGHT_MANAGER_REPOSITORY` — fallback for `repository`
+
+Precedence: explicit config > environment variable. At least one source must provide both values.
+
+## CLI
+
+The reporter package includes a CLI at `npx playwright-manager`:
+
+### `init` — Interactive Setup
+
+```bash
+npx playwright-manager init
+```
+
+Walks you through setup: prompts for dashboard URL, auto-detects repository from git remote, detects your package manager, prints install commands and config snippet, and verifies the dashboard connection.
+
+### `check-connection` — Verify Dashboard
+
+```bash
+npx playwright-manager check-connection
+```
+
+Loads your `playwright.config.ts` (or uses `PLAYWRIGHT_MANAGER_URL`), hits the dashboard health endpoint, and prints structured pass/fail for DB and S3. Exits non-zero on failure — useful in CI setup scripts.
+
+### `upload-report` — Upload HTML Report
+
+```bash
+npx playwright-manager upload-report
+```
+
+Uploads a Playwright HTML report to S3-compatible storage. Requires S3 configuration in your reporter options.
+
+## Startup Connectivity Check
+
+On `onBegin()`, the reporter makes a non-blocking `GET /api/admin/health` call and logs the result:
+
+- **Success:** `[Playwright Manager] Connected to https://your-dashboard`
+- **Failure:** `[Playwright Manager] ⚠ Cannot reach dashboard at https://your-dashboard — results will not be recorded`
+
+If `apiUrl` is empty/missing (and no env var is set), the reporter warns:
+`[Playwright Manager] ⚠ apiUrl is empty — set it in reporter options or via PLAYWRIGHT_MANAGER_URL env var`
+
 ## Examples
+
+### Org-Wide CI Setup (Environment Variables)
+
+Set these in your CI provider's environment variables — no per-repo config changes needed:
+
+```bash
+PLAYWRIGHT_MANAGER_URL=https://your-dashboard.example.com
+PLAYWRIGHT_MANAGER_REPOSITORY=your-org/your-repo
+```
+
+```typescript
+export default defineConfig({
+  reporter: [
+    ["@playwright-manager/reporter"],
+  ],
+});
+```
 
 ### Basic Local Setup
 
@@ -76,7 +148,7 @@ export default defineConfig({
 });
 ```
 
-### CI Setup with Environment Variables
+### CI Setup with Explicit Environment Variables
 
 ```typescript
 export default defineConfig({
@@ -572,8 +644,8 @@ The release triggers the npm publish workflow automatically.
 
 | Package Version | Playwright Version |
 | --------------- | ------------------ |
-| 0.2.x           | >= 1.25.0          |
-| 0.1.x           | >= 1.25.0          |
+| 0.7.x           | >= 1.25.0          |
+| 0.6.x           | >= 1.25.0          |
 
 **Minimum supported version: 1.25.0** (required for `TestCase.id` API)
 

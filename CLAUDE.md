@@ -38,7 +38,8 @@ Self-hosted test management for Playwright - track health, manage flaky tests, a
 ## Project Structure
 
 - `apps/dashboard` - Next.js 16 full-stack app (UI + API routes)
-- `packages/reporter` - Playwright reporter that sends results to dashboard
+- `apps/docs` - Documentation site (Fumadocs)
+- `packages/reporter` - Playwright reporter that sends results to dashboard + CLI (`playwright-manager`)
 - `packages/fixture` - Playwright fixture that auto-skips disabled tests
 - `packages/eslint-plugin` - ESLint plugin enforcing fixture imports over @playwright/test
 
@@ -91,6 +92,8 @@ pnpm db:studio              # Open Drizzle Studio GUI
    - Auto-detects CI environment (GitHub Actions, GitLab, CircleCI, Jenkins, Azure DevOps, Codefresh)
    - Batches results (50 per request) to `POST /api/results` and `POST /api/reports`
    - Extracts branch, commit SHA, job URL from CI environment
+   - Startup connectivity check (non-blocking GET to `/api/admin/health`)
+   - CLI: `npx playwright-manager init|check-connection|upload-report`
 
 3. **ESLint Plugin** (`packages/eslint-plugin`) - Linting for test files
 
@@ -123,8 +126,15 @@ pnpm db:generate
 
 This generates migration files in `apps/dashboard/drizzle/`. Commit these with your schema changes. CI will fail if migrations are missing.
 
+### Environment Variable Fallbacks
+
+Both reporter and fixture support `PLAYWRIGHT_MANAGER_URL` and `PLAYWRIGHT_MANAGER_REPOSITORY` as fallbacks when `apiUrl`/`repository` are not set in config. Precedence: explicit config > env var.
+
 ### Key API Endpoints
 
+- `GET /api/health` - Lightweight liveness check (for K8s probes)
+- `GET /api/admin/health` - Deep health check (DB + S3 connectivity)
+- `GET /api/admin/status` - Instance status (test/run counts, used for onboarding detection)
 - `POST /api/tests/check` - Fixture checks which tests to skip
 - `POST /api/results` - Reporter submits test results
 - `POST /api/reports` - Reporter submits run metadata
@@ -147,8 +157,12 @@ This generates migration files in `apps/dashboard/drizzle/`. Commit these with y
 - `apps/dashboard/lib/db/schema.ts` - Database schema (source of truth)
 - `apps/dashboard/app/api/tests/check/route.ts` - Fixture integration
 - `apps/dashboard/app/api/results/route.ts` - Reporter integration
+- `apps/dashboard/app/api/health/route.ts` - Lightweight liveness check
+- `apps/dashboard/app/api/admin/health/route.ts` - Deep health check (DB + S3)
+- `apps/dashboard/app/api/admin/status/route.ts` - Instance status for onboarding
 - `packages/fixture/src/fixture.ts` - Skip logic implementation
 - `packages/reporter/src/reporter.ts` - Result batching + CI detection
+- `packages/reporter/src/cli.ts` - CLI entry point (init, check-connection, upload-report)
 - `packages/eslint-plugin/src/rules/require-fixture-imports.ts` - ESLint rule implementation
 
 ## Pre-Commit Checklist

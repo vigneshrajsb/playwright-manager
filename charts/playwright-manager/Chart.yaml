@@ -2,8 +2,8 @@ apiVersion: v2
 name: playwright-manager
 description: Self-hosted test management for Playwright - track health, manage flaky tests, and control test execution remotely via quarantine rules
 type: application
-version: 0.5.1
-appVersion: "0.5.1"
+version: 0.7.0
+appVersion: "0.7.0"
 home: https://github.com/vigneshrajsb/playwright-manager
 sources:
   - https://github.com/vigneshrajsb/playwright-manager
@@ -19,9 +19,13 @@ keywords:
 annotations:
   artifacthub.io/license: MIT
   artifacthub.io/changes: |
-    - Add quarantine tracking with skip counts, pipeline split, and result badges
-    - Add test detail sidebar with run history and skip rules
-    - Rename disable to quarantine throughout dashboard
+    - Add env var fallbacks (PLAYWRIGHT_MANAGER_URL, PLAYWRIGHT_MANAGER_REPOSITORY) for org-wide CI setup
+    - Add CLI commands: init wizard, check-connection, upload-report
+    - Add startup connectivity check in reporter and fixture
+    - Add deep health check endpoint (DB + S3 connectivity)
+    - Add dashboard onboarding flow for first-time users
+    - Add Settings General tab with connection status and config snippet
+    - Fill all documentation pages (getting-started, self-hosting)
 dependencies:
   - name: postgresql
     version: "~16.4.0"

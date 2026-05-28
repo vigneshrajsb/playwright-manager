@@ -14,7 +14,7 @@ export const metadata = {
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -28,7 +28,11 @@ export default function Layout({ children }: { children: ReactNode }) {
         />
       </head>
       <body>
-        <RootProvider>{children}</RootProvider>
+        <RootProvider
+          theme={{ defaultTheme: "dark", enabled: false }}
+        >
+          {children}
+        </RootProvider>
       </body>
     </html>
   );

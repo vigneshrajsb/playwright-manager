@@ -5,8 +5,62 @@ description: Install Playwright Manager packages in your project.
 
 ## Prerequisites
 
-Content coming soon.
+- **Node.js 18+** (required by Playwright)
+- **Playwright 1.25+** as a peer dependency
+- A running Playwright Manager dashboard ([self-hosting guide](/docs/self-hosting/docker))
+
+## Packages
+
+| Package | Purpose | Required? |
+|---------|---------|-----------|
+| `@playwright-manager/reporter` | Sends test results to the dashboard after each run | Yes |
+| `@playwright-manager/fixture` | Auto-skips quarantined tests before they run | Recommended |
+| `@playwright-manager/eslint-plugin` | Enforces importing `test`/`expect` from the fixture | Optional |
 
 ## Install the packages
 
-Content coming soon.
+### Reporter + Fixture (recommended)
+
+```bash
+npm install -D @playwright-manager/reporter @playwright-manager/fixture
+```
+
+### Reporter only
+
+If you only want result tracking without quarantine support:
+
+```bash
+npm install -D @playwright-manager/reporter
+```
+
+### ESLint plugin
+
+Prevents accidental imports from `@playwright/test` when using the fixture:
+
+```bash
+npm install -D @playwright-manager/eslint-plugin
+```
+
+## What each package does
+
+### Reporter
+
+Runs as a Playwright reporter. After your test suite finishes, it batches results and sends them to `POST /api/reports` on your dashboard. It auto-detects CI environments (GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps, Codefresh) for branch, commit, and job URL metadata.
+
+### Fixture
+
+Extends Playwright's `test` object. Before each test runs, the fixture calls `POST /api/tests/check` to see if the test is quarantined. If it is, the test is skipped with a `[dashboard]` annotation. Results are cached per-worker (default 60s TTL) to minimize API calls.
+
+### ESLint plugin
+
+Provides a single rule (`@playwright-manager/require-fixture-imports`) that flags imports of `test` or `expect` from `@playwright/test` and auto-fixes them to import from `@playwright-manager/fixture` instead.
+
+## Verify installation
+
+After installing and configuring, run the connection check:
+
+```bash
+npx playwright-manager check-connection
+```
+
+This verifies that the dashboard is reachable and reports database/storage status.

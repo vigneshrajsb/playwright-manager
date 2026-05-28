@@ -1,6 +1,6 @@
 {
   "name": "@playwright-manager/fixture",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Playwright fixture for Test Manager Dashboard integration",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

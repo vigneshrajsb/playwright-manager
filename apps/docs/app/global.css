@@ -13,6 +13,46 @@
   --landing-glow-strong: rgba(34, 197, 94, 0.15);
 }
 
+/* Dark-only Fumadocs theme with green accent — double class for specificity over fumadocs defaults */
+html.dark.dark {
+  --color-fd-background: #0a0a12;
+  --color-fd-foreground: #e2e2e8;
+  --color-fd-muted: #14141e;
+  --color-fd-muted-foreground: #9a9ab0cc;
+  --color-fd-popover: #111119;
+  --color-fd-popover-foreground: #d8d8e0;
+  --color-fd-card: #0f0f18;
+  --color-fd-card-foreground: #f0f0f4;
+  --color-fd-border: #2a2a4033;
+  --color-fd-primary: #22c55e;
+  --color-fd-primary-foreground: #0a0a12;
+  --color-fd-secondary: #14141e;
+  --color-fd-secondary-foreground: #e2e2e8;
+  --color-fd-accent: #22c55e26;
+  --color-fd-accent-foreground: #4ade80;
+  --color-fd-ring: #22c55e;
+}
+
+html.dark.dark #nd-sidebar {
+  background-color: #08080f;
+}
+
+/* Prose inline links — green accent (exclude heading anchors) */
+.prose :is(p, li, td) a {
+  color: #4ade80;
+  text-decoration-color: #22c55e40;
+}
+.prose :is(p, li, td) a:hover {
+  color: #22c55e;
+  text-decoration-color: #22c55e;
+}
+
+/* JetBrains Mono for code blocks */
+pre code,
+:not(pre) > code {
+  font-family: "JetBrains Mono", monospace !important;
+}
+
 .landing-grid-bg {
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
